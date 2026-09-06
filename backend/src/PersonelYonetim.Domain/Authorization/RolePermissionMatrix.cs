@@ -27,7 +27,8 @@ public static class RolePermissionMatrix
             PermissionCodes.ReportsExportPdf,
             PermissionCodes.DataQualityView,
             PermissionCodes.NotificationsView,
-            PermissionCodes.FilesView
+            PermissionCodes.FilesView,
+            PermissionCodes.EventsView
         ],
 
         // Müdür: tam müdürlük yönetimi (TCKN / özel durum dahil yetkili)
@@ -68,7 +69,9 @@ public static class RolePermissionMatrix
             PermissionCodes.FilesView,
             PermissionCodes.FilesUpload,
             PermissionCodes.NotificationsView,
-            PermissionCodes.AuditLogsView
+            PermissionCodes.AuditLogsView,
+            PermissionCodes.EventsView,
+            PermissionCodes.EventsManage
         ],
 
         // Müdür yardımcısı: yazma var; TCKN ve özel durum yok
@@ -99,7 +102,9 @@ public static class RolePermissionMatrix
             PermissionCodes.DataQualityView,
             PermissionCodes.FilesView,
             PermissionCodes.FilesUpload,
-            PermissionCodes.NotificationsView
+            PermissionCodes.NotificationsView,
+            PermissionCodes.EventsView,
+            PermissionCodes.EventsManage
         ],
 
         // Birim sorumlusu: sadece kendi birimi (ViewAllUnits YOK)
@@ -115,7 +120,8 @@ public static class RolePermissionMatrix
             PermissionCodes.OrganizationView,
             PermissionCodes.ReportsView,
             PermissionCodes.FilesView,
-            PermissionCodes.NotificationsView
+            PermissionCodes.NotificationsView,
+            PermissionCodes.EventsView
         ],
 
         // Veri giriş: yazma var, hassas/not yok
@@ -136,7 +142,9 @@ public static class RolePermissionMatrix
             PermissionCodes.ImportExcel,
             PermissionCodes.FilesView,
             PermissionCodes.FilesUpload,
-            PermissionCodes.NotificationsView
+            PermissionCodes.NotificationsView,
+            PermissionCodes.EventsView,
+            PermissionCodes.EventsManage
         ],
 
         // Salt görüntüleme
@@ -146,7 +154,8 @@ public static class RolePermissionMatrix
             PermissionCodes.EmployeesView,
             PermissionCodes.OrganizationView,
             PermissionCodes.ReportsView,
-            PermissionCodes.NotificationsView
+            PermissionCodes.NotificationsView,
+            PermissionCodes.EventsView
         ]
     };
 

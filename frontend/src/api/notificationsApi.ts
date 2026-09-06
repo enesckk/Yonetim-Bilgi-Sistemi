@@ -29,6 +29,7 @@ export const NOTIFICATION_CATEGORIES = [
   { key: 'Notes', label: 'Notlar' },
   { key: 'Assignments', label: 'Görevler' },
   { key: 'Employees', label: 'Personel' },
+  { key: 'Events', label: 'Etkinlikler' },
   { key: 'Import', label: 'Aktarım' },
   { key: 'Export', label: 'Dışa aktarım' },
   { key: 'System', label: 'Sistem' },

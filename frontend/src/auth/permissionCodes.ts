@@ -24,6 +24,8 @@ export const PermissionCodes = {
   NotesCreateManager: 'Notes.CreateManager',
   OrganizationView: 'Organization.View',
   OrganizationManage: 'Organization.Manage',
+  EventsView: 'Events.View',
+  EventsManage: 'Events.Manage',
   AuditLogsView: 'AuditLogs.View',
   ReportsView: 'Reports.View',
   ReportsExportExcel: 'Reports.ExportExcel',

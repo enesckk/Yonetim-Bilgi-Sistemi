@@ -1,7 +1,9 @@
+using System.Text;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using PersonelYonetim.Api.Authorization;
 using PersonelYonetim.Application.Common.Models;
+using PersonelYonetim.Application.Features.Events;
 using PersonelYonetim.Application.Features.Organization;
 using PersonelYonetim.Domain.Authorization;
 
@@ -27,6 +29,37 @@ public sealed class OrganizationUnitsController : ControllerBase
     {
         var tree = await _sender.Send(new GetOrganizationTreeQuery(), cancellationToken);
         return Ok(ApiResponse<IReadOnlyList<OrganizationUnitNodeDto>>.Ok(tree, HttpContext.TraceIdentifier));
+    }
+
+    [HttpGet("coords-import/template")]
+    [RequirePermission(PermissionCodes.OrganizationManage)]
+    public IActionResult CoordsImportTemplate()
+    {
+        const string csv = "TesisKodu,Enlem,Boylam\nFAC_KKM,37.0785,37.3720\n";
+        var bytes = Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(csv)).ToArray();
+        return File(bytes, "text/csv", "tesis-koordinat-sablon.csv");
+    }
+
+    [HttpPost("coords-import")]
+    [RequirePermission(PermissionCodes.OrganizationManage)]
+    [RequestSizeLimit(2 * 1024 * 1024)]
+    [ProducesResponseType(typeof(ApiResponse<FacilityCoordsImportResultDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<FacilityCoordsImportResultDto>>> CoordsImport(
+        IFormFile file,
+        CancellationToken cancellationToken)
+    {
+        if (file is null || file.Length == 0)
+        {
+            return BadRequest(ApiResponse<FacilityCoordsImportResultDto>.Fail(
+                new ApiError { Code = "VALIDATION", Message = "Dosya gerekli." },
+                HttpContext.TraceIdentifier));
+        }
+
+        await using var stream = file.OpenReadStream();
+        var result = await _sender.Send(
+            new ImportFacilityCoordsCommand { FileStream = stream, FileName = file.FileName },
+            cancellationToken);
+        return Ok(ApiResponse<FacilityCoordsImportResultDto>.Ok(result, HttpContext.TraceIdentifier));
     }
 
     [HttpGet("{id:guid}")]

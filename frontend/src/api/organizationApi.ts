@@ -21,6 +21,8 @@ export interface OrgNode {
   facilityCategoryId?: string | null
   facilityCategoryName?: string | null
   address?: string | null
+  latitude?: number | null
+  longitude?: number | null
   capacity?: number | null
   workingHours?: string | null
   managerEmployeeId?: string | null
@@ -123,6 +125,8 @@ export interface UpsertOrgUnitPayload {
   email?: string | null
   facilityCategoryId?: string | null
   address?: string | null
+  latitude?: number | null
+  longitude?: number | null
   capacity?: number | null
   workingHours?: string | null
   idealStaffCount?: number | null

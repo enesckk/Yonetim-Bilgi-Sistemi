@@ -90,6 +90,15 @@ public static class DependencyInjection
             configuration.GetSection(Files.FileStorageOptions.SectionName));
         services.AddScoped<IFileStorageService, Files.LocalFileStorageService>();
 
+        services.AddHttpClient("Nominatim", client =>
+        {
+            client.BaseAddress = new Uri("https://nominatim.openstreetmap.org/");
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(
+                "PersonelYonetim/1.0 (Sehitkamil Belediyesi; yerel-yonetim)");
+            client.Timeout = TimeSpan.FromSeconds(12);
+        });
+        services.AddScoped<IGeocodingService, Geo.NominatimGeocodingService>();
+
         services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
         services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
 

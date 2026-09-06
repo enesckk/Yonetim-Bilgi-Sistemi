@@ -43,6 +43,7 @@ public static class DbSeeder
             await SeedSampleEmployeesAsync(db, logger, cancellationToken);
             await SeedDemoSensitiveDataAsync(db, logger, cancellationToken);
             await SeedSampleNotificationsAsync(db, logger, cancellationToken);
+            await SeedSampleEventsAndMapDataAsync(db, logger, cancellationToken);
         }
         else
         {
@@ -205,9 +206,6 @@ public static class DbSeeder
 
     private static async Task SeedFacilityCategoriesAsync(AppDbContext db, ILogger logger, CancellationToken ct)
     {
-        if (await db.FacilityCategories.AnyAsync(ct))
-            return;
-
         var items = new (string Name, string Code, int Order)[]
         {
             ("Kültür Merkezi", "KULTUR_MERKEZI", 1),
@@ -216,11 +214,18 @@ public static class DbSeeder
             ("Sosyal Tesis", "SOSYAL_TESIS", 4),
             ("Gençlik Merkezi", "GENCLIK_MERKEZI", 5),
             ("Kurs Merkezi", "KURS_MERKEZI", 6),
-            ("İdari Bina", "IDARI_BINA", 7),
+            ("Okul", "OKUL", 7),
+            ("İdari Bina", "IDARI_BINA", 8),
             ("Diğer", "DIGER", 99)
         };
 
-        db.FacilityCategories.AddRange(items.Select(x => new FacilityCategory
+        var existing = await db.FacilityCategories.Select(x => x.Code).ToListAsync(ct);
+        var existingSet = existing.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var toAdd = items.Where(x => !existingSet.Contains(x.Code)).ToArray();
+        if (toAdd.Length == 0)
+            return;
+
+        db.FacilityCategories.AddRange(toAdd.Select(x => new FacilityCategory
         {
             Name = x.Name,
             Code = x.Code,
@@ -230,7 +235,7 @@ public static class DbSeeder
         }));
 
         await db.SaveChangesAsync(ct);
-        logger.LogInformation("Seed: tesis türleri eklendi.");
+        logger.LogInformation("Seed: {Count} tesis türü eklendi.", toAdd.Length);
     }
 
     private static async Task SeedOrganizationAsync(AppDbContext db, ILogger logger, CancellationToken ct)
@@ -295,6 +300,266 @@ public static class DbSeeder
         await db.SaveChangesAsync(ct);
 
         logger.LogInformation("Seed: örnek organizasyon ağacı eklendi.");
+    }
+
+    /// <summary>
+    /// Development: Şehitkamil haritası / etkinlik modülü için örnek tesis koordinatları ve etkinlikler.
+    /// Idempotent — kod veya başlık varsa atlar.
+    /// </summary>
+    private static async Task SeedSampleEventsAndMapDataAsync(AppDbContext db, ILogger logger, CancellationToken ct)
+    {
+        var directorate = await db.OrganizationUnits.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Code == "KSSIM", ct);
+        if (directorate is null)
+        {
+            logger.LogWarning("Seed: KSSIM müdürlüğü yok — etkinlik/harita örnek verisi atlandı.");
+            return;
+        }
+
+        var categories = await db.FacilityCategories.AsNoTracking().ToListAsync(ct);
+        Guid? Cat(string code) => categories.FirstOrDefault(c => c.Code == code)?.Id;
+
+        var parentByCode = await db.OrganizationUnits.AsNoTracking()
+            .Where(x => x.Code != null)
+            .ToDictionaryAsync(x => x.Code!, x => x.Id, ct);
+
+        Guid Parent(string code) =>
+            parentByCode.TryGetValue(code, out var id) ? id : directorate.Id;
+
+        // Örnek tesisler (Şehitkamil içinde gerçekçi koordinatlar)
+        var demoFacilities = new (string Name, string Code, string ParentCode, string? CatCode, double? Lat, double? Lng, string Address)[]
+        {
+            ("Şehitkamil Kültür Merkezi", "FAC_KKM", "KKM", "KULTUR_MERKEZI", 37.0785, 37.3720, "Onatlı Mah., Şehitkamil / Gaziantep"),
+            ("Şehitkamil Sanat Merkezi Sahnesi", "FAC_SANAT", "SANAT", "KULTUR_MERKEZI", 37.0912, 37.3515, "Atatürk Mah., Şehitkamil"),
+            ("Şehitkamil Nikah Salonu", "FAC_NIKAH", "NIKAH", "SOSYAL_TESIS", 37.0850, 37.3650, "15 Temmuz Mah., Şehitkamil"),
+            ("Karataş Gençlik Kütüphanesi", "FAC_KUT", "GENCLIK_KUT", "KUTUPHANE", 37.1120, 37.3280, "Karataş Mah., Şehitkamil"),
+            ("Aktoprak Spor Tesisi", "FAC_SPOR", "AGROPARK", "SPOR_TESISI", 37.1860, 37.2860, "Aktoprak, Şehitkamil"),
+            ("Bilim Şehitkamil Atölye", "FAC_BILIM", "BILIM", "GENCLIK_MERKEZI", 37.0955, 37.3400, "Alparslan Mah., Şehitkamil"),
+            ("İncirli Ortaokulu (örnek)", "FAC_OKUL", "IDARI", "OKUL", 37.1020, 37.3580, "İncirli Mah., Şehitkamil"),
+            // Konum eksik testi için bilerek boş
+            ("Yeni Sosyal Tesis (konum bekliyor)", "FAC_EKSIK", "IDARI", "SOSYAL_TESIS", null, null, "Adres atanacak"),
+        };
+
+        var existingCodes = await db.OrganizationUnits
+            .Where(x => x.Code != null)
+            .Select(x => x.Code!)
+            .ToListAsync(ct);
+        var codeSet = existingCodes.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var addedFacilities = 0;
+        foreach (var f in demoFacilities)
+        {
+            if (codeSet.Contains(f.Code))
+                continue;
+
+            db.OrganizationUnits.Add(new OrganizationUnit
+            {
+                Name = f.Name,
+                Code = f.Code,
+                Type = OrganizationUnitType.Facility,
+                Status = OrganizationUnitStatus.Active,
+                ParentId = Parent(f.ParentCode),
+                FacilityCategoryId = f.CatCode is null ? null : Cat(f.CatCode),
+                Latitude = f.Lat,
+                Longitude = f.Lng,
+                Address = f.Address,
+                IdealStaffCount = 6,
+                CreatedBy = "seed"
+            });
+            addedFacilities++;
+            codeSet.Add(f.Code);
+        }
+
+        // Mevcut DT_TEKNO tesisine koordinat ver (yoksa)
+        var dtTekno = await db.OrganizationUnits
+            .FirstOrDefaultAsync(x => x.Code == "DT_TEKNO", ct);
+        if (dtTekno is not null && (dtTekno.Latitude is null || dtTekno.Longitude is null))
+        {
+            dtTekno.Latitude = 37.0740;
+            dtTekno.Longitude = 37.3810;
+            dtTekno.Address ??= "Devlet Tiyatroları Sahnesi civarı, Şehitkamil";
+            dtTekno.FacilityCategoryId ??= Cat("KULTUR_MERKEZI");
+            dtTekno.UpdatedBy = "seed";
+            addedFacilities++;
+        }
+
+        // Seed’deki ana birim isimli kayıtlar tesis değil; koordinatlı demo tesisler yeterli
+        if (addedFacilities > 0)
+            await db.SaveChangesAsync(ct);
+
+        // Daha önce eklenmiş demo tesislerin eksik kategorisini tamamla
+        var demoCodes = demoFacilities.Select(x => x.Code).Append("DT_TEKNO").ToArray();
+        var demoUnits = await db.OrganizationUnits
+            .Where(x => x.Code != null && demoCodes.Contains(x.Code))
+            .ToListAsync(ct);
+        var coordUpdated = 0;
+        foreach (var unit in demoUnits)
+        {
+            var def = demoFacilities.FirstOrDefault(d => d.Code == unit.Code);
+            if (def.Code is null) continue;
+            var changed = false;
+            if (unit.Latitude is null && def.Lat is not null)
+            {
+                unit.Latitude = def.Lat;
+                unit.Longitude = def.Lng;
+                changed = true;
+            }
+            if (string.IsNullOrWhiteSpace(unit.Address) && def.Address is not null)
+            {
+                unit.Address = def.Address;
+                changed = true;
+            }
+            if (unit.FacilityCategoryId is null && def.CatCode is not null)
+            {
+                unit.FacilityCategoryId = Cat(def.CatCode);
+                changed = true;
+            }
+            if (changed)
+            {
+                unit.UpdatedBy = "seed";
+                coordUpdated++;
+            }
+        }
+        if (coordUpdated > 0)
+            await db.SaveChangesAsync(ct);
+
+        if (await db.Events.AnyAsync(ct))
+        {
+            logger.LogInformation(
+                "Seed: harita tesisleri güncellendi (yeni={New}, güncellenen={Up}); etkinlikler zaten var.",
+                addedFacilities, coordUpdated);
+            return;
+        }
+
+        var fac = await db.OrganizationUnits.AsNoTracking()
+            .Where(x => x.Type == OrganizationUnitType.Facility && x.Code != null)
+            .ToDictionaryAsync(x => x.Code!, x => x, ct);
+
+        OrganizationUnit? F(string code) => fac.TryGetValue(code, out var u) ? u : null;
+
+        var today = DateTime.UtcNow.Date;
+
+        Event Ev(
+            string title,
+            string? desc,
+            EventStatus status,
+            DateTime start,
+            DateTime? end,
+            OrganizationUnit? facility,
+            double? lat = null,
+            double? lng = null,
+            string? address = null) => new()
+        {
+            Title = title,
+            Description = desc,
+            Status = status,
+            StartAtUtc = DateTime.SpecifyKind(start, DateTimeKind.Utc),
+            EndAtUtc = end is null ? null : DateTime.SpecifyKind(end.Value, DateTimeKind.Utc),
+            OrganizingUnitId = directorate.Id,
+            FacilityId = facility?.Id,
+            Latitude = lat ?? facility?.Latitude,
+            Longitude = lng ?? facility?.Longitude,
+            Address = address ?? facility?.Address,
+            CreatedBy = "seed"
+        };
+
+        var events = new List<Event>
+        {
+            Ev(
+                "Bugün: Çocuk Tiyatrosu Matinesi",
+                "Aileler için ücretsiz matine. Kapı açılışı etkinlikten 30 dk önce.",
+                EventStatus.Published,
+                today.AddHours(14),
+                today.AddHours(16),
+                F("FAC_SANAT") ?? F("DT_TEKNO")),
+            Ev(
+                "Bu hafta: Gençlik Kodlama Atölyesi",
+                "11–14 yaş robotik ve kodlama. Kontenjan 24.",
+                EventStatus.Published,
+                today.AddDays(2).AddHours(10),
+                today.AddDays(2).AddHours(13),
+                F("FAC_BILIM")),
+            Ev(
+                "Bu hafta: Açık Hava Konseri",
+                "Şehitkamil meydanı civarında ücretsiz konser.",
+                EventStatus.Published,
+                today.AddDays(4).AddHours(19),
+                today.AddDays(4).AddHours(21),
+                null,
+                37.0845, 37.3565,
+                "Şehitkamil Meydanı"),
+            Ev(
+                "Yarın: Nikah Salonu Bilgilendirme",
+                "Randevu ve evrak süreçleri hakkında bilgilendirme.",
+                EventStatus.Published,
+                today.AddDays(1).AddHours(11),
+                today.AddDays(1).AddHours(12),
+                F("FAC_NIKAH")),
+            Ev(
+                "Spor Şenliği — Aktoprak",
+                "Mahalle turnuvası ve çocuk oyunları.",
+                EventStatus.Published,
+                today.AddDays(6).AddHours(9),
+                today.AddDays(6).AddHours(17),
+                F("FAC_SPOR")),
+            Ev(
+                "Okul Ziyareti — İncirli",
+                "Kültür müdürlüğü okul tanıtım ziyareti.",
+                EventStatus.Published,
+                today.AddDays(3).AddHours(9),
+                today.AddDays(3).AddHours(11),
+                F("FAC_OKUL")),
+            Ev(
+                "Kütüphane Okuma Günü",
+                "Karataş Gençlik Kütüphanesi’nde toplu okuma.",
+                EventStatus.Draft,
+                today.AddDays(8).AddHours(15),
+                today.AddDays(8).AddHours(17),
+                F("FAC_KUT")),
+            Ev(
+                "Kültür Merkezi Sergital",
+                "Yerel sanatçılar resitali — taslak program.",
+                EventStatus.Draft,
+                today.AddDays(12).AddHours(20),
+                today.AddDays(12).AddHours(22),
+                F("FAC_KKM")),
+            Ev(
+                "Geçen ay: Bilim Fuarı",
+                "Tamamlanan örnek etkinlik.",
+                EventStatus.Completed,
+                today.AddMonths(-1).AddDays(5).AddHours(10),
+                today.AddMonths(-1).AddDays(5).AddHours(16),
+                F("FAC_BILIM")),
+            Ev(
+                "İptal: Açık Hava Sineması",
+                "Hava şartları nedeniyle iptal edildi.",
+                EventStatus.Cancelled,
+                today.AddDays(9).AddHours(20),
+                today.AddDays(9).AddHours(23),
+                F("FAC_SANAT")),
+            Ev(
+                "Bu ay: Seminer — Dijital Belediyecilik",
+                "Personel ve paydaş semineri.",
+                EventStatus.Published,
+                today.AddDays(10).AddHours(13),
+                today.AddDays(10).AddHours(16),
+                F("FAC_KKM")),
+            Ev(
+                "Serbest konum: Mahalle Buluşması",
+                "Tesis bağlı değil; doğrudan koordinat ile pin.",
+                EventStatus.Published,
+                today.AddDays(5).AddHours(18),
+                today.AddDays(5).AddHours(20),
+                null,
+                37.1750, 37.1250,
+                "Acaroba Mah. buluşma alanı"),
+        };
+
+        db.Events.AddRange(events);
+        await db.SaveChangesAsync(ct);
+        logger.LogInformation(
+            "Seed: harita/etkinlik örnek verisi eklendi (tesis yeni={Fac}, etkinlik={Ev}).",
+            addedFacilities, events.Count);
     }
 
     private static OrganizationUnit NewUnit(

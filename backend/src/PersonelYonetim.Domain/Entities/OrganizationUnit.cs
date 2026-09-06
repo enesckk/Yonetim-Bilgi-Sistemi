@@ -22,6 +22,9 @@ public class OrganizationUnit : AuditableEntity
     public string? Phone { get; set; }
     public string? Email { get; set; }
     public string? Address { get; set; }
+    /// <summary>Harita pin'i (özellikle tesisler için).</summary>
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
     public int? Capacity { get; set; }
     public string? WorkingHours { get; set; }
 

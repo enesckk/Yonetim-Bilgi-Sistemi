@@ -21,6 +21,13 @@ import { NotificationsPage } from '@/pages/NotificationsPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { HomePage } from '@/pages/HomePage'
 import { LoginPage } from '@/pages/LoginPage'
+import { EventsHomePage } from '@/pages/EventsHomePage'
+import { EventsListPage } from '@/pages/EventsListPage'
+import { EventsCalendarPage } from '@/pages/EventsCalendarPage'
+import { EventDetailPage, EventFormPage } from '@/pages/EventFormPage'
+import { EventsMapPage } from '@/pages/EventsMapPage'
+import { FacilityLocationsPage } from '@/pages/FacilityLocationsPage'
+import { EventImportPage } from '@/pages/EventImportPage'
 
 export default function App() {
   return (
@@ -57,6 +64,15 @@ export default function App() {
               <Route path="settings" element={<SettingsPage />} />
               <Route path="users" element={<UsersAdminPage />} />
               <Route path="roles" element={<RolesMatrixPage />} />
+              <Route path="events" element={<EventsHomePage />} />
+              <Route path="events/list" element={<EventsListPage />} />
+              <Route path="events/calendar" element={<EventsCalendarPage />} />
+              <Route path="events/map" element={<EventsMapPage />} />
+              <Route path="events/facilities-locations" element={<FacilityLocationsPage />} />
+              <Route path="events/import" element={<EventImportPage />} />
+              <Route path="events/new" element={<EventFormPage />} />
+              <Route path="events/:id/edit" element={<EventFormPage />} />
+              <Route path="events/:id" element={<EventDetailPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

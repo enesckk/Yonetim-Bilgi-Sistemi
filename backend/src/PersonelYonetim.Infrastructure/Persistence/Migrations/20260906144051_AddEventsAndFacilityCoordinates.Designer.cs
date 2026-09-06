@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PersonelYonetim.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using PersonelYonetim.Infrastructure.Persistence;
 namespace PersonelYonetim.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260906144051_AddEventsAndFacilityCoordinates")]
+    partial class AddEventsAndFacilityCoordinates
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -957,9 +960,6 @@ namespace PersonelYonetim.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("EndAtUtc")
                         .HasColumnType("datetime2");
 
-                    b.Property<int?>("ExpectedAttendees")
-                        .HasColumnType("int");
-
                     b.Property<Guid?>("FacilityId")
                         .HasColumnType("uniqueidentifier");
 
@@ -973,15 +973,6 @@ namespace PersonelYonetim.Infrastructure.Persistence.Migrations
                         .HasColumnType("float");
 
                     b.Property<Guid?>("OrganizingUnitId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<byte>("RecurrenceFrequency")
-                        .HasColumnType("tinyint");
-
-                    b.Property<Guid?>("ResponsibleEmployeeId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("SeriesId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("StartAtUtc")
@@ -1007,10 +998,6 @@ namespace PersonelYonetim.Infrastructure.Persistence.Migrations
                     b.HasIndex("FacilityId");
 
                     b.HasIndex("OrganizingUnitId");
-
-                    b.HasIndex("ResponsibleEmployeeId");
-
-                    b.HasIndex("SeriesId");
 
                     b.HasIndex("StartAtUtc");
 
@@ -1877,16 +1864,9 @@ namespace PersonelYonetim.Infrastructure.Persistence.Migrations
                         .HasForeignKey("OrganizingUnitId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("PersonelYonetim.Domain.Entities.Employee", "ResponsibleEmployee")
-                        .WithMany()
-                        .HasForeignKey("ResponsibleEmployeeId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.Navigation("Facility");
 
                     b.Navigation("OrganizingUnit");
-
-                    b.Navigation("ResponsibleEmployee");
                 });
 
             modelBuilder.Entity("PersonelYonetim.Domain.Entities.OrganizationUnit", b =>

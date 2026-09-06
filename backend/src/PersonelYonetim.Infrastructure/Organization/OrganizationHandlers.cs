@@ -118,6 +118,8 @@ public sealed class GetOrganizationTreeHandler
                         FacilityCategoryId = x.FacilityCategoryId,
                         FacilityCategoryName = x.FacilityCategory?.Name,
                         Address = x.Address,
+                        Latitude = x.Latitude,
+                        Longitude = x.Longitude,
                         Capacity = x.Capacity,
                         WorkingHours = x.WorkingHours,
                         ManagerEmployeeId = x.ManagerEmployeeId,
@@ -336,6 +338,8 @@ public sealed class GetOrganizationUnitDetailHandler
             FacilityCategoryId = unit.FacilityCategoryId,
             FacilityCategoryName = unit.FacilityCategory?.Name,
             Address = unit.Address,
+            Latitude = unit.Latitude,
+            Longitude = unit.Longitude,
             Capacity = unit.Capacity,
             WorkingHours = unit.WorkingHours,
             ManagerEmployeeId = unit.ManagerEmployeeId,
@@ -467,6 +471,8 @@ public sealed class CreateOrganizationUnitHandler : IRequestHandler<CreateOrgani
             Email = OrgWriteRules.Normalize(request.Email),
             FacilityCategoryId = request.Type == OrganizationUnitType.Facility ? request.FacilityCategoryId : null,
             Address = request.Type == OrganizationUnitType.Facility ? OrgWriteRules.Normalize(request.Address) : null,
+            Latitude = request.Type == OrganizationUnitType.Facility ? request.Latitude : null,
+            Longitude = request.Type == OrganizationUnitType.Facility ? request.Longitude : null,
             Capacity = request.Type == OrganizationUnitType.Facility ? request.Capacity : null,
             WorkingHours = request.Type == OrganizationUnitType.Facility ? OrgWriteRules.Normalize(request.WorkingHours) : null,
             IdealStaffCount = request.IdealStaffCount,
@@ -534,6 +540,8 @@ public sealed class UpdateOrganizationUnitHandler : IRequestHandler<UpdateOrgani
         entity.Email = OrgWriteRules.Normalize(request.Email);
         entity.FacilityCategoryId = request.Type == OrganizationUnitType.Facility ? request.FacilityCategoryId : null;
         entity.Address = request.Type == OrganizationUnitType.Facility ? OrgWriteRules.Normalize(request.Address) : null;
+        entity.Latitude = request.Type == OrganizationUnitType.Facility ? request.Latitude : null;
+        entity.Longitude = request.Type == OrganizationUnitType.Facility ? request.Longitude : null;
         entity.Capacity = request.Type == OrganizationUnitType.Facility ? request.Capacity : null;
         entity.WorkingHours = request.Type == OrganizationUnitType.Facility ? OrgWriteRules.Normalize(request.WorkingHours) : null;
         entity.IdealStaffCount = request.IdealStaffCount;

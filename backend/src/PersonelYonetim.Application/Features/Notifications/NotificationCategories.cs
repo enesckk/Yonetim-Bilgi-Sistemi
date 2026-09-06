@@ -14,4 +14,5 @@ public static class NotificationCategories
     public const string Import = "Import";
     public const string Export = "Export";
     public const string Security = "Security";
+    public const string Events = "Events";
 }

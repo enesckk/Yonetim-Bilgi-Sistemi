@@ -34,6 +34,7 @@ public class AppDbContext : DbContext
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
+    public DbSet<Event> Events => Set<Event>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

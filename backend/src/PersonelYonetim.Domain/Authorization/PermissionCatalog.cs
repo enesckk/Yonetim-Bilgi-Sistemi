@@ -49,6 +49,9 @@ public static class PermissionCatalog
         new(PermissionCodes.OrganizationView, "Birim/tesis görüntüleme", "Organizasyon", "Organizasyon ağacını görür"),
         new(PermissionCodes.OrganizationManage, "Birim/tesis yönetme", "Organizasyon", "Birim ve tesis CRUD"),
 
+        new(PermissionCodes.EventsView, "Etkinlik görüntüleme", "Etkinlik", "Etkinlik listesi, detay ve harita"),
+        new(PermissionCodes.EventsManage, "Etkinlik yönetme", "Etkinlik", "Etkinlik oluşturma / güncelleme / silme"),
+
         new(PermissionCodes.ReportsView, "Rapor görüntüleme", "Raporlar", "Hazır raporları görür"),
         new(PermissionCodes.ReportsExportExcel, "Excel dışa aktarma", "Raporlar", "Excel çıktısı alır"),
         new(PermissionCodes.ReportsExportPdf, "PDF dışa aktarma", "Raporlar", "PDF çıktısı alır"),

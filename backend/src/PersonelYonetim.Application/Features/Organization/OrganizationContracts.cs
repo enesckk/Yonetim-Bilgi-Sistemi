@@ -27,6 +27,8 @@ public sealed class OrganizationUnitNodeDto
     public Guid? FacilityCategoryId { get; init; }
     public string? FacilityCategoryName { get; init; }
     public string? Address { get; init; }
+    public double? Latitude { get; init; }
+    public double? Longitude { get; init; }
     public int? Capacity { get; init; }
     public string? WorkingHours { get; init; }
     public Guid? ManagerEmployeeId { get; init; }
@@ -76,6 +78,8 @@ public sealed class OrganizationUnitDetailDto
     public Guid? FacilityCategoryId { get; init; }
     public string? FacilityCategoryName { get; init; }
     public string? Address { get; init; }
+    public double? Latitude { get; init; }
+    public double? Longitude { get; init; }
     public int? Capacity { get; init; }
     public string? WorkingHours { get; init; }
     public Guid? ManagerEmployeeId { get; init; }
@@ -158,6 +162,8 @@ public sealed class CreateOrganizationUnitCommand : IRequest<Guid>
     public string? Email { get; set; }
     public Guid? FacilityCategoryId { get; set; }
     public string? Address { get; set; }
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
     public int? Capacity { get; set; }
     public string? WorkingHours { get; set; }
     public int? IdealStaffCount { get; set; }
@@ -179,6 +185,8 @@ public sealed class UpdateOrganizationUnitCommand : IRequest
     public string? Email { get; set; }
     public Guid? FacilityCategoryId { get; set; }
     public string? Address { get; set; }
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
     public int? Capacity { get; set; }
     public string? WorkingHours { get; set; }
     public int? IdealStaffCount { get; set; }

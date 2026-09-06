@@ -50,6 +50,10 @@ public static class PermissionCodes
     public const string OrganizationView = "Organization.View";
     public const string OrganizationManage = "Organization.Manage";
 
+    // Etkinlik Yönetim Takip
+    public const string EventsView = "Events.View";
+    public const string EventsManage = "Events.Manage";
+
     // Raporlar
     public const string ReportsView = "Reports.View";
     public const string ReportsExportExcel = "Reports.ExportExcel";

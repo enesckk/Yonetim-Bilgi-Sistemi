@@ -344,6 +344,30 @@ public sealed class NotificationScanService : INotificationScanService
                 $"{tempEnding} geçici görev bitişi yaklaşıyor");
         }
 
+        // Yarın başlayan yayınlanmış etkinlikler
+        var tomorrowStart = DateTime.UtcNow.Date.AddDays(1);
+        var tomorrowEnd = tomorrowStart.AddDays(1);
+        var eventsTomorrow = await _db.Events.AsNoTracking()
+            .Where(e => e.Status == EventStatus.Published
+                        && e.StartAtUtc >= tomorrowStart
+                        && e.StartAtUtc < tomorrowEnd)
+            .OrderBy(e => e.StartAtUtc)
+            .Take(8)
+            .Select(e => new { e.Id, e.Title, e.StartAtUtc })
+            .ToListAsync(cancellationToken);
+
+        foreach (var ev in eventsTomorrow)
+        {
+            await Emit(
+                PermissionCodes.EventsView,
+                "Yarın etkinlik var",
+                $"{ev.Title} — {ev.StartAtUtc.ToLocalTime():g}",
+                NotificationCategories.Events,
+                $"/events/{ev.Id}",
+                NotificationSeverity.Info,
+                $"Yarın: {ev.Title}");
+        }
+
         return new NotificationScanResult
         {
             CreatedCount = created,

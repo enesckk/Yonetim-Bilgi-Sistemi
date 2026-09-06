@@ -25,7 +25,17 @@ const TITLES: Record<string, string> = {
   '/settings': 'Sistem Ayarları',
   '/users': 'Kullanıcılar',
   '/roles': 'Yetki Matrisi',
+  '/events': 'Genel bakış',
+  '/events/list': 'Etkinlikler',
+  '/events/calendar': 'Takvim',
+  '/events/map': 'Harita',
+  '/events/facilities-locations': 'Tesis konumları',
+  '/events/import': 'Etkinlik CSV aktarımı',
+  '/events/new': 'Yeni etkinlik',
 }
+
+type AppModule = 'personnel' | 'events'
+const MODULE_KEY = 'py.app.module'
 
 type NavItem = {
   to: string
@@ -69,6 +79,9 @@ const I = {
   menu: 'M4 7h16M4 12h16M4 17h16',
   collapse: 'M15 6l-6 6 6 6',
   expand: 'M9 6l6 6-6 6',
+  map: 'M9 20l-6-3V4l6 3 6-3 6 3v13l-6-3-6 3ZM9 7v13M15 4v13',
+  calendar: 'M8 2v3M16 2v3M4 9h16M6 5h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z',
+  pin: 'M12 21s7-5.2 7-11a7 7 0 1 0-14 0c0 5.8 7 11 7 11ZM12 10.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z',
 }
 
 export function AppLayout() {
@@ -148,16 +161,73 @@ export function AppLayout() {
       ? 'Toplu personel yükleme'
       : location.pathname.startsWith('/employees/') && location.pathname !== '/employees'
         ? 'Personel Detayı'
-        : (TITLES[location.pathname] ?? 'Personel Yönetim')
+        : location.pathname.startsWith('/events/') &&
+            location.pathname !== '/events/list' &&
+            location.pathname !== '/events/calendar' &&
+            location.pathname !== '/events/map' &&
+            location.pathname !== '/events/facilities-locations' &&
+            location.pathname !== '/events/import' &&
+            location.pathname !== '/events/new'
+          ? location.pathname.endsWith('/edit')
+            ? 'Etkinlik düzenle'
+            : 'Etkinlik detayı'
+          : (TITLES[location.pathname] ?? 'Yönetim')
+
+  const moduleFromPath: AppModule = location.pathname.startsWith('/events') ? 'events' : 'personnel'
+  const [appModule, setAppModule] = useState<AppModule>(() => {
+    try {
+      const saved = localStorage.getItem(MODULE_KEY)
+      if (saved === 'events' || saved === 'personnel') return saved
+    } catch {
+      /* ignore */
+    }
+    return moduleFromPath
+  })
+
+  useEffect(() => {
+    setAppModule(moduleFromPath)
+    try {
+      localStorage.setItem(MODULE_KEY, moduleFromPath)
+    } catch {
+      /* ignore */
+    }
+  }, [moduleFromPath])
+
+  function switchModule(next: AppModule) {
+    setAppModule(next)
+    try {
+      localStorage.setItem(MODULE_KEY, next)
+    } catch {
+      /* ignore */
+    }
+    navigate(next === 'events' ? '/events' : '/')
+  }
 
   function onGlobalSearch(e: FormEvent) {
     e.preventDefault()
     const value = globalSearch.trim()
     if (!value) return
-    navigate(`/employees?search=${encodeURIComponent(value)}`)
+    if (appModule === 'events') {
+      navigate(`/events/list?search=${encodeURIComponent(value)}`)
+    } else {
+      navigate(`/employees?search=${encodeURIComponent(value)}`)
+    }
   }
 
-  const navItems: NavItem[] = [
+  const sharedSystemNav: NavItem[] = [
+    {
+      to: '/notifications',
+      label: 'Bildirimler',
+      icon: <Icon d={I.bell} />,
+      permission: PermissionCodes.NotificationsView,
+      badge: unread,
+    },
+    { to: '/users', label: 'Kullanıcı yönetimi', icon: <Icon d={I.users} />, permission: PermissionCodes.UsersManage },
+    { to: '/roles', label: 'Yetki matrisi', icon: <Icon d={I.roles} />, permission: PermissionCodes.RolesManage },
+    { to: '/settings', label: 'Ayarlar', icon: <Icon d={I.settings} />, permission: PermissionCodes.SettingsManage },
+  ]
+
+  const personnelNav: NavItem[] = [
     { to: '/', label: 'Genel bakış', end: true, icon: <Icon d={I.home} />, permission: PermissionCodes.DashboardView },
     { to: '/employees', label: 'Personeller', icon: <Icon d={I.users} />, permission: PermissionCodes.EmployeesView },
     { to: '/movements', label: 'Görev geçmişi', icon: <Icon d={I.history} />, permission: PermissionCodes.MovementsView },
@@ -169,18 +239,27 @@ export function AppLayout() {
     { to: '/catalogs', label: 'Kataloglar', icon: <Icon d={I.catalog} />, permission: PermissionCodes.EmployeesView },
     { to: '/reports', label: 'Raporlar', icon: <Icon d={I.reports} />, permission: PermissionCodes.ReportsView },
     { to: '/data-quality', label: 'Veri eksikleri', icon: <Icon d={I.quality} />, permission: PermissionCodes.DataQualityView },
-    {
-      to: '/notifications',
-      label: 'Bildirimler',
-      icon: <Icon d={I.bell} />,
-      permission: PermissionCodes.NotificationsView,
-      badge: unread,
-    },
     { to: '/audit-logs', label: 'İşlem geçmişi', icon: <Icon d={I.audit} />, permission: PermissionCodes.AuditLogsView },
-    { to: '/users', label: 'Kullanıcı yönetimi', icon: <Icon d={I.users} />, permission: PermissionCodes.UsersManage },
-    { to: '/roles', label: 'Yetki matrisi', icon: <Icon d={I.roles} />, permission: PermissionCodes.RolesManage },
-    { to: '/settings', label: 'Ayarlar', icon: <Icon d={I.settings} />, permission: PermissionCodes.SettingsManage },
+    ...sharedSystemNav,
   ]
+
+  const eventsNav: NavItem[] = [
+    { to: '/events', label: 'Genel bakış', end: true, icon: <Icon d={I.home} />, permission: PermissionCodes.EventsView },
+    { to: '/events/map', label: 'Harita', icon: <Icon d={I.map} />, permission: PermissionCodes.EventsView },
+    { to: '/events/calendar', label: 'Takvim', icon: <Icon d={I.calendar} />, permission: PermissionCodes.EventsView },
+    { to: '/events/list', label: 'Etkinlikler', icon: <Icon d={I.catalog} />, permission: PermissionCodes.EventsView },
+    {
+      to: '/events/facilities-locations',
+      label: 'Tesis konumları',
+      icon: <Icon d={I.pin} />,
+      permission: PermissionCodes.OrganizationView,
+    },
+    ...sharedSystemNav,
+  ]
+
+  const navItems = appModule === 'events' ? eventsNav : personnelNav
+  const brandTitle = appModule === 'events' ? 'Etkinlik Yönetim Takip' : 'Personel Yönetim Takip'
+  const brandShort = appModule === 'events' ? 'Etkinlik' : 'Personel'
 
   const shellClass = [
     'app-shell',
@@ -204,9 +283,12 @@ export function AppLayout() {
       <aside className="sidebar" aria-label="Ana menü">
         <div className="sidebar-top">
           <div className="sidebar-brand">
+            <div className="sidebar-brand-mark" aria-hidden="true">
+              {brandShort.slice(0, 1)}
+            </div>
             <div className="sidebar-brand-text">
-              <strong>Personel Yönetim</strong>
-              <span className="muted">Şehitkamil</span>
+              <strong title={brandTitle}>{brandTitle}</strong>
+              <span className="muted">Tek platform</span>
             </div>
           </div>
           <button
@@ -218,6 +300,35 @@ export function AppLayout() {
             title={collapsed ? 'Menüyü genişlet' : 'Menüyü daralt'}
           >
             <Icon d={collapsed ? I.expand : I.collapse} size={16} />
+          </button>
+        </div>
+
+        <div className="module-switcher" role="group" aria-label="Uygulama modülü">
+          <button
+            type="button"
+            className={appModule === 'personnel' ? 'is-active' : ''}
+            aria-pressed={appModule === 'personnel'}
+            title="Personel Yönetim Takip"
+            onClick={() => switchModule('personnel')}
+          >
+            <span className="module-switcher-icon" aria-hidden="true">
+              P
+            </span>
+            <span className="module-switcher-full">Personel Yönetim Takip</span>
+            <span className="module-switcher-short">Personel</span>
+          </button>
+          <button
+            type="button"
+            className={appModule === 'events' ? 'is-active' : ''}
+            aria-pressed={appModule === 'events'}
+            title="Etkinlik Yönetim Takip"
+            onClick={() => switchModule('events')}
+          >
+            <span className="module-switcher-icon" aria-hidden="true">
+              E
+            </span>
+            <span className="module-switcher-full">Etkinlik Yönetim Takip</span>
+            <span className="module-switcher-short">Etkinlik</span>
           </button>
         </div>
 
@@ -277,8 +388,9 @@ export function AppLayout() {
               onClick={() => setCollapsed((v) => !v)}
               aria-pressed={collapsed}
               aria-label={collapsed ? 'Menüyü genişlet' : 'Menüyü daralt'}
+              title={collapsed ? 'Menüyü genişlet' : 'Menüyü daralt'}
             >
-              <Icon d={I.menu} />
+              <Icon d={collapsed ? I.expand : I.collapse} />
             </button>
             <div className="topbar-titles">
               <h1 className="page-title">{title}</h1>
@@ -291,13 +403,24 @@ export function AppLayout() {
               type="search"
               value={globalSearch}
               onChange={(e) => setGlobalSearch(e.target.value)}
-              placeholder="Personel, sicil veya birim ara…"
+              placeholder={
+                appModule === 'events'
+                  ? 'Etkinlik ara…'
+                  : 'Personel, sicil veya birim ara…'
+              }
               aria-label="Genel arama"
             />
           </form>
 
           <div className="topbar-actions">
-            {hasPermission(PermissionCodes.EmployeesCreate) ? (
+            {appModule === 'events' ? (
+              hasPermission(PermissionCodes.EventsManage) ? (
+                <Link to="/events/new" className="topbar-quick-add">
+                  <Icon d={I.plus} size={17} />
+                  <span>Etkinlik ekle</span>
+                </Link>
+              ) : null
+            ) : hasPermission(PermissionCodes.EmployeesCreate) ? (
               <Link to="/employees/new" className="topbar-quick-add">
                 <Icon d={I.plus} size={17} />
                 <span>Personel ekle</span>
