@@ -35,6 +35,8 @@ function roleTone(code?: string | null) {
       return 'deputy'
     case 'UNIT_MANAGER':
       return 'unit'
+    case 'ADMINISTRATIVE_OFFICER':
+      return 'unit'
     case 'DATA_ENTRY':
       return 'entry'
     case 'VIEWER':

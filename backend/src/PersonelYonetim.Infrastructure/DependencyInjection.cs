@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -12,6 +13,7 @@ using PersonelYonetim.Application.Common.Behaviors;
 using PersonelYonetim.Application.Common.Interfaces;
 using PersonelYonetim.Application.Features.Employees;
 using PersonelYonetim.Application.Features.Import;
+using PersonelYonetim.Application.Common.Security;
 using PersonelYonetim.Infrastructure.Auth;
 using PersonelYonetim.Infrastructure.Employees;
 using PersonelYonetim.Infrastructure.Identity;
@@ -37,6 +39,7 @@ public static class DependencyInjection
             {
                 sql.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName);
                 sql.EnableRetryOnFailure(maxRetryCount: 3);
+                sql.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
             });
             options.AddInterceptors(sp.GetRequiredService<AuditingSaveChangesInterceptor>());
         });
@@ -47,6 +50,7 @@ public static class DependencyInjection
 
         ValidateJwtSigningKey(jwt.SigningKey, environment);
 
+        services.AddMemoryCache();
         services.AddHttpContextAccessor();
 
         // Data Protection anahtarları diskte — restart’ta TCKN’ler okunabilir kalsın.
@@ -95,7 +99,12 @@ public static class DependencyInjection
             client.BaseAddress = new Uri("https://nominatim.openstreetmap.org/");
             client.DefaultRequestHeaders.UserAgent.ParseAdd(
                 "PersonelYonetim/1.0 (Sehitkamil Belediyesi; yerel-yonetim)");
-            client.Timeout = TimeSpan.FromSeconds(12);
+            client.DefaultRequestHeaders.AcceptEncoding.ParseAdd("gzip, deflate, br");
+            client.Timeout = TimeSpan.FromSeconds(8);
+        }).ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+        {
+            AutomaticDecompression = DecompressionMethods.All,
+            PooledConnectionLifetime = TimeSpan.FromMinutes(5),
         });
         services.AddScoped<IGeocodingService, Geo.NominatimGeocodingService>();
 
@@ -121,7 +130,18 @@ public static class DependencyInjection
                 };
             });
 
-        services.AddAuthorization();
+        var loginMax = configuration.GetValue("Security:LoginMaxAttemptsPerIp", 20);
+        var loginWindow = configuration.GetValue("Security:LoginWindowMinutes", 15);
+        services.AddSingleton(new LoginAttemptGate(
+            loginMax,
+            TimeSpan.FromMinutes(Math.Max(1, loginWindow))));
+
+        services.AddAuthorization(options =>
+        {
+            options.FallbackPolicy = new AuthorizationPolicyBuilder()
+                .RequireAuthenticatedUser()
+                .Build();
+        });
 
         return services;
     }

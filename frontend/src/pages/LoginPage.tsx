@@ -65,13 +65,12 @@ export function LoginPage() {
     return <Navigate to="/" replace />
   }
 
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault()
+  async function signIn(name: string, pass: string) {
     setError(null)
     setNotice(null)
     setSubmitting(true)
     try {
-      await login(userName.trim(), password)
+      await login(name.trim(), pass)
       navigate('/', { replace: true })
     } catch (err) {
       if (err instanceof ApiClientError) {
@@ -84,16 +83,26 @@ export function LoginPage() {
     }
   }
 
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault()
+    await signIn(userName, password)
+  }
+
   return (
     <div className="login-page">
       <div className="login-shell">
         <aside className="login-brand">
           <div className="login-brand-inner">
-            <p className="login-brand-city">Şehitkamil Belediyesi</p>
-            <h1 className="login-brand-title">Personel Bilgi ve Yönetim Sistemi</h1>
-            <p className="login-brand-dept">Kültür, Sanat ve Sosyal İşler Müdürlüğü</p>
+            <img
+              className="login-brand-logo"
+              src="/logo.svg?v=4"
+              width={72}
+              height={72}
+              alt=""
+            />
+            <h1 className="login-brand-title">Yönetim Bilgi Sistemi</h1>
             <p className="login-brand-lead">
-              Personel kayıtları, birim yapısı ve kurumsal raporlara güvenli erişim.
+              Mahalle katılımı, etkinlik ve tesisleri tek ekranda görün.
             </p>
           </div>
         </aside>
@@ -169,6 +178,35 @@ export function LoginPage() {
               {submitting ? 'Giriş yapılıyor…' : 'Giriş yap'}
             </button>
           </form>
+
+          {import.meta.env.DEV ? (
+            <div className="login-quick">
+              <p>Hızlı giriş</p>
+              <div className="login-quick-row">
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => void signIn('admin', 'ChangeMe!123')}
+                >
+                  Admin paneli
+                </button>
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => void signIn('mudur', 'ChangeMe!123')}
+                >
+                  Müdür
+                </button>
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => void signIn('idari', 'ChangeMe!123')}
+                >
+                  İdari amir · Tarık Öndül
+                </button>
+              </div>
+            </div>
+          ) : null}
         </main>
       </div>
     </div>

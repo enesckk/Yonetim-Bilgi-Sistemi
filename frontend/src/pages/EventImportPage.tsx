@@ -8,18 +8,20 @@ import type { EventImportResult } from '@/api/eventsApi'
 import { ApiClientError } from '@/api/client'
 import { useAuth } from '@/auth/AuthContext'
 import { PermissionCodes } from '@/auth/permissionCodes'
+import { canImportEvents } from '@/auth/roles'
+import { PageBackLink } from '@/components/PageBackLink'
 
 const TEMPLATE_COLUMNS: { name: string; hint: string; required?: boolean }[] = [
   { name: 'Baslik', hint: 'Etkinlik adı', required: true },
-  { name: 'Aciklama', hint: 'Opsiyonel açıklama' },
-  { name: 'Baslangic', hint: 'YYYY-AA-GG HH:mm veya ISO', required: true },
-  { name: 'Bitis', hint: 'Opsiyonel bitiş zamanı' },
-  { name: 'Durum', hint: 'Taslak / Yayında / İptal…' },
-  { name: 'TesisKodu', hint: 'Organizasyon tesis kodu' },
-  { name: 'Enlem', hint: 'Opsiyonel koordinat' },
-  { name: 'Boylam', hint: 'Opsiyonel koordinat' },
+  { name: 'Baslangic', hint: 'Tarih: 2026-03-12 10:00', required: true },
+  { name: 'Bitis', hint: 'Opsiyonel bitiş' },
+  { name: 'Durum', hint: 'Planlandı veya Yapıldı' },
+  { name: 'Mahalle', hint: 'Mahalle adı (haritaya düşer)', required: true },
+  { name: 'Kategori', hint: 'Eğitim, Sağlık, Spor…' },
+  { name: 'Katilim', hint: 'Katılan kişi sayısı' },
+  { name: 'Aciklama', hint: 'Opsiyonel' },
+  { name: 'TesisKodu', hint: 'Varsa tesis kodu' },
   { name: 'Adres', hint: 'Serbest metin' },
-  { name: 'BeklenenKatilimci', hint: 'Sayı (opsiyonel)' },
 ]
 
 function formatBytes(bytes: number) {
@@ -29,8 +31,9 @@ function formatBytes(bytes: number) {
 }
 
 export function EventImportPage() {
-  const { hasPermission } = useAuth()
+  const { user, hasPermission } = useAuth()
   const canManage = hasPermission(PermissionCodes.EventsManage)
+  const canImport = canManage && canImportEvents(user)
 
   const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
@@ -51,15 +54,19 @@ export function EventImportPage() {
     return Math.round((result.successCount / result.totalRows) * 100)
   }, [result])
 
-  if (!canManage) {
+  if (!canImport) {
     return (
       <div className="org-page">
         <div className="panel">
-          <h1>Etkinlik CSV aktarımı</h1>
-          <p className="muted">Bu ekranı kullanmak için etkinlik yönetme yetkisi gerekir.</p>
-          <Link to="/events/list" className="back-link">
-            ← Etkinlikler
-          </Link>
+          <h1>Excel ile etkinlik yükle</h1>
+          <p className="muted">
+            {canManage
+              ? 'Bu ekran müdür hesabında kullanılmaz. Etkinliği takvimden tarih seçerek ekleyebilirsiniz.'
+              : 'Bu ekranı kullanmak için etkinlik yönetme yetkisi gerekir.'}
+          </p>
+          <PageBackLink to={canManage ? '/events/calendar' : '/events/list'}>
+            {canManage ? 'Takvim' : 'Etkinlikler'}
+          </PageBackLink>
         </div>
       </div>
     )
@@ -68,8 +75,13 @@ export function EventImportPage() {
   function pickFile(f: File | null) {
     if (!f) return
     const name = f.name.toLowerCase()
-    if (!name.endsWith('.csv') && f.type !== 'text/csv' && f.type !== 'application/vnd.ms-excel') {
-      setError('Yalnızca .csv uzantılı dosya yükleyebilirsiniz.')
+    if (
+      !name.endsWith('.xlsx') &&
+      !name.endsWith('.csv') &&
+      f.type !== 'text/csv' &&
+      f.type !== 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    ) {
+      setError('Excel (.xlsx) veya CSV yükleyin.')
       return
     }
     setError(null)
@@ -98,7 +110,7 @@ export function EventImportPage() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
     if (!file) {
-      setError('Bir .csv dosyası seçin.')
+      setError('Bir Excel veya CSV dosyası seçin.')
       return
     }
     setBusy(true)
@@ -123,10 +135,10 @@ export function EventImportPage() {
       <header className="org-hero panel">
         <div>
           <p className="org-eyebrow">Veri aktarımı</p>
-          <h1>Etkinlik CSV aktarımı</h1>
+          <h1>Excel ile etkinlik yükle</h1>
           <p className="muted">
-            Şablonu indirip doldurun; satırlar ayrı doğrulanır. Hatalı satırlar atlanır, geçerli
-            satırlar kaydedilir.
+            Şablonu indirip mahalle, tarih ve Planlandı/Yapıldı bilgilerini doldurun. Geçerli satırlar
+            kaydedilir, hatalılar listelenir.
           </p>
         </div>
         <div className="report-hero-side">
@@ -136,7 +148,7 @@ export function EventImportPage() {
             onClick={() => void onDownloadTemplate()}
             disabled={downloading}
           >
-            {downloading ? 'Hazırlanıyor…' : 'Şablonu indir (.csv)'}
+            {downloading ? 'Hazırlanıyor…' : 'Şablonu indir (.xlsx)'}
           </button>
           <Link to="/events/list" className="btn-secondary">
             Etkinlikler
@@ -150,14 +162,14 @@ export function EventImportPage() {
             <span className="import-flow-no">1</span>
             <div>
               <strong>Şablonu indirin</strong>
-              <p className="muted small">CSV başlık satırı ve örnek alanlar hazır gelir.</p>
+              <p className="muted small">Excel şablonunda örnek satır hazır gelir.</p>
             </div>
           </li>
           <li>
             <span className="import-flow-no">2</span>
             <div>
               <strong>Satırları doldurun</strong>
-              <p className="muted small">Tesis kodu varsa tesis konumuna bağlanır.</p>
+              <p className="muted small">Mahalle adı haritadaki yerleşimle eşleşmelidir. Durum: Planlandı veya Yapıldı.</p>
             </div>
           </li>
           <li>
@@ -193,7 +205,7 @@ export function EventImportPage() {
             <input
               ref={inputRef}
               type="file"
-              accept=".csv,text/csv"
+              accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
               hidden
               onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
             />
@@ -228,7 +240,7 @@ export function EventImportPage() {
                 <p className="import-dropzone-title">
                   Dosyayı buraya sürükleyin veya seçmek için tıklayın
                 </p>
-                <p className="muted small">Yalnızca .csv</p>
+                <p className="muted small">Excel (.xlsx) veya CSV</p>
               </>
             )}
           </div>

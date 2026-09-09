@@ -17,4 +17,5 @@ public static class ErrorCodes
     public const string AccountLocked = "ACCOUNT_LOCKED";
     public const string AccountInactive = "ACCOUNT_INACTIVE";
     public const string TokenInvalid = "TOKEN_INVALID";
+    public const string TooManyRequests = "TOO_MANY_REQUESTS";
 }

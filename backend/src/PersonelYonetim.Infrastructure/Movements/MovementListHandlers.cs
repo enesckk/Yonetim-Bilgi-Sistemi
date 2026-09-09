@@ -8,6 +8,7 @@ using PersonelYonetim.Domain.Authorization;
 using PersonelYonetim.Domain.Enums;
 using PersonelYonetim.Infrastructure.Persistence;
 using PersonelYonetim.Infrastructure.Reports;
+using PersonelYonetim.Infrastructure.Security;
 
 namespace PersonelYonetim.Infrastructure.Movements;
 

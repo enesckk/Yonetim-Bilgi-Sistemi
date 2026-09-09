@@ -20,7 +20,7 @@ public static class PermissionCatalog
         new(PermissionCodes.EmployeesCreate, "Personel ekleme", "Personel", "Yeni personel kaydı oluşturur"),
         new(PermissionCodes.EmployeesUpdate, "Personel düzenleme", "Personel", "Personel bilgilerini günceller"),
         new(PermissionCodes.EmployeesSetStatus, "Personel durum değiştirme", "Personel", "Aktif/pasif/ayrıldı vb."),
-        new(PermissionCodes.EmployeesArchive, "Personel arşivleme", "Personel", "Yanlış oluşturulmuş kaydı yalnızca sistem yöneticisi arşivler"),
+        new(PermissionCodes.EmployeesArchive, "Personel silme / arşivleme", "Personel", "Kaydı listeden ve teşkilat şemasından kaldırır; geçmiş korunur"),
         new(PermissionCodes.EmployeesViewAllUnits, "Tüm birimleri görme", "Personel", "Birim sınırlaması olmadan tüm personel"),
 
         new(PermissionCodes.EmployeesViewPhone, "Telefon görüntüleme", "Hassas Alan", "Telefon numaralarını görür"),
@@ -49,6 +49,14 @@ public static class PermissionCatalog
         new(PermissionCodes.OrganizationView, "Birim/tesis görüntüleme", "Organizasyon", "Organizasyon ağacını görür"),
         new(PermissionCodes.OrganizationManage, "Birim/tesis yönetme", "Organizasyon", "Birim ve tesis CRUD"),
 
+        new(PermissionCodes.StockView, "Stok takip görüntüleme", "Stok", "Tesislerdeki malzeme ve miktarları görür; giriş/çıkış yapamaz"),
+        new(PermissionCodes.StockManage, "Stok yönetme", "Stok", "Malzeme tanımı, giriş, çıkış, transfer ve sayım — amir işlemi"),
+
+        new(PermissionCodes.TasksView, "İş ataması görüntüleme", "İş", "Kendisine gelen ve müdürlük işlerini görür"),
+        new(PermissionCodes.TasksAssign, "İş atama", "İş", "Personele / amire iş verir, görsel ekler"),
+        new(PermissionCodes.TasksSubmit, "İş teslim / onay talebi", "İş", "İşi görselle teslim eder veya müdüre onay sunar"),
+        new(PermissionCodes.TasksReview, "İş onaylama", "İş", "Onaylar, reddeder veya revizyon ister"),
+
         new(PermissionCodes.EventsView, "Etkinlik görüntüleme", "Etkinlik", "Etkinlik listesi, detay ve harita"),
         new(PermissionCodes.EventsManage, "Etkinlik yönetme", "Etkinlik", "Etkinlik oluşturma / güncelleme / silme"),
 
@@ -66,6 +74,7 @@ public static class PermissionCatalog
         new(PermissionCodes.RolesManage, "Rol ve yetki yönetimi", "Sistem", "Rol–yetki ataması"),
         new(PermissionCodes.AuditLogsView, "İşlem geçmişi", "Sistem", "Audit log görüntüleme"),
         new(PermissionCodes.NotificationsView, "Bildirimler", "Sistem", "Sistem bildirimlerini görme"),
+        new(PermissionCodes.MessagesUse, "Dahili mesajlar", "Sistem", "Personeller arası bire bir mesajlaşma"),
         new(PermissionCodes.SettingsManage, "Sistem ayarları", "Sistem", "Uygulama ayarları")
     ];
 }

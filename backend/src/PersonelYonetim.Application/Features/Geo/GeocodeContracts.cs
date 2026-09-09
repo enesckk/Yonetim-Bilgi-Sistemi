@@ -12,3 +12,8 @@ public sealed class GeocodeLookupDto
     public bool Found { get; init; }
     public GeocodeResultDto? Result { get; init; }
 }
+
+public sealed class GeocodeSuggestDto
+{
+    public IReadOnlyList<GeocodeResultDto> Results { get; init; } = [];
+}

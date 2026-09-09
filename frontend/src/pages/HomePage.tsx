@@ -280,7 +280,7 @@ export function HomePage() {
     <div className="dashboard">
       <header className="dash-hero">
         <div className="dash-hero-main">
-          <p className="dash-hero-brand">Şehitkamil · Personel Yönetim</p>
+          <p className="dash-hero-brand">Yönetim Bilgi Sistemi</p>
           <h2>Genel bakış</h2>
           <p className="dash-hero-lead">
             <span>

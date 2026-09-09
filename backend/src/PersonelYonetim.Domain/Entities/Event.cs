@@ -19,6 +19,9 @@ public class Event : AuditableEntity
     /// <summary>Beklenen / planlanan katılımcı sayısı (kapasite bilgisi).</summary>
     public int? ExpectedAttendees { get; set; }
 
+    /// <summary>Etkinlikte gerçekten gelen kişi sayısı (yapıldıktan sonra).</summary>
+    public int? ActualAttendees { get; set; }
+
     /// <summary>Tekrarlayan serinin ortak kimliği (tek etkinlikte null).</summary>
     public Guid? SeriesId { get; set; }
 
@@ -39,4 +42,10 @@ public class Event : AuditableEntity
     public double? Latitude { get; set; }
     public double? Longitude { get; set; }
     public string? Address { get; set; }
+
+    /// <summary>EventCategories kodu (education, health, …).</summary>
+    public string? Category { get; set; }
+
+    public ICollection<EventSettlement> Settlements { get; set; } = new List<EventSettlement>();
+    public ICollection<EventNote> Notes { get; set; } = new List<EventNote>();
 }

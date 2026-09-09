@@ -35,6 +35,19 @@ public class AppDbContext : DbContext
     public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
     public DbSet<Event> Events => Set<Event>();
+    public DbSet<Settlement> Settlements => Set<Settlement>();
+    public DbSet<SettlementPopulation> SettlementPopulations => Set<SettlementPopulation>();
+    public DbSet<SettlementSchool> SettlementSchools => Set<SettlementSchool>();
+    public DbSet<SettlementArea> SettlementAreas => Set<SettlementArea>();
+    public DbSet<EventSettlement> EventSettlements => Set<EventSettlement>();
+    public DbSet<DirectMessage> DirectMessages => Set<DirectMessage>();
+    public DbSet<EventNote> EventNotes => Set<EventNote>();
+    public DbSet<StockItem> StockItems => Set<StockItem>();
+    public DbSet<StockBalance> StockBalances => Set<StockBalance>();
+    public DbSet<StockMovement> StockMovements => Set<StockMovement>();
+    public DbSet<WorkTask> WorkTasks => Set<WorkTask>();
+    public DbSet<WorkTaskAttachment> WorkTaskAttachments => Set<WorkTaskAttachment>();
+    public DbSet<WorkTaskActivity> WorkTaskActivities => Set<WorkTaskActivity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

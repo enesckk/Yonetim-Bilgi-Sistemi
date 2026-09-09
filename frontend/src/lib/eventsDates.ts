@@ -111,7 +111,7 @@ export async function downloadEventsPdf(
   filename = 'etkinlikler.pdf',
 ) {
   const { jsPDF } = await import('jspdf')
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' })
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4', compress: true })
   const margin = 36
   const pageW = doc.internal.pageSize.getWidth()
   const pageH = doc.internal.pageSize.getHeight()

@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -8,6 +9,7 @@ using PersonelYonetim.Application.Common.Interfaces;
 using PersonelYonetim.Domain.Authorization;
 using PersonelYonetim.Domain.Entities;
 using PersonelYonetim.Domain.Enums;
+using PersonelYonetim.Domain.Security;
 using PersonelYonetim.Domain.Settings;
 
 namespace PersonelYonetim.Infrastructure.Persistence.Seed;
@@ -36,6 +38,8 @@ public static class DbSeeder
         await SeedOrganizationAsync(db, logger, cancellationToken);
         await SeedSkillsAsync(db, logger, cancellationToken);
         await SeedCertificateDefinitionsAsync(db, logger, cancellationToken);
+        await SettlementSeeder.SeedAsync(db, environment, logger, cancellationToken);
+        await StockSeeder.SeedAsync(db, environment, logger, cancellationToken);
 
         // Örnek personel / demo TCKN / örnek bildirim yalnızca Development
         if (environment.IsDevelopment())
@@ -51,6 +55,13 @@ public static class DbSeeder
         }
 
         await SeedAdminUserAsync(db, configuration, environment, logger, cancellationToken);
+        await SeedDirectorUserAsync(db, configuration, environment, logger, cancellationToken);
+        await SeedIdariAmirUserAsync(db, configuration, environment, logger, cancellationToken);
+        if (environment.IsDevelopment())
+            await SeedUnitHeadsAsync(db, logger, cancellationToken);
+        await DirectorateOrgChartSeeder.SeedAsync(db, logger, cancellationToken);
+        if (environment.IsDevelopment())
+            await SeedFacilityOfficerUsersAsync(db, configuration, environment, logger, cancellationToken);
         await SeedAppSettingsAsync(db, logger, cancellationToken);
 
         // Düz metin TCKN kaldıysa şifrele (eski seed / ilk kurulum)
@@ -138,13 +149,12 @@ public static class DbSeeder
         var permissionByCode = permissions.ToDictionary(x => x.Code, x => x.Id);
         var roleByCode = roles.Where(r => r.Code != null).ToDictionary(x => x.Code!, x => x.Id);
 
-        var existingLinks = await db.RolePermissions
-            .Select(x => new { x.RoleId, x.PermissionId })
-            .ToListAsync(ct);
+        var existingLinks = await db.RolePermissions.ToListAsync(ct);
         var existingSet = existingLinks
             .Select(x => (x.RoleId, x.PermissionId))
             .ToHashSet();
 
+        var desired = new HashSet<(Guid RoleId, Guid PermissionId)>();
         var toAdd = new List<RolePermission>();
 
         foreach (var (roleCode, permissionCodes) in RolePermissionMatrix.GetMap())
@@ -157,6 +167,7 @@ public static class DbSeeder
                 if (!permissionByCode.TryGetValue(permissionCode, out var permissionId))
                     continue;
 
+                desired.Add((roleId, permissionId));
                 if (existingSet.Contains((roleId, permissionId)))
                     continue;
 
@@ -169,12 +180,27 @@ public static class DbSeeder
             }
         }
 
-        if (toAdd.Count == 0)
+        var matrixRoleIds = RolePermissionMatrix.GetMap().Keys
+            .Where(roleByCode.ContainsKey)
+            .Select(c => roleByCode[c])
+            .ToHashSet();
+
+        var toRemove = existingLinks
+            .Where(x => matrixRoleIds.Contains(x.RoleId) && !desired.Contains((x.RoleId, x.PermissionId)))
+            .ToList();
+
+        if (toAdd.Count == 0 && toRemove.Count == 0)
             return;
 
-        db.RolePermissions.AddRange(toAdd);
+        if (toAdd.Count > 0)
+            db.RolePermissions.AddRange(toAdd);
+        if (toRemove.Count > 0)
+            db.RolePermissions.RemoveRange(toRemove);
         await db.SaveChangesAsync(ct);
-        logger.LogInformation("Seed: {Count} rol-yetki bağlantısı eklendi.", toAdd.Count);
+        if (toAdd.Count > 0)
+            logger.LogInformation("Seed: {Count} rol-yetki bağlantısı eklendi.", toAdd.Count);
+        if (toRemove.Count > 0)
+            logger.LogInformation("Seed: {Count} fazla rol-yetki bağlantısı kaldırıldı.", toRemove.Count);
     }
 
     private static async Task SeedEmploymentTypesAsync(AppDbContext db, ILogger logger, CancellationToken ct)
@@ -340,7 +366,7 @@ public static class DbSeeder
             ("Yeni Sosyal Tesis (konum bekliyor)", "FAC_EKSIK", "IDARI", "SOSYAL_TESIS", null, null, "Adres atanacak"),
         };
 
-        var existingCodes = await db.OrganizationUnits
+        var existingCodes = await db.OrganizationUnits.IgnoreQueryFilters()
             .Where(x => x.Code != null)
             .Select(x => x.Code!)
             .ToListAsync(ct);
@@ -425,6 +451,13 @@ public static class DbSeeder
 
         if (await db.Events.AnyAsync(ct))
         {
+            var renamed = await db.Events
+                .Where(x => x.Title.StartsWith("Bu ay:"))
+                .ToListAsync(ct);
+            foreach (var ev in renamed)
+                ev.Title = ev.Title.Replace("Bu ay: ", "", StringComparison.Ordinal);
+            if (renamed.Count > 0)
+                await db.SaveChangesAsync(ct);
             logger.LogInformation(
                 "Seed: harita tesisleri güncellendi (yeni={New}, güncellenen={Up}); etkinlikler zaten var.",
                 addedFacilities, coordUpdated);
@@ -460,6 +493,7 @@ public static class DbSeeder
             Latitude = lat ?? facility?.Latitude,
             Longitude = lng ?? facility?.Longitude,
             Address = address ?? facility?.Address,
+            Category = SettlementSeeder.GuessCategory(title),
             CreatedBy = "seed"
         };
 
@@ -538,7 +572,7 @@ public static class DbSeeder
                 today.AddDays(9).AddHours(23),
                 F("FAC_SANAT")),
             Ev(
-                "Bu ay: Seminer — Dijital Belediyecilik",
+                "Seminer — Dijital Belediyecilik",
                 "Personel ve paydaş semineri.",
                 EventStatus.Published,
                 today.AddDays(10).AddHours(13),
@@ -957,11 +991,13 @@ public static class DbSeeder
         if (string.IsNullOrWhiteSpace(password))
         {
             if (environment.IsDevelopment())
-                password = "ChangeMe!123";
+                password = WellKnownSecrets.DevelopmentPassword;
             else
                 throw new InvalidOperationException(
                     "Seed:AdminPassword Production ortamında zorunludur (User Secrets veya ortam değişkeni).");
         }
+
+        RejectProductionDefaultPassword(environment, password);
 
         var hasher = new PasswordHasher<AppUser>();
         var admin = new AppUser
@@ -989,6 +1025,272 @@ public static class DbSeeder
         logger.LogWarning(
             "Seed: varsayılan admin oluşturuldu (kullanıcı: {User}). İlk girişten sonra şifreyi değiştirin.",
             adminUserName);
+    }
+
+    private static async Task SeedDirectorUserAsync(
+        AppDbContext db,
+        IConfiguration configuration,
+        IHostEnvironment environment,
+        ILogger logger,
+        CancellationToken ct)
+    {
+        const string userName = "mudur";
+
+        if (await db.Users.AnyAsync(x => x.UserName == userName, ct))
+            return;
+
+        var password = configuration["Seed:AdminPassword"]?.Trim();
+        if (string.IsNullOrWhiteSpace(password))
+        {
+            if (environment.IsDevelopment())
+                password = WellKnownSecrets.DevelopmentPassword;
+            else
+                return;
+        }
+
+        RejectProductionDefaultPassword(environment, password);
+
+        var hasher = new PasswordHasher<AppUser>();
+        var director = new AppUser
+        {
+            UserName = userName,
+            Email = "mudur@sehitkamil.local",
+            DisplayName = "Test Müdür",
+            IsActive = true,
+            CreatedBy = "seed"
+        };
+        director.PasswordHash = hasher.HashPassword(director, password);
+
+        db.Users.Add(director);
+        await db.SaveChangesAsync(ct);
+
+        var directorRole = await db.Roles.SingleAsync(x => x.Code == RoleCodes.Director, ct);
+        db.UserRoles.Add(new UserRole
+        {
+            UserId = director.Id,
+            RoleId = directorRole.Id,
+            CreatedBy = "seed"
+        });
+        await db.SaveChangesAsync(ct);
+
+        logger.LogWarning(
+            "Seed: müdür kullanıcısı oluşturuldu (kullanıcı: {User}).",
+            userName);
+    }
+
+    private static async Task SeedIdariAmirUserAsync(
+        AppDbContext db,
+        IConfiguration configuration,
+        IHostEnvironment environment,
+        ILogger logger,
+        CancellationToken ct)
+    {
+        const string userName = "idari";
+
+        var password = configuration["Seed:AdminPassword"]?.Trim();
+        if (string.IsNullOrWhiteSpace(password))
+        {
+            if (environment.IsDevelopment())
+                password = WellKnownSecrets.DevelopmentPassword;
+            else if (!await db.Users.AnyAsync(x => x.UserName == userName, ct))
+                return;
+        }
+
+        RejectProductionDefaultPassword(environment, password);
+
+        var hasher = new PasswordHasher<AppUser>();
+        var user = await db.Users.FirstOrDefaultAsync(x => x.UserName == userName, ct);
+        if (user is null)
+        {
+            if (string.IsNullOrWhiteSpace(password))
+                return;
+
+            user = new AppUser
+            {
+                UserName = userName,
+                Email = "idari@sehitkamil.local",
+                DisplayName = "Tarık Öndül",
+                IsActive = true,
+                CreatedBy = "seed"
+            };
+            user.PasswordHash = hasher.HashPassword(user, password);
+            db.Users.Add(user);
+            await db.SaveChangesAsync(ct);
+
+            var role = await db.Roles.SingleAsync(x => x.Code == RoleCodes.AdministrativeOfficer, ct);
+            db.UserRoles.Add(new UserRole
+            {
+                UserId = user.Id,
+                RoleId = role.Id,
+                CreatedBy = "seed"
+            });
+            await db.SaveChangesAsync(ct);
+
+            logger.LogWarning(
+                "Seed: idari amir kullanıcısı oluşturuldu (kullanıcı: {User}).",
+                userName);
+        }
+
+        var idariRole = await db.Roles.SingleAsync(x => x.Code == RoleCodes.AdministrativeOfficer, ct);
+        var unitRole = await db.Roles.SingleAsync(x => x.Code == RoleCodes.UnitManager, ct);
+        var links = await db.UserRoles.Where(x => x.UserId == user.Id).ToListAsync(ct);
+        if (links.All(x => x.RoleId != idariRole.Id))
+        {
+            var old = links.FirstOrDefault(x => x.RoleId == unitRole.Id);
+            if (old is not null) db.UserRoles.Remove(old);
+            db.UserRoles.Add(new UserRole
+            {
+                UserId = user.Id,
+                RoleId = idariRole.Id,
+                CreatedBy = "seed"
+            });
+            await db.SaveChangesAsync(ct);
+            logger.LogWarning("Seed: idari amir rolü İdari Amir olarak güncellendi.");
+        }
+
+        if (!string.Equals(user.DisplayName, "Tarık Öndül", StringComparison.Ordinal))
+        {
+            user.DisplayName = "Tarık Öndül";
+            await db.SaveChangesAsync(ct);
+        }
+
+        if (user.EmployeeId is null)
+        {
+            var unitEmployee = await db.Employees
+                .Where(x => x.EmployeeNumber == "P-1002")
+                .Select(x => x.Id)
+                .FirstOrDefaultAsync(ct);
+            if (unitEmployee != Guid.Empty)
+            {
+                user.EmployeeId = unitEmployee;
+                await db.SaveChangesAsync(ct);
+                logger.LogWarning("Seed: idari amir personel kaydına bağlandı.");
+            }
+        }
+    }
+
+    private static async Task SeedUnitHeadsAsync(AppDbContext db, ILogger logger, CancellationToken ct)
+    {
+        var employees = await db.Employees
+            .Where(x => x.EmployeeNumber != null && x.Status == EmployeeStatus.Active)
+            .Select(x => new { x.Id, x.EmployeeNumber })
+            .ToListAsync(ct);
+        var byNumber = employees
+            .Where(x => x.EmployeeNumber != null)
+            .ToDictionary(x => x.EmployeeNumber!, x => x.Id, StringComparer.OrdinalIgnoreCase);
+
+        var map = new (string UnitCode, string EmployeeNumber)[]
+        {
+            ("IDARI", "P-1002"),
+            ("BILIM", "P-1001"),
+            ("SANAT", "P-1003"),
+            ("GENCLIK_KUT", "P-1004"),
+            ("FAC_KUT", "P-1004"),
+        };
+
+        var updated = 0;
+        foreach (var (unitCode, employeeNumber) in map)
+        {
+            if (!byNumber.TryGetValue(employeeNumber, out var employeeId))
+                continue;
+            var unit = await db.OrganizationUnits.FirstOrDefaultAsync(x => x.Code == unitCode, ct);
+            if (unit is null || unit.ManagerEmployeeId == employeeId)
+                continue;
+            unit.ManagerEmployeeId = employeeId;
+            unit.UpdatedBy = "seed";
+            updated++;
+        }
+
+        if (updated == 0)
+            return;
+
+        await db.SaveChangesAsync(ct);
+        logger.LogInformation("Seed: {Count} birim/tesise amir atandı.", updated);
+    }
+
+    private static async Task SeedFacilityOfficerUsersAsync(
+        AppDbContext db,
+        IConfiguration configuration,
+        IHostEnvironment environment,
+        ILogger logger,
+        CancellationToken ct)
+    {
+        var password = configuration["Seed:AdminPassword"]?.Trim();
+        if (string.IsNullOrWhiteSpace(password))
+            password = WellKnownSecrets.DevelopmentPassword;
+
+        RejectProductionDefaultPassword(environment, password);
+
+        var hasher = new PasswordHasher<AppUser>();
+        var role = await db.Roles.SingleAsync(x => x.Code == RoleCodes.UnitManager, ct);
+        var tr = CultureInfo.GetCultureInfo("tr-TR");
+        string Key(string first, string last) =>
+            $"{first.Trim().ToUpper(tr)}|{last.Trim().ToUpper(tr)}";
+
+        var employees = await db.Employees
+            .AsNoTracking()
+            .Select(x => new { x.Id, x.FirstName, x.LastName })
+            .ToListAsync(ct);
+        var byKey = employees
+            .GroupBy(x => Key(x.FirstName, x.LastName), StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First().Id, StringComparer.Ordinal);
+
+        var officers = new (string UserName, string First, string Last)[]
+        {
+            ("ahmet", "Ahmet", "Oral"),
+            ("erhan", "Erhan Bozo", "Sarıkaya"),
+            ("tutku", "Tutku", "Yapıcı"),
+            ("eyup", "Eyüp", "Yenikomşu"),
+            ("irem", "İrem", "Ölmez"),
+            ("vakkas", "Seydi Vakkas", "Cengiz"),
+        };
+
+        var added = 0;
+        foreach (var (userName, first, last) in officers)
+        {
+            if (!byKey.TryGetValue(Key(first, last), out var employeeId))
+                continue;
+
+            var display = $"{first} {last}".Trim();
+            var user = await db.Users.FirstOrDefaultAsync(x => x.UserName == userName, ct);
+            if (user is null)
+            {
+                user = new AppUser
+                {
+                    UserName = userName,
+                    Email = $"{userName}@sehitkamil.local",
+                    DisplayName = display,
+                    IsActive = true,
+                    EmployeeId = employeeId,
+                    CreatedBy = "seed"
+                };
+                user.PasswordHash = hasher.HashPassword(user, password);
+                db.Users.Add(user);
+                await db.SaveChangesAsync(ct);
+                added++;
+            }
+            else
+            {
+                user.EmployeeId = employeeId;
+                user.DisplayName = display;
+                user.IsActive = true;
+            }
+
+            var hasRole = await db.UserRoles.AnyAsync(x => x.UserId == user.Id && x.RoleId == role.Id, ct);
+            if (!hasRole)
+            {
+                db.UserRoles.Add(new UserRole
+                {
+                    UserId = user.Id,
+                    RoleId = role.Id,
+                    CreatedBy = "seed"
+                });
+            }
+        }
+
+        await db.SaveChangesAsync(ct);
+        if (added > 0)
+            logger.LogWarning("Seed: {Count} tesis amiri hesabı açıldı.", added);
     }
 
     private static async Task SeedSampleNotificationsAsync(AppDbContext db, ILogger logger, CancellationToken ct)
@@ -1103,5 +1405,14 @@ public static class DbSeeder
             logger.LogInformation("Seed: {Count} uygulama ayarı eklendi.", toAdd.Count);
         if (metaUpdated > 0)
             logger.LogInformation("Seed: {Count} ayar açıklaması güncellendi.", metaUpdated);
+    }
+
+    private static void RejectProductionDefaultPassword(IHostEnvironment environment, string? password)
+    {
+        if (!environment.IsDevelopment() && WellKnownSecrets.IsDevelopmentPassword(password))
+        {
+            throw new InvalidOperationException(
+                "Seed:AdminPassword production'da varsayılan geliştirme şifresi olamaz.");
+        }
     }
 }

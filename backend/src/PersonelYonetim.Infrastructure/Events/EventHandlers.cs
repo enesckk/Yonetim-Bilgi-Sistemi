@@ -1,6 +1,7 @@
 using System.Text.Json;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using PersonelYonetim.Application.Common.Exceptions;
 using PersonelYonetim.Application.Common.Interfaces;
 using PersonelYonetim.Application.Features.Events;
@@ -8,6 +9,8 @@ using PersonelYonetim.Application.Features.Notifications;
 using PersonelYonetim.Domain.Authorization;
 using PersonelYonetim.Domain.Entities;
 using PersonelYonetim.Domain.Enums;
+using PersonelYonetim.Domain.Events;
+using PersonelYonetim.Infrastructure.Caching;
 using PersonelYonetim.Infrastructure.Persistence;
 
 namespace PersonelYonetim.Infrastructure.Events;
@@ -17,9 +20,9 @@ internal static class EventLabels
     public static string Status(EventStatus s) => s switch
     {
         EventStatus.Draft => "Taslak",
-        EventStatus.Published => "Yayında",
+        EventStatus.Published => "Planlandı",
         EventStatus.Cancelled => "İptal",
-        EventStatus.Completed => "Tamamlandı",
+        EventStatus.Completed => "Yapıldı",
         _ => s.ToString()
     };
 
@@ -106,11 +109,11 @@ internal static class EventConflictHelper
             .ToList();
     }
 
-    public static void EnsurePublishLocation(Event entity)
+    public static void EnsurePublishLocation(Event entity, bool hasSettlement = false)
     {
         var hasCoords = entity.Latitude is not null && entity.Longitude is not null;
-        if (!hasCoords && entity.FacilityId is null)
-            throw new ValidationException("location", "Yayınlamak için tesis veya koordinat gerekir.");
+        if (!hasCoords && entity.FacilityId is null && !hasSettlement)
+            throw new ValidationException("location", "Planlanan veya yapılan kayıt için mahalle, tesis veya koordinat gerekir.");
     }
 
     public static EventDetailDto ToDetail(Event e, int seriesCount = 0) => new()
@@ -130,6 +133,11 @@ internal static class EventConflictHelper
         Longitude = e.Longitude ?? e.Facility?.Longitude,
         Address = e.Address ?? e.Facility?.Address,
         ExpectedAttendees = e.ExpectedAttendees,
+        ActualAttendees = e.ActualAttendees,
+        AttendanceCount = EventAttendance.Resolve(
+            e.ActualAttendees,
+            (e.Settlements ?? []).Where(s => !s.IsDeleted).Sum(s => s.AttendanceCount),
+            e.ExpectedAttendees),
         SeriesId = e.SeriesId,
         RecurrenceFrequency = e.RecurrenceFrequency,
         RecurrenceLabel = EventLabels.Recurrence(e.RecurrenceFrequency),
@@ -138,6 +146,20 @@ internal static class EventConflictHelper
         ResponsibleEmployeeName = e.ResponsibleEmployee is null
             ? null
             : $"{e.ResponsibleEmployee.FirstName} {e.ResponsibleEmployee.LastName}".Trim(),
+        Category = e.Category,
+        CategoryLabel = string.IsNullOrWhiteSpace(e.Category) ? null : EventCategories.Label(e.Category),
+        Settlements = (e.Settlements ?? [])
+            .Where(s => !s.IsDeleted)
+            .Select(s => new EventSettlementDto
+            {
+                SettlementId = s.SettlementId,
+                SettlementName = s.Settlement?.Name ?? "",
+                OfficialCode = s.Settlement?.OfficialCode ?? "",
+                AttendanceCount = s.AttendanceCount,
+                UniqueBeneficiaryCount = s.UniqueBeneficiaryCount,
+                Notes = s.Notes
+            })
+            .ToList(),
         AllowedTransitions = EventStatusTransitions.AllowedFrom(e.Status)
     };
 }
@@ -193,11 +215,30 @@ public sealed class GetEventsHandler : IRequestHandler<GetEventsQuery, EventList
         if (request.Status is EventStatus st)
             q = q.Where(e => e.Status == st);
 
-        if (request.FromUtc is DateTime from)
-            q = q.Where(e => e.StartAtUtc >= from);
+        if (request.FromUtc is DateTime from && request.ToUtc is DateTime to)
+        {
+            q = q.Where(e => e.StartAtUtc <= to && (e.EndAtUtc ?? e.StartAtUtc) >= from);
+        }
+        else if (request.FromUtc is DateTime fromOnly)
+        {
+            q = q.Where(e => (e.EndAtUtc ?? e.StartAtUtc) >= fromOnly);
+        }
+        else if (request.ToUtc is DateTime toOnly)
+        {
+            q = q.Where(e => e.StartAtUtc <= toOnly);
+        }
 
-        if (request.ToUtc is DateTime to)
-            q = q.Where(e => e.StartAtUtc <= to);
+        if (request.SettlementId is Guid sid)
+            q = q.Where(e => e.Settlements.Any(x => x.SettlementId == sid));
+
+        if (request.FacilityId is Guid fid)
+        {
+            var venueIds = await _db.OrganizationUnits.AsNoTracking()
+                .Where(x => x.Id == fid || x.ParentId == fid)
+                .Select(x => x.Id)
+                .ToListAsync(cancellationToken);
+            q = q.Where(e => e.FacilityId != null && venueIds.Contains(e.FacilityId.Value));
+        }
 
         var items = await q
             .OrderByDescending(e => e.StartAtUtc)
@@ -210,11 +251,18 @@ public sealed class GetEventsHandler : IRequestHandler<GetEventsQuery, EventList
                 StartAtUtc = e.StartAtUtc,
                 EndAtUtc = e.EndAtUtc,
                 OrganizingUnitName = e.OrganizingUnit != null ? e.OrganizingUnit.Name : null,
+                FacilityId = e.FacilityId,
                 FacilityName = e.Facility != null ? e.Facility.Name : null,
                 Latitude = e.Latitude ?? (e.Facility != null ? e.Facility.Latitude : null),
                 Longitude = e.Longitude ?? (e.Facility != null ? e.Facility.Longitude : null),
                 Address = e.Address ?? (e.Facility != null ? e.Facility.Address : null),
                 ExpectedAttendees = e.ExpectedAttendees,
+                ActualAttendees = e.ActualAttendees,
+                AttendanceCount = e.ActualAttendees != null
+                    ? e.ActualAttendees
+                    : (e.Settlements.Sum(s => s.AttendanceCount) > 0
+                        ? e.Settlements.Sum(s => s.AttendanceCount)
+                        : e.ExpectedAttendees),
                 SeriesId = e.SeriesId,
                 RecurrenceFrequency = e.RecurrenceFrequency,
                 RecurrenceLabel = e.RecurrenceFrequency == EventRecurrenceFrequency.Weekly
@@ -225,9 +273,13 @@ public sealed class GetEventsHandler : IRequestHandler<GetEventsQuery, EventList
                 ResponsibleEmployeeId = e.ResponsibleEmployeeId,
                 ResponsibleEmployeeName = e.ResponsibleEmployee != null
                     ? (e.ResponsibleEmployee.FirstName + " " + e.ResponsibleEmployee.LastName).Trim()
-                    : null
+                    : null,
+                Category = e.Category
             })
             .ToListAsync(cancellationToken);
+
+        foreach (var item in items)
+            item.CategoryLabel = string.IsNullOrWhiteSpace(item.Category) ? null : EventCategories.Label(item.Category);
 
         return new EventListDto { Items = items, TotalCount = items.Count };
     }
@@ -254,6 +306,8 @@ public sealed class GetEventByIdHandler : IRequestHandler<GetEventByIdQuery, Eve
             .Include(x => x.OrganizingUnit)
             .Include(x => x.Facility)
             .Include(x => x.ResponsibleEmployee)
+            .Include(x => x.Settlements)
+                .ThenInclude(x => x.Settlement)
             .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
 
         if (e is null) return null;
@@ -300,15 +354,18 @@ public sealed class CreateEventHandler : IRequestHandler<CreateEventCommand, Gui
     private readonly AppDbContext _db;
     private readonly ICurrentUserService _currentUser;
     private readonly IUserNotificationService _notifications;
+    private readonly IMemoryCache _cache;
 
     public CreateEventHandler(
         AppDbContext db,
         ICurrentUserService currentUser,
-        IUserNotificationService notifications)
+        IUserNotificationService notifications,
+        IMemoryCache cache)
     {
         _db = db;
         _currentUser = currentUser;
         _notifications = notifications;
+        _cache = cache;
     }
 
     public async Task<Guid> Handle(CreateEventCommand request, CancellationToken cancellationToken)
@@ -354,6 +411,7 @@ public sealed class CreateEventHandler : IRequestHandler<CreateEventCommand, Gui
                 EndAtUtc = occEnd,
                 Status = request.Status,
                 ExpectedAttendees = request.ExpectedAttendees,
+                ActualAttendees = i == 0 ? request.ActualAttendees : null,
                 SeriesId = seriesId,
                 RecurrenceFrequency = occurrences > 1 ? request.RecurrenceFrequency : EventRecurrenceFrequency.None,
                 ResponsibleEmployeeId = request.ResponsibleEmployeeId,
@@ -362,13 +420,18 @@ public sealed class CreateEventHandler : IRequestHandler<CreateEventCommand, Gui
                 Latitude = request.Latitude,
                 Longitude = request.Longitude,
                 Address = string.IsNullOrWhiteSpace(request.Address) ? null : request.Address.Trim(),
+                Category = string.IsNullOrWhiteSpace(request.Category)
+                    ? null
+                    : EventCategories.Normalize(request.Category),
                 CreatedBy = _currentUser.UserName ?? "system"
             };
 
             if (entity.Status is EventStatus.Published or EventStatus.Completed)
-                EventConflictHelper.EnsurePublishLocation(entity);
+                EventConflictHelper.EnsurePublishLocation(entity, request.Settlements.Count > 0);
 
             _db.Events.Add(entity);
+            await EventSettlementSync.ApplyAsync(
+                _db, entity, request.Settlements, entity.CreatedBy ?? "system", cancellationToken);
             first ??= entity;
             createdIds.Add(entity.Id);
         }
@@ -385,6 +448,7 @@ public sealed class CreateEventHandler : IRequestHandler<CreateEventCommand, Gui
         });
 
         await _db.SaveChangesAsync(cancellationToken);
+        _cache.InvalidateMapSummaries();
 
         if (first.Status == EventStatus.Published)
         {
@@ -445,11 +509,13 @@ public sealed class UpdateEventHandler : IRequestHandler<UpdateEventCommand>
 {
     private readonly AppDbContext _db;
     private readonly ICurrentUserService _currentUser;
+    private readonly IMemoryCache _cache;
 
-    public UpdateEventHandler(AppDbContext db, ICurrentUserService currentUser)
+    public UpdateEventHandler(AppDbContext db, ICurrentUserService currentUser, IMemoryCache cache)
     {
         _db = db;
         _currentUser = currentUser;
+        _cache = cache;
     }
 
     public async Task Handle(UpdateEventCommand request, CancellationToken cancellationToken)
@@ -483,7 +549,8 @@ public sealed class UpdateEventHandler : IRequestHandler<UpdateEventCommand>
             entity.StartAtUtc,
             entity.EndAtUtc,
             entity.FacilityId,
-            entity.ExpectedAttendees
+            entity.ExpectedAttendees,
+            entity.ActualAttendees
         };
 
         entity.Title = request.Title.Trim();
@@ -494,17 +561,24 @@ public sealed class UpdateEventHandler : IRequestHandler<UpdateEventCommand>
             : DateTime.SpecifyKind(request.EndAtUtc.Value, DateTimeKind.Utc);
         entity.Status = request.Status;
         entity.ExpectedAttendees = request.ExpectedAttendees;
+        entity.ActualAttendees = request.ActualAttendees;
         entity.ResponsibleEmployeeId = request.ResponsibleEmployeeId;
         entity.OrganizingUnitId = request.OrganizingUnitId;
         entity.FacilityId = request.FacilityId;
         entity.Latitude = request.Latitude;
         entity.Longitude = request.Longitude;
         entity.Address = string.IsNullOrWhiteSpace(request.Address) ? null : request.Address.Trim();
+        entity.Category = string.IsNullOrWhiteSpace(request.Category)
+            ? null
+            : EventCategories.Normalize(request.Category);
         entity.UpdatedBy = _currentUser.UserName ?? "system";
         entity.UpdatedAtUtc = DateTime.UtcNow;
 
         if (entity.Status is EventStatus.Published or EventStatus.Completed)
-            EventConflictHelper.EnsurePublishLocation(entity);
+            EventConflictHelper.EnsurePublishLocation(entity, request.Settlements.Count > 0);
+
+        await EventSettlementSync.ApplyAsync(
+            _db, entity, request.Settlements, entity.UpdatedBy ?? "system", cancellationToken);
 
         EventAudit.Add(_db, _currentUser, "Update", entity.Id, oldSnapshot, new
         {
@@ -517,6 +591,7 @@ public sealed class UpdateEventHandler : IRequestHandler<UpdateEventCommand>
         });
 
         await _db.SaveChangesAsync(cancellationToken);
+        _cache.InvalidateMapSummaries();
     }
 }
 
@@ -525,15 +600,18 @@ public sealed class ChangeEventStatusHandler : IRequestHandler<ChangeEventStatus
     private readonly AppDbContext _db;
     private readonly ICurrentUserService _currentUser;
     private readonly IUserNotificationService _notifications;
+    private readonly IMemoryCache _cache;
 
     public ChangeEventStatusHandler(
         AppDbContext db,
         ICurrentUserService currentUser,
-        IUserNotificationService notifications)
+        IUserNotificationService notifications,
+        IMemoryCache cache)
     {
         _db = db;
         _currentUser = currentUser;
         _notifications = notifications;
+        _cache = cache;
     }
 
     public async Task<EventDetailDto> Handle(ChangeEventStatusCommand request, CancellationToken cancellationToken)
@@ -545,6 +623,8 @@ public sealed class ChangeEventStatusHandler : IRequestHandler<ChangeEventStatus
             .Include(x => x.OrganizingUnit)
             .Include(x => x.Facility)
             .Include(x => x.ResponsibleEmployee)
+            .Include(x => x.Settlements)
+                .ThenInclude(x => x.Settlement)
             .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken)
             ?? throw new NotFoundException("Etkinlik bulunamadı.");
 
@@ -562,7 +642,9 @@ public sealed class ChangeEventStatusHandler : IRequestHandler<ChangeEventStatus
                 $"{EventLabels.Status(entity.Status)} durumundan {EventLabels.Status(request.Status)} durumuna geçilemez.");
 
         if (request.Status is EventStatus.Published or EventStatus.Completed)
-            EventConflictHelper.EnsurePublishLocation(entity);
+            EventConflictHelper.EnsurePublishLocation(
+                entity,
+                await _db.EventSettlements.AnyAsync(x => x.EventId == entity.Id, cancellationToken));
 
         if (request.Status is EventStatus.Published or EventStatus.Draft)
         {
@@ -586,6 +668,7 @@ public sealed class ChangeEventStatusHandler : IRequestHandler<ChangeEventStatus
             new { status = entity.Status });
 
         await _db.SaveChangesAsync(cancellationToken);
+        _cache.InvalidateMapSummaries();
 
         if (entity.Status == EventStatus.Published && from != EventStatus.Published)
         {
@@ -611,11 +694,13 @@ public sealed class DeleteEventHandler : IRequestHandler<DeleteEventCommand>
 {
     private readonly AppDbContext _db;
     private readonly ICurrentUserService _currentUser;
+    private readonly IMemoryCache _cache;
 
-    public DeleteEventHandler(AppDbContext db, ICurrentUserService currentUser)
+    public DeleteEventHandler(AppDbContext db, ICurrentUserService currentUser, IMemoryCache cache)
     {
         _db = db;
         _currentUser = currentUser;
+        _cache = cache;
     }
 
     public async Task Handle(DeleteEventCommand request, CancellationToken cancellationToken)
@@ -637,6 +722,7 @@ public sealed class DeleteEventHandler : IRequestHandler<DeleteEventCommand>
         entity.DeletedAtUtc = DateTime.UtcNow;
         entity.DeletedBy = _currentUser.UserName ?? "system";
         await _db.SaveChangesAsync(cancellationToken);
+        _cache.InvalidateMapSummaries();
     }
 }
 

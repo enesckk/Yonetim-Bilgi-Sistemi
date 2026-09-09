@@ -89,6 +89,8 @@ export function AccountMenu({ avatar }: { avatar: ReactNode }) {
   }, [])
 
   const roleLine = (user?.roleNames?.length ? user.roleNames : user?.roles)?.join(', ')
+  const displayName = user?.displayName?.trim() || user?.userName || ''
+  const showRole = Boolean(roleLine && roleLine !== displayName)
 
   return (
     <div className={`account-menu${open ? ' is-open' : ''}`} ref={rootRef}>
@@ -118,8 +120,8 @@ export function AccountMenu({ avatar }: { avatar: ReactNode }) {
       >
         {avatar}
         <span className="user-meta">
-          <strong>{user?.displayName}</strong>
-          <span className="muted">{roleLine}</span>
+          {showRole ? <span className="muted">{roleLine}</span> : null}
+          <strong>{displayName}</strong>
         </span>
         <svg
           className="account-caret"

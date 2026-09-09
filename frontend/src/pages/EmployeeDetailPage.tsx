@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
-  archiveEmployee,
   createAssignment,
   createCertificate,
   createEducation,
@@ -59,8 +58,15 @@ import {
 import { ApiClientError } from '@/api/client'
 import { useAuth } from '@/auth/AuthContext'
 import { PermissionCodes } from '@/auth/permissionCodes'
+import { isSystemAdmin } from '@/auth/roles'
 import { useConfirm } from '@/components/ConfirmDialog'
 import { EmployeeAvatar } from '@/components/EmployeeAvatar'
+import {
+  DeleteEmployeeDialog,
+  TransferDirectorateDialog,
+  WorkplaceChangeDialog,
+} from '@/components/EmployeeLifecycleDialogs'
+import { PageBackLink } from '@/components/PageBackLink'
 
 type TabId = 'general' | 'corporate' | 'education' | 'skills' | 'history' | 'notes' | 'special'
 
@@ -76,8 +82,10 @@ const TABS: { id: TabId; label: string }[] = [
 
 export function EmployeeDetailPage() {
   const { id } = useParams<{ id: string }>()
+  const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
-  const { hasPermission } = useAuth()
+  const { hasPermission, user } = useAuth()
+  const admin = isSystemAdmin(user)
   const [tab, setTab] = useState<TabId>('general')
   const [data, setData] = useState<EmployeeDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -87,6 +95,8 @@ export function EmployeeDetailPage() {
   const [photoKey, setPhotoKey] = useState(0)
   const [statusOpen, setStatusOpen] = useState(false)
   const [archiveOpen, setArchiveOpen] = useState(false)
+  const [workplaceOpen, setWorkplaceOpen] = useState(false)
+  const [transferOpen, setTransferOpen] = useState(false)
 
   const load = useCallback(async () => {
     if (!id) return
@@ -107,6 +117,17 @@ export function EmployeeDetailPage() {
     void load()
   }, [load])
 
+  useEffect(() => {
+    const action = searchParams.get('action')
+    if (!action) return
+    if (action === 'workplace') setWorkplaceOpen(true)
+    if (action === 'transfer') setTransferOpen(true)
+    if (action === 'delete') setArchiveOpen(true)
+    const next = new URLSearchParams(searchParams)
+    next.delete('action')
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
+
   if (loading && !data) {
     return (
       <div className="emp-detail-page">
@@ -122,9 +143,7 @@ export function EmployeeDetailPage() {
       <div className="emp-detail-page">
         <div className="panel">
           <p className="form-error">{error ?? 'Kayıt bulunamadı.'}</p>
-          <Link to="/employees" className="back-link">
-            ← Personel listesine dön
-          </Link>
+          <PageBackLink to="/employees">Personel listesine dön</PageBackLink>
         </div>
       </div>
     )
@@ -232,9 +251,7 @@ export function EmployeeDetailPage() {
           </div>
 
           <div className="emp-detail-hero-copy">
-            <Link to="/employees" className="back-link">
-              ← Personeller
-            </Link>
+            <PageBackLink to="/employees">Personeller</PageBackLink>
             <p className="emp-detail-eyebrow">Personel profili</p>
             <h1>{data.fullName}</h1>
             <p className="emp-detail-lead">
@@ -252,6 +269,16 @@ export function EmployeeDetailPage() {
                   Düzenle
                 </Link>
               )}
+              {canCreateMovements && data.status === 1 && (
+                <button type="button" className="btn-secondary" onClick={() => setWorkplaceOpen(true)}>
+                  Görev yeri değiştir
+                </button>
+              )}
+              {canSetStatus && data.status === 1 && (
+                <button type="button" className="btn-secondary" onClick={() => setTransferOpen(true)}>
+                  Başka müdürlüğe geçti
+                </button>
+              )}
               {canSetStatus && (
                 <button type="button" className="btn-secondary" onClick={() => setStatusOpen(true)}>
                   Durum değiştir
@@ -259,7 +286,7 @@ export function EmployeeDetailPage() {
               )}
               {canArchive && (
                 <button type="button" className="btn-secondary emp-archive-btn" onClick={() => setArchiveOpen(true)}>
-                  Arşivle
+                  Sil
                 </button>
               )}
             </div>
@@ -268,6 +295,7 @@ export function EmployeeDetailPage() {
 
         <aside className="emp-detail-hero-meta">
           <span className={`status-pill status-${data.status}`}>{data.statusLabel}</span>
+          {admin ? (
           <div className="completion emp-detail-completion">
             <span className="muted small">Profil doluluğu</span>
             <div className="completion-track">
@@ -275,6 +303,7 @@ export function EmployeeDetailPage() {
             </div>
             <strong>{data.profileCompletionPercent}%</strong>
           </div>
+          ) : null}
           {data.hasSpecialCondition && (
             <p className={`emp-detail-special-flag ${canViewSpecial ? 'is-open' : ''}`}>
               {canViewSpecial
@@ -285,7 +314,7 @@ export function EmployeeDetailPage() {
         </aside>
       </header>
 
-      {missingHints.length > 0 && (
+      {admin && missingHints.length > 0 && (
         <div className="emp-detail-gaps panel" role="status">
           <strong>Eksik / dikkat</strong>
           <ul>
@@ -297,7 +326,7 @@ export function EmployeeDetailPage() {
       )}
 
       <nav className="emp-detail-tabs" role="tablist" aria-label="Profil sekmeleri">
-        {TABS.map((t) => (
+        {TABS.filter((t) => t.id !== 'special' || canViewSpecial).map((t) => (
           <button
             key={t.id}
             type="button"
@@ -401,12 +430,37 @@ export function EmployeeDetailPage() {
         />
       ) : null}
 
+      {workplaceOpen ? (
+        <WorkplaceChangeDialog
+          employeeId={data.id}
+          onClose={() => setWorkplaceOpen(false)}
+          onSaved={async () => {
+            setWorkplaceOpen(false)
+            const refreshed = await fetchEmployeeById(data.id)
+            setData(refreshed)
+          }}
+        />
+      ) : null}
+
+      {transferOpen ? (
+        <TransferDirectorateDialog
+          employeeId={data.id}
+          fullName={data.fullName}
+          onClose={() => setTransferOpen(false)}
+          onSaved={async () => {
+            setTransferOpen(false)
+            const refreshed = await fetchEmployeeById(data.id)
+            setData(refreshed)
+          }}
+        />
+      ) : null}
+
       {archiveOpen ? (
-        <ArchiveDialog
+        <DeleteEmployeeDialog
+          employeeId={data.id}
           fullName={data.fullName}
           onClose={() => setArchiveOpen(false)}
-          onConfirm={async (reason) => {
-            await archiveEmployee(data.id, reason)
+          onDeleted={async () => {
             navigate('/employees', { replace: true })
           }}
         />
@@ -499,7 +553,8 @@ function StatusChangeDialog({
             <h2 id="status-dialog-title">Durum değiştir</h2>
             <p className="muted small">
               Kayıt silinmez. Mevcut durum: <strong>{currentLabel}</strong>. Ayrılış
-              durumlarında görev geçmişine otomatik kayıt eklenir.
+              durumlarında görev geçmişine otomatik kayıt eklenir. “Başka müdürlüğe geçti”
+              seçilirse personel kadrodan düşer ve teşkilat şemasında görünmez.
             </p>
           </div>
           <button type="button" className="btn-secondary" onClick={onClose}>
@@ -521,6 +576,11 @@ function StatusChangeDialog({
               ))}
             </select>
           </label>
+          {status === 8 ? (
+            <p className="muted small span-2">
+              Bu durum personeli pasif nakil kadrosuna alır; şemada ve aktif listede görünmez.
+            </p>
+          ) : null}
           <label>
             <span>Geçerlilik tarihi</span>
             <input
@@ -551,96 +611,6 @@ function StatusChangeDialog({
             </button>
             <button type="submit" className="btn-primary" disabled={busy}>
               {busy ? 'Kaydediliyor…' : 'Durumu kaydet'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
-}
-
-function ArchiveDialog({
-  fullName,
-  onClose,
-  onConfirm,
-}: {
-  fullName: string
-  onClose: () => void
-  onConfirm: (reason: string) => Promise<void>
-}) {
-  const confirm = useConfirm()
-  const [reason, setReason] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault()
-    if (!reason.trim()) {
-      setError('Arşivleme gerekçesi zorunludur.')
-      return
-    }
-    const ok = await confirm({
-      title: 'Kaydı arşivle',
-      message: `“${fullName}” kaydı arşivlenecek. Kayıt sistemden silinmez; listelerde görünmez. Devam edilsin mi?`,
-      confirmLabel: 'Arşivle',
-      tone: 'primary',
-    })
-    if (!ok) return
-    setBusy(true)
-    setError(null)
-    try {
-      await onConfirm(reason.trim())
-    } catch (err) {
-      setError(err instanceof ApiClientError ? err.message : 'Arşivleme başarısız.')
-      setBusy(false)
-    }
-  }
-
-  return (
-    <div className="emp-lifecycle-backdrop" role="presentation" onClick={onClose}>
-      <div
-        className="emp-lifecycle-dialog panel"
-        role="dialog"
-        aria-modal
-        aria-labelledby="archive-dialog-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className="emp-lifecycle-head">
-          <div>
-            <p className="org-eyebrow">Sistem yönetimi</p>
-            <h2 id="archive-dialog-title">Kaydı arşivle</h2>
-            <p className="muted small">
-              Yalnızca yanlış oluşturulmuş kayıtlar için. Personel işten ayrıldığında arşiv
-              değil, durum güncellemesi kullanılır. Arşivlenen kayıt listede görünmez; geçmiş
-              korunur.
-            </p>
-          </div>
-          <button type="button" className="btn-secondary" onClick={onClose}>
-            Kapat
-          </button>
-        </header>
-        <form className="emp-lifecycle-form" onSubmit={(e) => void onSubmit(e)}>
-          <label className="span-2">
-            <span>Arşiv gerekçesi</span>
-            <textarea
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              rows={3}
-              placeholder="Örn. mükerrer / test kaydı…"
-              required
-            />
-          </label>
-          {error ? (
-            <div className="form-error span-2" role="alert">
-              {error}
-            </div>
-          ) : null}
-          <div className="emp-lifecycle-actions span-2">
-            <button type="button" className="btn-secondary" onClick={onClose} disabled={busy}>
-              Vazgeç
-            </button>
-            <button type="submit" className="btn-primary emp-archive-confirm" disabled={busy}>
-              {busy ? 'Arşivleniyor…' : 'Arşivle'}
             </button>
           </div>
         </form>
@@ -2110,15 +2080,15 @@ function HistoryTab({
   }
 
   const emptyForm = (): FormState => ({
-    movementType: 3,
+    movementType: 1,
     startDate: new Date().toISOString().slice(0, 10),
     endDate: '',
     reason: '',
     description: '',
     approvedBy: '',
-    oldUnitId: '',
+    oldUnitId: data.corporate.unitId ?? '',
     newUnitId: '',
-    oldFacilityId: '',
+    oldFacilityId: data.corporate.facilityId ?? '',
     newFacilityId: '',
     oldJobTitleId: '',
     newJobTitleId: '',

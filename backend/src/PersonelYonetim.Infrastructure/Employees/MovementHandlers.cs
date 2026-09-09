@@ -42,10 +42,18 @@ public sealed class CreateMovementHandler(AppDbContext db, ICurrentUserService c
     public async Task<Guid> Handle(CreateMovementCommand request, CancellationToken ct)
     {
         MovementMapping.EnsureCreate(currentUser);
-        await MovementMapping.EnsureEmployeeAndLookupsAsync(db, request.EmployeeId, request, ct);
-        var entity = new EmployeeMovement { EmployeeId = request.EmployeeId, CreatedBy = currentUser.UserName ?? "system" };
+        await MovementMapping.EnsureLookupsAsync(db, request, ct);
+        var employee = await db.Employees.FirstOrDefaultAsync(x => x.Id == request.EmployeeId, ct)
+            ?? throw new NotFoundException("Personel bulunamadı.");
+
+        var actor = currentUser.UserName ?? "system";
+        var entity = new EmployeeMovement { EmployeeId = request.EmployeeId, CreatedBy = actor };
         MovementMapping.Apply(entity, request);
+        entity.OldUnitId ??= employee.UnitId;
+        entity.OldFacilityId ??= employee.FacilityId;
+        entity.OldJobTitleId ??= employee.JobTitleId;
         db.EmployeeMovements.Add(entity);
+        await EmployeeLifecycleSync.ApplyMovementAsync(db, employee, request, actor, ct);
         await db.SaveChangesAsync(ct);
         return entity.Id;
     }
@@ -94,27 +102,18 @@ internal static class MovementMapping
             throw new ForbiddenException("Hareket kaydı yönetmek için Movements.Create gerekir.");
     }
 
-    public static async Task EnsureEmployeeAndLookupsAsync(AppDbContext db, Guid employeeId, CreateMovementRequest request, CancellationToken ct)
-    {
-        if (!await db.Employees.AnyAsync(x => x.Id == employeeId, ct))
-            throw new NotFoundException("Personel bulunamadı.");
-        await EnsureLookupsAsync(db, request, ct);
-    }
-
     public static async Task EnsureLookupsAsync(AppDbContext db, CreateMovementRequest request, CancellationToken ct)
     {
-        async Task CheckUnit(Guid? id, string field, bool facility)
+        async Task CheckExists(Guid? id, string field)
         {
             if (!id.HasValue) return;
-            var exists = facility
-                ? await db.OrganizationUnits.AnyAsync(x => x.Id == id && x.Type == OrganizationUnitType.Facility, ct)
-                : await db.OrganizationUnits.AnyAsync(x => x.Id == id && x.Type != OrganizationUnitType.Facility, ct);
+            var exists = await db.OrganizationUnits.AnyAsync(x => x.Id == id, ct);
             if (!exists) throw new AppValidationException(field, "Seçilen birim/tesis bulunamadı.");
         }
-        await CheckUnit(request.OldUnitId, nameof(request.OldUnitId), false);
-        await CheckUnit(request.NewUnitId, nameof(request.NewUnitId), false);
-        await CheckUnit(request.OldFacilityId, nameof(request.OldFacilityId), true);
-        await CheckUnit(request.NewFacilityId, nameof(request.NewFacilityId), true);
+        await CheckExists(request.OldUnitId, nameof(request.OldUnitId));
+        await CheckExists(request.NewUnitId, nameof(request.NewUnitId));
+        await CheckExists(request.OldFacilityId, nameof(request.OldFacilityId));
+        await CheckExists(request.NewFacilityId, nameof(request.NewFacilityId));
         if (request.OldJobTitleId.HasValue && !await db.JobTitles.AnyAsync(x => x.Id == request.OldJobTitleId, ct))
             throw new AppValidationException(nameof(request.OldJobTitleId), "Eski unvan bulunamadı.");
         if (request.NewJobTitleId.HasValue && !await db.JobTitles.AnyAsync(x => x.Id == request.NewJobTitleId, ct))

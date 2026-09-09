@@ -1,11 +1,13 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using PersonelYonetim.Application.Common.Exceptions;
 using PersonelYonetim.Application.Common.Interfaces;
 using PersonelYonetim.Application.Features.Employees;
 using PersonelYonetim.Domain.Authorization;
 using PersonelYonetim.Domain.Entities;
 using PersonelYonetim.Domain.Enums;
+using PersonelYonetim.Infrastructure.Caching;
 using PersonelYonetim.Infrastructure.Persistence;
 using AppValidationException = PersonelYonetim.Application.Common.Exceptions.ValidationException;
 
@@ -21,17 +23,20 @@ public sealed class CreateEmployeeHandler : IRequestHandler<CreateEmployeeReques
     private readonly ICurrentUserService _currentUser;
     private readonly INationalIdProtector _nationalId;
     private readonly IUserNotificationService _notifications;
+    private readonly IMemoryCache _cache;
 
     public CreateEmployeeHandler(
         AppDbContext db,
         ICurrentUserService currentUser,
         INationalIdProtector nationalId,
-        IUserNotificationService notifications)
+        IUserNotificationService notifications,
+        IMemoryCache cache)
     {
         _db = db;
         _currentUser = currentUser;
         _nationalId = nationalId;
         _notifications = notifications;
+        _cache = cache;
     }
 
     public async Task<Guid> Handle(CreateEmployeeRequest request, CancellationToken cancellationToken)
@@ -135,6 +140,7 @@ public sealed class CreateEmployeeHandler : IRequestHandler<CreateEmployeeReques
 
         _db.Employees.Add(employee);
         await _db.SaveChangesAsync(cancellationToken);
+        _cache.InvalidateOrgLookups();
 
         await _notifications.NotifyUsersWithPermissionAsync(
             PermissionCodes.EmployeesView,
@@ -155,17 +161,20 @@ public sealed class UpdateEmployeeHandler : IRequestHandler<UpdateEmployeeComman
     private readonly ICurrentUserService _currentUser;
     private readonly INationalIdProtector _nationalId;
     private readonly IUserNotificationService _notifications;
+    private readonly IMemoryCache _cache;
 
     public UpdateEmployeeHandler(
         AppDbContext db,
         ICurrentUserService currentUser,
         INationalIdProtector nationalId,
-        IUserNotificationService notifications)
+        IUserNotificationService notifications,
+        IMemoryCache cache)
     {
         _db = db;
         _currentUser = currentUser;
         _nationalId = nationalId;
         _notifications = notifications;
+        _cache = cache;
     }
 
     public async Task Handle(UpdateEmployeeCommand request, CancellationToken cancellationToken)
@@ -273,6 +282,7 @@ public sealed class UpdateEmployeeHandler : IRequestHandler<UpdateEmployeeComman
         employee.UpdatedBy = actor;
 
         await _db.SaveChangesAsync(cancellationToken);
+        _cache.InvalidateOrgLookups();
 
         if (previousStatus != EmployeeStatus.Passive && request.Status == EmployeeStatus.Passive)
         {
@@ -371,12 +381,20 @@ public sealed class GetEmployeeFormOptionsHandler
     : IRequestHandler<GetEmployeeFormOptionsQuery, EmployeeFormOptionsDto>
 {
     private readonly AppDbContext _db;
+    private readonly IMemoryCache _cache;
 
-    public GetEmployeeFormOptionsHandler(AppDbContext db) => _db = db;
+    public GetEmployeeFormOptionsHandler(AppDbContext db, IMemoryCache cache)
+    {
+        _db = db;
+        _cache = cache;
+    }
 
-    public async Task<EmployeeFormOptionsDto> Handle(
+    public Task<EmployeeFormOptionsDto> Handle(
         GetEmployeeFormOptionsQuery request,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken) =>
+        _cache.GetOrCreateAsync(AppCache.EmployeeFormOptions, AppCache.LookupTtl, LoadAsync, cancellationToken);
+
+    private async Task<EmployeeFormOptionsDto> LoadAsync(CancellationToken cancellationToken)
     {
         var units = await _db.OrganizationUnits
             .AsNoTracking()

@@ -10,6 +10,7 @@ using PersonelYonetim.Domain.Entities;
 using PersonelYonetim.Domain.Enums;
 using PersonelYonetim.Domain.Settings;
 using PersonelYonetim.Infrastructure.Persistence;
+using PersonelYonetim.Infrastructure.Security;
 
 namespace PersonelYonetim.Infrastructure.Reports;
 
@@ -175,36 +176,6 @@ public sealed class ExportEmployeesExcelHandler
     }
 }
 
-/// <summary>
-/// Liste ve export arasında birim kapsamı paylaşımı.
-/// ViewAllUnits yoksa yalnızca kullanıcının bağlı olduğu birim.
-/// </summary>
-internal static class UnitScopeHelper
-{
-    public static async Task<IQueryable<Employee>?> ApplyAsync(
-        AppDbContext db,
-        ICurrentUserService currentUser,
-        IQueryable<Employee> employees,
-        CancellationToken cancellationToken)
-    {
-        if (currentUser.HasPermission(PermissionCodes.EmployeesViewAllUnits))
-            return employees;
-
-        if (currentUser.UserId is null)
-            return null;
-
-        var unitId = await db.Users
-            .AsNoTracking()
-            .Where(x => x.Id == currentUser.UserId)
-            .Select(x => x.Employee != null ? x.Employee.UnitId : null)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        if (unitId is null)
-            return null;
-
-        return employees.Where(x => x.UnitId == unitId);
-    }
-}
 
 public sealed class GetReportsSummaryHandler
     : IRequestHandler<GetReportsSummaryQuery, ReportsSummaryDto>

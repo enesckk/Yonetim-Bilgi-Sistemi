@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { fetchOrganizationTree, type OrgNode } from '@/api/organizationApi'
+import { eventVenueCatalog } from '@/lib/eventVenues'
 import { fetchEmployeeFormOptions, type LookupItem } from '@/api/employeesApi'
 import {
   changeEventStatus,
@@ -10,6 +11,7 @@ import {
   EVENT_RECURRENCE,
   EVENT_STATUSES,
   EVENT_TRANSITION_LABELS,
+  EVENT_WORK_STATUSES,
   fetchEventById,
   fetchEventTimeline,
   updateEvent,
@@ -19,23 +21,14 @@ import {
   type EventTimelineItem,
   type EventWritePayload,
 } from '@/api/eventsApi'
+import { fetchSettlements, type SettlementLookup } from '@/api/mapApi'
 import { ApiClientError } from '@/api/client'
 import { useAuth } from '@/auth/AuthContext'
 import { PermissionCodes } from '@/auth/permissionCodes'
 import { EventMiniMap } from '@/components/EventMiniMap'
-import { LocationPickerMap } from '@/components/LocationPickerMap'
 import { useAlert, useConfirm } from '@/components/ConfirmDialog'
-import { geocodeAddress, reverseGeocode } from '@/lib/geocode'
 
 const ORG_FACILITY = 6
-
-function flattenFacilities(nodes: OrgNode[], acc: OrgNode[] = []): OrgNode[] {
-  for (const n of nodes) {
-    if (n.type === ORG_FACILITY) acc.push(n)
-    if (n.children?.length) flattenFacilities(n.children, acc)
-  }
-  return acc
-}
 
 function flattenUnits(nodes: OrgNode[], acc: OrgNode[] = []): OrgNode[] {
   for (const n of nodes) {
@@ -54,6 +47,20 @@ function toLocalInput(iso?: string | null) {
 
 function fromLocalInput(value: string) {
   return new Date(value).toISOString()
+}
+
+function datePart(value: string) {
+  return value.slice(0, 10)
+}
+
+function timePart(value: string, fallback = '10:00') {
+  const t = value.slice(11, 16)
+  return t || fallback
+}
+
+function combineLocal(date: string, time: string) {
+  if (!date) return ''
+  return `${date}T${time || '10:00'}`
 }
 
 function formatWhen(iso: string) {
@@ -77,32 +84,50 @@ type FormState = {
   longitude: string
   address: string
   expectedAttendees: string
+  actualAttendees: string
   responsibleEmployeeId: string
   recurrenceFrequency: EventRecurrenceFrequency
   recurrenceOccurrences: string
+  category: string
 }
+
+const EVENT_CATEGORY_OPTIONS = [
+  { value: '', label: 'Seçiniz' },
+  { value: 'education', label: 'Eğitim' },
+  { value: 'health', label: 'Sağlık' },
+  { value: 'social_support', label: 'Sosyal Destek' },
+  { value: 'culture', label: 'Kültür / Sanat' },
+  { value: 'sports', label: 'Spor' },
+  { value: 'youth', label: 'Çocuk / Gençlik' },
+  { value: 'women', label: 'Kadın' },
+  { value: 'elderly', label: 'Yaşlı' },
+  { value: 'other', label: 'Diğer' },
+]
 
 const emptyForm = (): FormState => ({
   title: '',
   description: '',
   startAtLocal: toLocalInput(new Date().toISOString()),
   endAtLocal: '',
-  status: 1,
+  status: 2,
   organizingUnitId: '',
   facilityId: '',
   latitude: '',
   longitude: '',
   address: '',
   expectedAttendees: '',
+  actualAttendees: '',
   responsibleEmployeeId: '',
   recurrenceFrequency: 0,
   recurrenceOccurrences: '4',
+  category: '',
 })
 
 export function EventFormPage() {
   const { id } = useParams<{ id: string }>()
   const isEdit = Boolean(id)
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const confirm = useConfirm()
   const { hasPermission } = useAuth()
   const canManage = hasPermission(PermissionCodes.EventsManage)
@@ -115,13 +140,17 @@ export function EventFormPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [conflictHint, setConflictHint] = useState<string | null>(null)
-  const [geocoding, setGeocoding] = useState(false)
+  const [settlements, setSettlements] = useState<SettlementLookup[]>([])
+  const [linked, setLinked] = useState<
+    { settlementId: string; attendanceCount: string; uniqueBeneficiaryCount: string }[]
+  >([])
 
-  const facilities = useMemo(() => flattenFacilities(tree).sort((a, b) => a.name.localeCompare(b.name, 'tr')), [tree])
+  const venueCatalog = useMemo(() => eventVenueCatalog(tree), [tree])
+  const facilities = venueCatalog.flat
   const units = useMemo(() => flattenUnits(tree).sort((a, b) => a.name.localeCompare(b.name, 'tr')), [tree])
 
   const statusOptions = useMemo(() => {
-    if (!isEdit) return EVENT_STATUSES.filter((s) => s.value === 1 || s.value === 2)
+    if (!isEdit) return EVENT_WORK_STATUSES
     return EVENT_STATUSES.filter((s) => s.value === initialStatus || allowedFrom(initialStatus).includes(s.value))
   }, [initialStatus, isEdit])
 
@@ -135,13 +164,15 @@ export function EventFormPage() {
       setLoading(true)
       setError(null)
       try {
-        const [org, opts] = await Promise.all([
+        const [org, opts, settlementList] = await Promise.all([
           fetchOrganizationTree(),
           fetchEmployeeFormOptions().catch(() => ({ managers: [] as LookupItem[] })),
+          fetchSettlements().catch(() => [] as SettlementLookup[]),
         ])
         if (cancelled) return
         setTree(org)
         setPeople(opts.managers ?? [])
+        setSettlements(settlementList.sort((a, b) => a.name.localeCompare(b.name, 'tr')))
         if (isEdit && id) {
           const ev = await fetchEventById(id)
           if (cancelled) return
@@ -158,10 +189,43 @@ export function EventFormPage() {
             longitude: ev.longitude != null ? String(ev.longitude) : '',
             address: ev.address ?? '',
             expectedAttendees: ev.expectedAttendees != null ? String(ev.expectedAttendees) : '',
+            actualAttendees: ev.actualAttendees != null ? String(ev.actualAttendees) : '',
             responsibleEmployeeId: ev.responsibleEmployeeId ?? '',
             recurrenceFrequency: 0,
             recurrenceOccurrences: '4',
+            category: ev.category ?? '',
           })
+          setLinked(
+            (ev.settlements ?? []).map((s) => ({
+              settlementId: s.settlementId,
+              attendanceCount: String(s.attendanceCount),
+              uniqueBeneficiaryCount:
+                s.uniqueBeneficiaryCount != null ? String(s.uniqueBeneficiaryCount) : '',
+            })),
+          )
+        } else {
+          const preset = searchParams.get('settlement')
+          if (preset) {
+            setLinked([{ settlementId: preset, attendanceCount: '', uniqueBeneficiaryCount: '' }])
+          }
+          const facilityPreset = searchParams.get('facility')
+          if (facilityPreset) {
+            const f = eventVenueCatalog(org).flat.find((x) => x.id === facilityPreset)
+            setForm((prev) => ({
+              ...prev,
+              facilityId: facilityPreset,
+              latitude: f?.latitude != null ? String(f.latitude) : prev.latitude,
+              longitude: f?.longitude != null ? String(f.longitude) : prev.longitude,
+              address: f?.address?.trim() ? f.address : prev.address,
+            }))
+          }
+          const datePreset = searchParams.get('date')
+          if (datePreset && /^\d{4}-\d{2}-\d{2}$/.test(datePreset)) {
+            setForm((prev) => ({
+              ...prev,
+              startAtLocal: combineLocal(datePreset, '10:00'),
+            }))
+          }
         }
       } catch (err) {
         if (!cancelled) setError(err instanceof ApiClientError ? err.message : 'Form yüklenemedi.')
@@ -172,7 +236,7 @@ export function EventFormPage() {
     return () => {
       cancelled = true
     }
-  }, [canManage, id, isEdit])
+  }, [canManage, id, isEdit, searchParams])
 
   useEffect(() => {
     if (!form.facilityId || !form.startAtLocal) {
@@ -220,61 +284,17 @@ export function EventFormPage() {
     setForm((prev) => ({
       ...prev,
       facilityId,
-      latitude: f?.latitude != null ? String(f.latitude) : prev.latitude,
-      longitude: f?.longitude != null ? String(f.longitude) : prev.longitude,
-      address: f?.address?.trim() ? f.address : prev.address,
+      latitude: f?.latitude != null ? String(f.latitude) : '',
+      longitude: f?.longitude != null ? String(f.longitude) : '',
+      address: f?.address?.trim() ? f.address : facilityId ? prev.address : '',
     }))
-  }
-
-  async function fillCoordsFromAddress() {
-    const q = form.address.trim()
-    if (q.length < 3) {
-      setError('Adres en az 3 karakter olmalı.')
-      return
-    }
-    setGeocoding(true)
-    setError(null)
-    try {
-      const hit = await geocodeAddress(q)
-      if (!hit) {
-        setError('Adres için konum bulunamadı. Daha açık yazın (mahalle, cadde, Gaziantep).')
-        return
-      }
-      setForm((prev) => ({
-        ...prev,
-        latitude: hit.latitude.toFixed(6),
-        longitude: hit.longitude.toFixed(6),
-      }))
-    } catch {
-      setError('Adres araması şu an yapılamadı. Biraz sonra tekrar deneyin.')
-    } finally {
-      setGeocoding(false)
-    }
-  }
-
-  async function onMapPick(lat: number, lng: number) {
-    setForm((prev) => ({
-      ...prev,
-      latitude: lat.toFixed(6),
-      longitude: lng.toFixed(6),
-    }))
-    try {
-      const hit = await reverseGeocode(lat, lng)
-      if (hit?.displayName) {
-        setForm((prev) => ({
-          ...prev,
-          address: prev.address.trim() ? prev.address : hit.displayName,
-        }))
-      }
-    } catch {
-      /* adres opsiyonel */
-    }
   }
 
   function buildPayload(allowConflicts: boolean): EventWritePayload {
     const attendees = form.expectedAttendees.trim()
       ? Number(form.expectedAttendees)
       : null
+    const actual = form.actualAttendees.trim() ? Number(form.actualAttendees) : null
     return {
       title: form.title.trim(),
       description: form.description.trim() || null,
@@ -287,6 +307,7 @@ export function EventFormPage() {
       longitude: form.longitude.trim() ? Number(form.longitude) : null,
       address: form.address.trim() || null,
       expectedAttendees: attendees != null && Number.isFinite(attendees) ? attendees : null,
+      actualAttendees: actual != null && Number.isFinite(actual) ? actual : null,
       responsibleEmployeeId: form.responsibleEmployeeId || null,
       recurrenceFrequency: isEdit ? 0 : form.recurrenceFrequency,
       recurrenceOccurrences:
@@ -294,6 +315,17 @@ export function EventFormPage() {
           ? Math.min(26, Math.max(2, Number(form.recurrenceOccurrences) || 4))
           : null,
       allowConflicts,
+      category: form.category || null,
+      settlements: linked
+        .filter((x) => x.settlementId)
+        .map((x) => ({
+          settlementId: x.settlementId,
+          attendanceCount: Number(x.attendanceCount) || 0,
+          uniqueBeneficiaryCount: (() => {
+            const n = Number(x.uniqueBeneficiaryCount)
+            return x.uniqueBeneficiaryCount.trim() && Number.isFinite(n) ? n : null
+          })(),
+        })),
     }
   }
 
@@ -350,20 +382,20 @@ export function EventFormPage() {
   if (loading) return <div className="panel muted">Yükleniyor…</div>
 
   return (
-    <div className="events-page employees-page">
+    <div className="events-page employees-page events-form-page">
       <section className="panel">
         <div className="employees-toolbar">
           <div className="employees-toolbar-title">
             <div className="employees-toolbar-title-row">
-              <h2>{isEdit ? 'Etkinlik düzenle' : 'Yeni etkinlik'}</h2>
+              <h2>{isEdit ? 'Etkinlik düzenle' : 'Etkinlik ekle'}</h2>
             </div>
             <p className="muted small employees-toolbar-lead">
-              Tesis seçerseniz harita pin’i tesis koordinatından da okunur.
+              Tesis veya salonu seçin, tarihi yazın, kaydedin.
             </p>
           </div>
           <div className="employees-toolbar-actions">
-            <Link to="/events/list" className="btn-secondary">
-              Listeye dön
+            <Link to="/events/calendar" className="btn-secondary">
+              Takvime dön
             </Link>
           </div>
         </div>
@@ -375,59 +407,91 @@ export function EventFormPage() {
           </p>
         ) : null}
 
-        <form className="form-grid" onSubmit={onSubmit}>
+        <form className="form-grid events-form" onSubmit={onSubmit}>
           <label className="span-2">
             Başlık *
-            <input value={form.title} onChange={(e) => setField('title', e.target.value)} required />
-          </label>
-          <label className="span-2">
-            Açıklama
-            <textarea
-              rows={4}
-              value={form.description}
-              onChange={(e) => setField('description', e.target.value)}
+            <input
+              value={form.title}
+              onChange={(e) => setField('title', e.target.value)}
+              placeholder="Örn. Konser, seminer, açılış"
+              required
             />
           </label>
+          <label className="span-2">
+            Tesis / salon
+            <select value={form.facilityId} onChange={(e) => onFacilityChange(e.target.value)}>
+              <option value="">Seçiniz</option>
+              {venueCatalog.groups.map((g) => (
+                <optgroup key={g.parent.id} label={g.label}>
+                  {g.halls.map((h) => (
+                    <option key={h.id} value={h.id}>
+                      {h.name}
+                      {h.capacity ? ` · ${h.capacity} kişilik` : ''}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+              {venueCatalog.others.length > 0 ? (
+                <optgroup label="Diğer tesisler">
+                  {venueCatalog.others.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.name}
+                    </option>
+                  ))}
+                </optgroup>
+              ) : null}
+            </select>
+          </label>
           <label>
-            Başlangıç *
+            Tarih *
             <input
-              type="datetime-local"
-              value={form.startAtLocal}
-              onChange={(e) => setField('startAtLocal', e.target.value)}
+              type="date"
+              value={datePart(form.startAtLocal)}
+              onChange={(e) => setField('startAtLocal', combineLocal(e.target.value, timePart(form.startAtLocal)))}
               required
             />
           </label>
           <label>
-            Bitiş
+            Saat *
             <input
-              type="datetime-local"
-              value={form.endAtLocal}
-              onChange={(e) => setField('endAtLocal', e.target.value)}
+              type="time"
+              value={timePart(form.startAtLocal)}
+              onChange={(e) =>
+                setField('startAtLocal', combineLocal(datePart(form.startAtLocal), e.target.value))
+              }
+              required
             />
           </label>
           <label>
-            Durum
-            <select
-              value={form.status}
-              onChange={(e) => setField('status', Number(e.target.value) as EventStatus)}
-            >
-              {statusOptions.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
+            Bitiş tarihi
+            <input
+              type="date"
+              value={datePart(form.endAtLocal)}
+              onChange={(e) =>
+                setField(
+                  'endAtLocal',
+                  e.target.value ? combineLocal(e.target.value, timePart(form.endAtLocal, '11:00')) : '',
+                )
+              }
+            />
           </label>
           <label>
-            Düzenleyen birim
-            <select
-              value={form.organizingUnitId}
-              onChange={(e) => setField('organizingUnitId', e.target.value)}
-            >
-              <option value="">Seçiniz</option>
-              {units.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name}
+            Bitiş saati
+            <input
+              type="time"
+              value={form.endAtLocal ? timePart(form.endAtLocal, '11:00') : ''}
+              onChange={(e) => {
+                const date = datePart(form.endAtLocal) || datePart(form.startAtLocal)
+                setField('endAtLocal', e.target.value && date ? combineLocal(date, e.target.value) : '')
+              }}
+            />
+          </label>
+          <label>
+            Etkinlik türü
+            <select value={form.category} onChange={(e) => setField('category', e.target.value)}>
+              {EVENT_CATEGORY_OPTIONS.map((c) => (
+                <option key={c.value || 'none'} value={c.value}>
+                  {c.label}
                 </option>
               ))}
             </select>
@@ -443,119 +507,190 @@ export function EventFormPage() {
               placeholder="Örn. 120"
             />
           </label>
-          <label>
-            Sorumlu personel
-            <select
-              value={form.responsibleEmployeeId}
-              onChange={(e) => setField('responsibleEmployeeId', e.target.value)}
-            >
-              <option value="">Seçiniz (opsiyonel)</option>
-              {people.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          {!isEdit ? (
+          {isEdit ? (
             <>
               <label>
-                Tekrar
+                Durum
                 <select
-                  value={form.recurrenceFrequency}
-                  onChange={(e) =>
-                    setField('recurrenceFrequency', Number(e.target.value) as EventRecurrenceFrequency)
-                  }
+                  value={form.status}
+                  onChange={(e) => setField('status', Number(e.target.value) as EventStatus)}
                 >
-                  {EVENT_RECURRENCE.map((r) => (
-                    <option key={r.value} value={r.value}>
-                      {r.label}
+                  {statusOptions.map((s) => (
+                    <option key={s.value} value={s.value}>
+                      {s.label}
                     </option>
                   ))}
                 </select>
               </label>
-              {form.recurrenceFrequency !== 0 ? (
-                <label>
-                  Tekrar sayısı (2–26)
-                  <input
-                    type="number"
-                    min={2}
-                    max={26}
-                    value={form.recurrenceOccurrences}
-                    onChange={(e) => setField('recurrenceOccurrences', e.target.value)}
-                  />
-                </label>
-              ) : (
-                <div />
-              )}
+              <label>
+                Gelen kişi
+                <input
+                  type="number"
+                  min={0}
+                  max={100000}
+                  value={form.actualAttendees}
+                  onChange={(e) => setField('actualAttendees', e.target.value)}
+                />
+              </label>
             </>
           ) : null}
           <label className="span-2">
-            Tesis
-            <select value={form.facilityId} onChange={(e) => onFacilityChange(e.target.value)}>
-              <option value="">Seçiniz (opsiyonel)</option>
-              {facilities.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.name}
-                  {f.latitude != null && f.longitude != null ? '' : ' — konum yok'}
-                </option>
-              ))}
-            </select>
+            Açıklama
+            <textarea
+              rows={2}
+              value={form.description}
+              onChange={(e) => setField('description', e.target.value)}
+              placeholder="Kısa not (isteğe bağlı)"
+            />
           </label>
-          <label className="span-2">
-            Adres
-            <div className="events-address-row">
-              <input
-                value={form.address}
-                onChange={(e) => setField('address', e.target.value)}
-                placeholder="Mahalle, cadde veya tesis adı"
-              />
-              <button
-                type="button"
-                className="btn-secondary"
-                disabled={geocoding || form.address.trim().length < 3}
-                onClick={() => void fillCoordsFromAddress()}
-              >
-                {geocoding ? 'Aranıyor…' : 'Adresten konum bul'}
-              </button>
+          <details className="span-2 events-form-more">
+            <summary>Diğer alanlar</summary>
+            <div className="form-grid">
+              <div className="span-2 settlement-picker">
+                <p>Mahalle</p>
+                <p className="muted small">İsterseniz bir veya birkaç mahalle bağlayın.</p>
+                {linked.length > 0 ? (
+                  <div className="settlement-picker-head" aria-hidden>
+                    <span>Mahalle</span>
+                    <span>Katılım</span>
+                    <span>Ulaşılan kişi</span>
+                    <span />
+                  </div>
+                ) : null}
+                {linked.map((row, index) => (
+                  <div key={`${row.settlementId}-${index}`} className="settlement-picker-row">
+                    <select
+                      value={row.settlementId}
+                      aria-label="Mahalle"
+                      onChange={(e) =>
+                        setLinked((prev) =>
+                          prev.map((x, i) => (i === index ? { ...x, settlementId: e.target.value } : x)),
+                        )
+                      }
+                    >
+                      <option value="">Seçiniz</option>
+                      {settlements.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="number"
+                      min={0}
+                      placeholder="Katılım"
+                      aria-label="Katılım"
+                      value={row.attendanceCount}
+                      onChange={(e) =>
+                        setLinked((prev) =>
+                          prev.map((x, i) => (i === index ? { ...x, attendanceCount: e.target.value } : x)),
+                        )
+                      }
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      placeholder="Kişi"
+                      aria-label="Ulaşılan kişi"
+                      value={row.uniqueBeneficiaryCount}
+                      onChange={(e) =>
+                        setLinked((prev) =>
+                          prev.map((x, i) => (i === index ? { ...x, uniqueBeneficiaryCount: e.target.value } : x)),
+                        )
+                      }
+                    />
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => setLinked((prev) => prev.filter((_, i) => i !== index))}
+                    >
+                      Kaldır
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() =>
+                    setLinked((prev) => [
+                      ...prev,
+                      { settlementId: '', attendanceCount: '', uniqueBeneficiaryCount: '' },
+                    ])
+                  }
+                >
+                  Mahalle ekle
+                </button>
+              </div>
+              <label>
+                Düzenleyen birim
+                <select
+                  value={form.organizingUnitId}
+                  onChange={(e) => setField('organizingUnitId', e.target.value)}
+                >
+                  <option value="">Seçiniz</option>
+                  {units.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Sorumlu personel
+                <select
+                  value={form.responsibleEmployeeId}
+                  onChange={(e) => setField('responsibleEmployeeId', e.target.value)}
+                >
+                  <option value="">Seçiniz (opsiyonel)</option>
+                  {people.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {!isEdit ? (
+                <>
+                  <label>
+                    Tekrar
+                    <select
+                      value={form.recurrenceFrequency}
+                      onChange={(e) =>
+                        setField('recurrenceFrequency', Number(e.target.value) as EventRecurrenceFrequency)
+                      }
+                    >
+                      {EVENT_RECURRENCE.map((r) => (
+                        <option key={r.value} value={r.value}>
+                          {r.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {form.recurrenceFrequency !== 0 ? (
+                    <label>
+                      Tekrar sayısı (2–26)
+                      <input
+                        type="number"
+                        min={2}
+                        max={26}
+                        value={form.recurrenceOccurrences}
+                        onChange={(e) => setField('recurrenceOccurrences', e.target.value)}
+                      />
+                    </label>
+                  ) : null}
+                </>
+              ) : null}
             </div>
-            <span className="muted small">
-              Koordinat bilmiyorsanız adresi yazıp konum bulabilirsiniz (Şehitkamil öncelikli).
-            </span>
-          </label>
-          <label>
-            Enlem
-            <input
-              value={form.latitude}
-              onChange={(e) => setField('latitude', e.target.value)}
-              placeholder="37.06"
-              inputMode="decimal"
-            />
-          </label>
-          <label>
-            Boylam
-            <input
-              value={form.longitude}
-              onChange={(e) => setField('longitude', e.target.value)}
-              placeholder="37.38"
-              inputMode="decimal"
-            />
-          </label>
-          <div className="span-2">
-            <LocationPickerMap
-              latitude={form.latitude.trim() ? Number(form.latitude) : null}
-              longitude={form.longitude.trim() ? Number(form.longitude) : null}
-              onPick={(lat, lng) => void onMapPick(lat, lng)}
-            />
-          </div>
+          </details>
           <div className="form-actions span-2">
             <button type="submit" className="btn-primary" disabled={saving}>
-              {saving ? 'Kaydediliyor…' : isEdit ? 'Güncelle' : 'Oluştur'}
+              {saving ? 'Kaydediliyor…' : isEdit ? 'Güncelle' : 'Kaydet'}
             </button>
           </div>
         </form>
       </section>
     </div>
+
   )
 }
 

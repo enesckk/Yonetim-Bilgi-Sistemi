@@ -10,6 +10,7 @@ using PersonelYonetim.Domain.Entities;
 using PersonelYonetim.Domain.Enums;
 using PersonelYonetim.Domain.Settings;
 using PersonelYonetim.Infrastructure.Persistence;
+using PersonelYonetim.Infrastructure.Security;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;

@@ -5,6 +5,7 @@ using PersonelYonetim.Application.Common.Interfaces;
 using PersonelYonetim.Application.Features.Employees;
 using PersonelYonetim.Domain.Authorization;
 using PersonelYonetim.Infrastructure.Persistence;
+using PersonelYonetim.Infrastructure.Security;
 using AppValidationException = PersonelYonetim.Application.Common.Exceptions.ValidationException;
 
 namespace PersonelYonetim.Infrastructure.Employees;
@@ -189,7 +190,7 @@ internal static class EmployeePhotoAccess
         CancellationToken cancellationToken)
     {
         var query = db.Employees.AsNoTracking().Where(x => x.Id == employeeId);
-        query = await ApplyUnitScopeAsync(db, currentUser, query, cancellationToken)
+        query = await UnitScopeHelper.ApplyAsync(db, currentUser, query, cancellationToken)
             ?? throw new NotFoundException("Personel bulunamadı veya bu kayda erişim yetkiniz yok.");
 
         return await query.FirstOrDefaultAsync(cancellationToken)
@@ -203,34 +204,10 @@ internal static class EmployeePhotoAccess
         CancellationToken cancellationToken)
     {
         var query = db.Employees.Where(x => x.Id == employeeId);
-        query = await ApplyUnitScopeAsync(db, currentUser, query, cancellationToken)
+        query = await UnitScopeHelper.ApplyAsync(db, currentUser, query, cancellationToken)
             ?? throw new NotFoundException("Personel bulunamadı veya bu kayda erişim yetkiniz yok.");
 
         return await query.FirstOrDefaultAsync(cancellationToken)
             ?? throw new NotFoundException("Personel bulunamadı veya bu kayda erişim yetkiniz yok.");
-    }
-
-    private static async Task<IQueryable<Domain.Entities.Employee>?> ApplyUnitScopeAsync(
-        AppDbContext db,
-        ICurrentUserService currentUser,
-        IQueryable<Domain.Entities.Employee> employees,
-        CancellationToken cancellationToken)
-    {
-        if (currentUser.HasPermission(PermissionCodes.EmployeesViewAllUnits))
-            return employees;
-
-        if (currentUser.UserId is null)
-            return null;
-
-        var unitId = await db.Users
-            .AsNoTracking()
-            .Where(x => x.Id == currentUser.UserId)
-            .Select(x => x.Employee != null ? x.Employee.UnitId : null)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        if (unitId is null)
-            return null;
-
-        return employees.Where(x => x.UnitId == unitId);
     }
 }

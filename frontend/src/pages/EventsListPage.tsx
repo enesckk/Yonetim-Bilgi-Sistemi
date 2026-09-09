@@ -2,14 +2,16 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { Link, useSearchParams } from 'react-router-dom'
 import {
   deleteEvent,
-  EVENT_STATUSES,
+  eventPhase,
+  eventPhaseLabel,
   fetchEvents,
   type EventListItem,
-  type EventStatus,
+  type EventPhase,
 } from '@/api/eventsApi'
 import { ApiClientError } from '@/api/client'
 import { useAuth } from '@/auth/AuthContext'
 import { PermissionCodes } from '@/auth/permissionCodes'
+import { canImportEvents, isSystemAdmin } from '@/auth/roles'
 import { useAlert, useConfirm } from '@/components/ConfirmDialog'
 import {
   downloadEventsCsv,
@@ -44,9 +46,11 @@ function presetRange(preset: Preset): { from?: string; to?: string } {
 }
 
 export function EventsListPage() {
-  const { hasPermission } = useAuth()
+  const { user, hasPermission } = useAuth()
+  const admin = isSystemAdmin(user)
   const canView = hasPermission(PermissionCodes.EventsView)
   const canManage = hasPermission(PermissionCodes.EventsManage)
+  const canImport = canManage && canImportEvents(user)
   const confirm = useConfirm()
   const alert = useAlert()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -56,7 +60,7 @@ export function EventsListPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState(() => searchParams.get('search') ?? '')
-  const [status, setStatus] = useState<EventStatus | ''>('')
+  const [phase, setPhase] = useState<EventPhase | ''>('')
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
   const [preset, setPreset] = useState<Preset>(initialPreset)
@@ -89,7 +93,6 @@ export function EventsListPage() {
             }
       const data = await fetchEvents({
         search: search.trim() || undefined,
-        status: status === '' ? undefined : status,
         fromUtc: range.from,
         toUtc: range.to,
       })
@@ -100,19 +103,22 @@ export function EventsListPage() {
     } finally {
       setLoading(false)
     }
-  }, [canView, fromDate, preset, search, status, toDate])
+  }, [canView, fromDate, preset, search, toDate])
 
   useEffect(() => {
     void load()
   }, [load])
 
   const sorted = useMemo(() => {
-    const copy = [...items]
+    const copy = items.filter((item) => {
+      if (!phase) return true
+      return eventPhase(item.status, item.startAtUtc) === phase
+    })
     if (sort === 'startAsc') copy.sort((a, b) => +new Date(a.startAtUtc) - +new Date(b.startAtUtc))
     else if (sort === 'startDesc') copy.sort((a, b) => +new Date(b.startAtUtc) - +new Date(a.startAtUtc))
     else copy.sort((a, b) => a.title.localeCompare(b.title, 'tr'))
     return copy
-  }, [items, sort])
+  }, [items, phase, sort])
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE))
   const pageItems = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
@@ -192,44 +198,45 @@ export function EventsListPage() {
               <div className="stat-chip mobile-inline-chip">{filteredHint}</div>
             </div>
             <p className="muted small employees-toolbar-lead">
-              Tarih, durum ve arama ile filtreleyin; CSV veya PDF olarak dışa aktarın.
+              Tarih ve arama ile bulun; güne göre bakın.
             </p>
           </div>
 
           <div className="employees-toolbar-actions">
             <div className="stat-chip desktop-inline-chip">{filteredHint}</div>
-            <div className="export-actions" role="group" aria-label="Dışa aktarım">
-              <button
-                type="button"
-                className="btn-export btn-export-excel"
-                disabled={loading || sorted.length === 0}
-                onClick={() => downloadEventsCsv(sorted)}
-                title="Filtrelenmiş listeyi Excel/CSV olarak indir"
-              >
-                <span className="label-full">Excel indir</span>
-                <span className="label-short">Excel</span>
-              </button>
-              <button
-                type="button"
-                className="btn-export btn-export-pdf"
-                disabled={loading || sorted.length === 0}
-                onClick={() => void downloadEventsPdf(sorted)}
-                title="Filtrelenmiş listeyi PDF olarak indir"
-              >
-                <span className="label-full">PDF indir</span>
-                <span className="label-short">PDF</span>
-              </button>
-            </div>
-            <Link to="/events/calendar" className="btn-secondary">
-              Takvim
-            </Link>
+            {admin ? (
+              <div className="export-actions" role="group" aria-label="Dışa aktarım">
+                <button
+                  type="button"
+                  className="btn-export btn-export-excel"
+                  disabled={loading || sorted.length === 0}
+                  onClick={() => downloadEventsCsv(sorted)}
+                  title="Filtrelenmiş listeyi Excel/CSV olarak indir"
+                >
+                  <span className="label-full">Excel indir</span>
+                  <span className="label-short">Excel</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn-export btn-export-pdf"
+                  disabled={loading || sorted.length === 0}
+                  onClick={() => void downloadEventsPdf(sorted)}
+                  title="Filtrelenmiş listeyi PDF olarak indir"
+                >
+                  <span className="label-full">PDF indir</span>
+                  <span className="label-short">PDF</span>
+                </button>
+              </div>
+            ) : null}
             {canManage ? (
               <>
-                <Link to="/events/import" className="btn-secondary">
-                  CSV aktar
-                </Link>
+                {canImport ? (
+                  <Link to="/events/import" className="btn-secondary">
+                    Excel yükle
+                  </Link>
+                ) : null}
                 <Link to="/events/new" className="btn-primary">
-                  <span className="label-full">+ Yeni etkinlik</span>
+                  <span className="label-full">+ Yeni</span>
                   <span className="label-short">+ Yeni</span>
                 </Link>
               </>
@@ -283,16 +290,13 @@ export function EventsListPage() {
           </div>
           <div className="employees-filters-row events-filters-row">
             <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value === '' ? '' : (Number(e.target.value) as EventStatus))}
-              aria-label="Durum"
+              value={phase}
+              onChange={(e) => setPhase((e.target.value || '') as EventPhase | '')}
+              aria-label="Planlanan veya yapılan"
             >
-              <option value="">Tüm durumlar</option>
-              {EVENT_STATUSES.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
+              <option value="">Tümü</option>
+              <option value="planned">Planlanan</option>
+              <option value="done">Yapılan</option>
             </select>
             <input
               type="date"
@@ -323,7 +327,7 @@ export function EventsListPage() {
                 className="btn-secondary"
                 onClick={() => {
                   setSearch('')
-                  setStatus('')
+                  setPhase('')
                   setFromDate('')
                   setToDate('')
                   setPreset('')
@@ -344,17 +348,18 @@ export function EventsListPage() {
             <thead>
               <tr>
                 <th>Başlık</th>
+                <th>Tür</th>
                 <th>Durum</th>
                 <th>Başlangıç</th>
                 <th>Tesis / konum</th>
-                <th>Katılımcı</th>
+                <th>Katılım</th>
                 <th>İşlem</th>
               </tr>
             </thead>
             <tbody>
               {pageItems.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="muted">
+                  <td colSpan={7} className="muted">
                     {loading ? 'Yükleniyor…' : 'Kayıt bulunamadı.'}
                   </td>
                 </tr>
@@ -369,12 +374,21 @@ export function EventsListPage() {
                         <span className="events-series-chip">{item.recurrenceLabel}</span>
                       ) : null}
                     </td>
+                    <td>{item.categoryLabel || '—'}</td>
                     <td>
-                      <span className={`event-status-pill status-${item.status}`}>{item.statusLabel}</span>
+                      <span className={`event-status-pill status-${item.status}`}>
+                        {eventPhaseLabel(item.status, item.startAtUtc)}
+                      </span>
                     </td>
                     <td>{formatWhen(item.startAtUtc)}</td>
                     <td>{item.facilityName || item.address || '—'}</td>
-                    <td>{item.expectedAttendees != null ? item.expectedAttendees.toLocaleString('tr-TR') : '—'}</td>
+                    <td>
+                      {item.attendanceCount != null
+                        ? `${item.attendanceCount.toLocaleString('tr-TR')} kişi`
+                        : item.expectedAttendees != null
+                          ? `${item.expectedAttendees.toLocaleString('tr-TR')} beklenen`
+                          : '—'}
+                    </td>
                     <td>
                       <div className="events-action-group" role="group" aria-label="İşlemler">
                         <Link to={`/events/${item.id}`} className="events-action-btn" title="Detay">

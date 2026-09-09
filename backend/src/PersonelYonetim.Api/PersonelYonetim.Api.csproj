@@ -15,9 +15,14 @@
     </PackageReference>
   </ItemGroup>
 
-  <ItemGroup>
+    <ItemGroup>
     <ProjectReference Include="..\PersonelYonetim.Application\PersonelYonetim.Application.csproj" />
     <ProjectReference Include="..\PersonelYonetim.Infrastructure\PersonelYonetim.Infrastructure.csproj" />
+  </ItemGroup>
+
+    <ItemGroup>
+    <!-- Kaynak: frontend/public/geo/sehitkamil-mahalleler.geojson (ilçe ADM3, scrape değil). -->
+    <Content Include="..\..\..\frontend\public\geo\sehitkamil-mahalleler.geojson" Link="Data\sehitkamil-mahalleler.geojson" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

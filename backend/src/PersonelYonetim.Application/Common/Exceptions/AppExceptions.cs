@@ -66,3 +66,11 @@ public sealed class ConflictException : AppException
     {
     }
 }
+
+public sealed class TooManyRequestsException : AppException
+{
+    public TooManyRequestsException(string message = "Çok fazla deneme. Birkaç dakika sonra tekrar deneyin.")
+        : base(ErrorCodes.TooManyRequests, message, 429)
+    {
+    }
+}

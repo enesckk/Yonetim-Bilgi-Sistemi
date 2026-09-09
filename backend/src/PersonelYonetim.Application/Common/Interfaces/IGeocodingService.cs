@@ -3,6 +3,7 @@ namespace PersonelYonetim.Application.Common.Interfaces;
 public interface IGeocodingService
 {
     Task<GeocodeHit?> SearchAsync(string query, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<GeocodeHit>> SuggestAsync(string query, CancellationToken cancellationToken = default);
     Task<GeocodeHit?> ReverseAsync(double latitude, double longitude, CancellationToken cancellationToken = default);
 }
 

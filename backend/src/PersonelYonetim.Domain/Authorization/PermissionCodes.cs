@@ -50,6 +50,16 @@ public static class PermissionCodes
     public const string OrganizationView = "Organization.View";
     public const string OrganizationManage = "Organization.Manage";
 
+    // Stok
+    public const string StockView = "Stock.View";
+    public const string StockManage = "Stock.Manage";
+
+    // İş ataması
+    public const string TasksView = "Tasks.View";
+    public const string TasksAssign = "Tasks.Assign";
+    public const string TasksSubmit = "Tasks.Submit";
+    public const string TasksReview = "Tasks.Review";
+
     // Etkinlik Yönetim Takip
     public const string EventsView = "Events.View";
     public const string EventsManage = "Events.Manage";
@@ -72,5 +82,6 @@ public static class PermissionCodes
     public const string RolesManage = "Roles.Manage";
     public const string AuditLogsView = "AuditLogs.View";
     public const string NotificationsView = "Notifications.View";
+    public const string MessagesUse = "Messages.Use";
     public const string SettingsManage = "Settings.Manage";
 }

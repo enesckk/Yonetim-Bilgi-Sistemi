@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type Dispatch, type FormEvent, type SetStateAction } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import {
   createOrganizationUnit,
   deleteOrganizationUnit,
@@ -50,10 +50,33 @@ function emptyToNull(v: string): string | null {
   return t === '' ? null : t
 }
 
+function amirTitle(isFacility: boolean) {
+  return isFacility ? 'Tesis amiri' : 'Birim amiri'
+}
+
+function amirText(isFacility: boolean, name?: string | null) {
+  return name ? `${amirTitle(isFacility)}: ${name}` : 'Amir yok'
+}
+
+function orgById(flat: OrgNode[]) {
+  return new Map(flat.map((n) => [n.id, n]))
+}
+
+function isKkmHall(n: OrgNode, byId: Map<string, OrgNode>) {
+  if (n.type !== 6 || !n.parentId) return false
+  return (byId.get(n.parentId)?.code ?? '').toUpperCase() === 'KKM'
+}
+
+function isYouthFacility(n: OrgNode, byId: Map<string, OrgNode>) {
+  if (!n.parentId) return false
+  return (byId.get(n.parentId)?.code ?? '').toUpperCase() === 'GENCLIK_KUT'
+}
+
 export function OrganizationPage({ section = 'chart' }: { section?: OrganizationSection }) {
   const { hasPermission } = useAuth()
   const confirm = useConfirm()
   const alert = useAlert()
+  const [searchParams] = useSearchParams()
   const canView = hasPermission(PermissionCodes.OrganizationView)
   const canManage = hasPermission(PermissionCodes.OrganizationManage)
 
@@ -66,7 +89,7 @@ export function OrganizationPage({ section = 'chart' }: { section?: Organization
   const [unitFilter, setUnitFilter] = useState('')
   const [pdfBusy, setPdfBusy] = useState(false)
 
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(() => searchParams.get('unit'))
   const [detail, setDetail] = useState<OrgUnitDetail | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
 
@@ -230,8 +253,9 @@ export function OrganizationPage({ section = 'chart' }: { section?: Organization
   }, [flat, form.parentId, form.type, formMode, editingId, options])
 
   const scopedFlat = useMemo(() => {
-    if (section === 'units') return flat.filter((n) => n.type !== 6)
-    if (section === 'facilities') return flat.filter((n) => n.type === 6)
+    const byId = orgById(flat)
+    if (section === 'units') return flat.filter((n) => n.type === 4 || n.type === 5)
+    if (section === 'facilities') return flat.filter((n) => n.type === 6 && !isKkmHall(n, byId))
     return flat
   }, [flat, section])
 
@@ -262,43 +286,47 @@ export function OrganizationPage({ section = 'chart' }: { section?: Organization
   }, [flat])
 
   const sectionStats = useMemo(() => {
-    const units = flat.filter((n) => n.type !== 6)
-    const facilities = flat.filter((n) => n.type === 6)
+    const dash = (n: number) => (loading ? '—' : String(n))
+    const units = flat.filter((n) => n.type === 4 || n.type === 5)
+    const byId = orgById(flat)
+    const facilities = flat.filter((n) => n.type === 6 && !isKkmHall(n, byId))
     const staffOf = (nodes: OrgNode[]) =>
       nodes.reduce((sum, n) => sum + (n.activeEmployeeCount ?? n.employeeCount ?? 0), 0)
 
     if (section === 'units') {
       return [
-        { value: units.length, label: 'Birim' },
-        { value: units.filter((n) => n.status === 1).length, label: 'Aktif' },
-        { value: units.filter((n) => Boolean(n.managerName)).length, label: 'Sorumlusu var' },
-        { value: staffOf(units), label: 'Personel' },
+        { value: dash(units.length), label: 'Birim' },
+        { value: dash(units.filter((n) => n.status === 1).length), label: 'Aktif' },
+        { value: dash(units.filter((n) => Boolean(n.managerName)).length), label: 'Amiri var' },
+        { value: dash(staffOf(units)), label: 'Personel' },
       ]
     }
     if (section === 'facilities') {
       return [
-        { value: facilities.length, label: 'Tesis' },
-        { value: facilities.filter((n) => n.status === 1).length, label: 'Aktif' },
-        { value: facilities.filter((n) => Boolean(n.managerName)).length, label: 'Sorumlusu var' },
-        { value: facilities.filter((n) => n.status !== 1).length, label: 'Pasif' },
+        { value: dash(facilities.length), label: 'Tesis' },
+        { value: dash(facilities.filter((n) => n.status === 1).length), label: 'Aktif' },
+        { value: dash(facilities.filter((n) => Boolean(n.managerName)).length), label: 'Amiri var' },
+        { value: dash(facilities.filter((n) => n.status !== 1).length), label: 'Pasif' },
       ]
     }
     return [
-      { value: units.length, label: 'Birim' },
-      { value: facilities.length, label: 'Tesis' },
-      { value: staffOf(units), label: 'Personel' },
+      { value: dash(units.length), label: 'Birim' },
+      { value: dash(facilities.length), label: 'Tesis' },
+      { value: dash(staffOf(flat)), label: 'Personel' },
       {
-        value: units.filter((n) => Boolean(n.managerName)).length +
-          facilities.filter((n) => Boolean(n.managerName)).length,
-        label: 'Sorumlu',
+        value: dash(
+          units.filter((n) => Boolean(n.managerName)).length +
+            facilities.filter((n) => Boolean(n.managerName)).length,
+        ),
+        label: 'Amir',
       },
     ]
-  }, [flat, section])
+  }, [flat, section, loading])
 
   const filteredTree = useMemo(() => {
     const source =
       section === 'units'
-        ? stripFacilities(tree)
+        ? mainAndSubUnitsTree(tree)
         : section === 'facilities'
           ? tree
           : tree
@@ -386,14 +414,19 @@ export function OrganizationPage({ section = 'chart' }: { section?: Organization
 
     setPdfBusy(true)
     setError(null)
+    const viewport = document.querySelector('.org-scheme-viewport')
+    viewport?.classList.add('is-exporting')
     try {
+      await new Promise<void>((resolve) => {
+        window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve()))
+      })
       const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
         import('html2canvas'),
         import('jspdf'),
       ])
       const canvas = await html2canvas(element, {
         backgroundColor: '#ffffff',
-        scale: 2,
+        scale: 1.6,
         useCORS: true,
         logging: false,
         windowWidth: Math.max(element.scrollWidth, element.clientWidth),
@@ -408,17 +441,17 @@ export function OrganizationPage({ section = 'chart' }: { section?: Organization
       })
       const pageWidth = pdf.internal.pageSize.getWidth()
       const pageHeight = pdf.internal.pageSize.getHeight()
-      const margin = 8
+      const margin = 7
       const usableWidth = pageWidth - margin * 2
       const usableHeight = pageHeight - margin * 2
       const ratio = Math.min(usableWidth / canvas.width, usableHeight / canvas.height)
       const width = canvas.width * ratio
       const height = canvas.height * ratio
       pdf.addImage(
-        canvas.toDataURL('image/png'),
-        'PNG',
+        canvas.toDataURL('image/jpeg', 0.92),
+        'JPEG',
         (pageWidth - width) / 2,
-        margin,
+        (pageHeight - height) / 2,
         width,
         height,
         undefined,
@@ -428,6 +461,7 @@ export function OrganizationPage({ section = 'chart' }: { section?: Organization
     } catch {
       setError('Organizasyon şeması PDF olarak hazırlanamadı.')
     } finally {
+      document.querySelector('.org-scheme-viewport')?.classList.remove('is-exporting')
       setPdfBusy(false)
     }
   }
@@ -562,7 +596,7 @@ export function OrganizationPage({ section = 'chart' }: { section?: Organization
   }
 
   return (
-    <div className="org-page">
+    <div className={`org-page${section === 'chart' ? ' is-chart-fit' : ''}`}>
       <header className="org-hero panel">
         <div>
           <p className="org-eyebrow">
@@ -577,10 +611,14 @@ export function OrganizationPage({ section = 'chart' }: { section?: Organization
           </h1>
           <p className="muted">
             {section === 'chart'
-              ? 'Müdürlük şeması veritabanından üretilir. Birim, tesis, sorumlu ve personel eklendikçe otomatik güncellenir.'
+              ? 'Müdürlük şeması veritabanından üretilir. Birim, tesis, amir ve personel eklendikçe otomatik güncellenir.'
               : section === 'units'
-                ? 'Müdürlüğe bağlı ana ve alt birimleri, yöneticileri ve kadro durumunu yönetin.'
-                : 'Birimlere bağlı fiziksel tesisleri, sorumluları, kapasiteyi ve faaliyet durumunu yönetin.'}
+                ? canManage
+                  ? 'Ana ve alt birimleri, birim amirlerini ve kadro durumunu yönetin.'
+                  : 'Ana ve alt birimleri, birim amirlerini ve kadro durumunu görün.'
+                : canManage
+                  ? 'Birimlere bağlı tesisleri, tesis amirlerini ve kadroyu yönetin.'
+                  : 'Birimlere bağlı tesisleri, tesis amirlerini ve kadroyu görün.'}
           </p>
         </div>
         <div className="report-hero-side">
@@ -680,7 +718,7 @@ export function OrganizationPage({ section = 'chart' }: { section?: Organization
         <div className="org-filters">
           <input
             type="search"
-            placeholder={`${section === 'facilities' ? 'Tesis' : 'Birim'}, kod, sorumlu ara…`}
+            placeholder={`${section === 'facilities' ? 'Tesis' : 'Birim'}, kod veya amir ara…`}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -713,6 +751,11 @@ export function OrganizationPage({ section = 'chart' }: { section?: Organization
 
       {loading ? (
         <div className="panel org-loading">
+          <div className="ui-skeleton-stack" aria-hidden="true">
+            <span className="ui-skeleton" />
+            <span className="ui-skeleton" />
+            <span className="ui-skeleton" />
+          </div>
           <p className="muted">Organizasyon yükleniyor…</p>
         </div>
       ) : (
@@ -1031,7 +1074,7 @@ export function OrganizationPage({ section = 'chart' }: { section?: Organization
                 </>
               )}
               <label className="span-2">
-                {isFacilityType(form.type) ? 'Tesis sorumlusu' : 'Birim sorumlusu'}
+                {isFacilityType(form.type) ? 'Tesis amiri' : 'Birim amiri'}
                 <select
                   value={form.managerEmployeeId}
                   onChange={(e) => setForm((f) => ({ ...f, managerEmployeeId: e.target.value }))}
@@ -1141,6 +1184,24 @@ function stripFacilities(nodes: OrgNode[]): OrgNode[] {
     .map((n) => ({ ...n, children: stripFacilities(n.children ?? []) }))
 }
 
+function mainAndSubUnitsTree(nodes: OrgNode[]): OrgNode[] {
+  const mains: OrgNode[] = []
+  const keepKids = (n: OrgNode): OrgNode => ({
+    ...n,
+    children: (n.children ?? [])
+      .filter((c) => c.type === 4 || c.type === 5)
+      .map(keepKids),
+  })
+  const walk = (list: OrgNode[]) => {
+    for (const n of list) {
+      if (n.type === 4) mains.push(keepKids(n))
+      else if (n.children?.length) walk(n.children)
+    }
+  }
+  walk(nodes)
+  return mains
+}
+
 function buildParentPath(node: OrgNode, byId: Map<string, OrgNode>): string[] {
   const parts: string[] = []
   let p = node.parentId
@@ -1218,7 +1279,7 @@ function OrgUnitsHierarchyView({
             <span className="org-tree-name">{node.name}</span>
             <span className="org-tree-sub">
               {node.code ? `${node.code} · ` : ''}
-              {node.managerName ? `Sorumlu: ${node.managerName}` : 'Sorumlu atanmamış'}
+              {amirText(node.type === 6, node.managerName)}
             </span>
           </div>
 
@@ -1326,25 +1387,74 @@ function OrgFacilitiesGroupedView({
   onEdit: (n: OrgNode) => void
   onDelete: (n: OrgNode) => void
 }) {
-  const byId = useMemo(() => new Map(flat.map((n) => [n.id, n])), [flat])
+  const byId = useMemo(() => orgById(flat), [flat])
 
-  const groups = useMemo(() => {
-    const map = new Map<string, { parentName: string; items: OrgNode[] }>()
-    for (const n of nodes) {
+  const { restGroups, youthItems } = useMemo(() => {
+    const visible = nodes.filter((n) => !isKkmHall(n, byId))
+    const youthItems = visible
+      .filter((n) => isYouthFacility(n, byId))
+      .slice()
+      .sort((a, b) => a.name.localeCompare(b.name, 'tr'))
+    const rest = visible.filter((n) => !isYouthFacility(n, byId))
+    const map = new Map<string, { parentName: string; parentType: number; items: OrgNode[] }>()
+    for (const n of rest) {
       const key = n.parentId ?? '__root__'
-      const parentName = n.parentName ?? (n.parentId ? byId.get(n.parentId)?.name : null) ?? 'Bağlı birim yok'
+      const parent = n.parentId ? byId.get(n.parentId) : undefined
+      const parentName = n.parentName ?? parent?.name ?? 'Bağlı birim yok'
       const existing = map.get(key)
       if (existing) existing.items.push(n)
-      else map.set(key, { parentName, items: [n] })
+      else map.set(key, { parentName, parentType: parent?.type ?? 0, items: [n] })
     }
-    return [...map.entries()].sort((a, b) => a[1].parentName.localeCompare(b[1].parentName, 'tr'))
+    for (const group of map.values()) {
+      group.items.sort((a, b) => a.name.localeCompare(b.name, 'tr'))
+    }
+    const restGroups = [...map.entries()].sort((a, b) => {
+      const aDir = a[1].parentType === 3 ? 0 : 1
+      const bDir = b[1].parentType === 3 ? 0 : 1
+      if (aDir !== bDir) return aDir - bDir
+      return a[1].parentName.localeCompare(b[1].parentName, 'tr')
+    })
+    return { restGroups, youthItems }
   }, [nodes, byId])
 
   if (nodes.length === 0) return <p className="muted">Tesis bulunmuyor.</p>
 
+  function card(n: OrgNode) {
+    const activeCount = n.activeEmployeeCount ?? n.employeeCount ?? 0
+    return (
+      <article
+        key={n.id}
+        className={`org-card${selectedId === n.id ? ' is-selected' : ''}`}
+        onClick={() => onSelect(n.id)}
+      >
+        <div className="org-card-top">
+          <span className="org-card-type">{n.facilityCategoryName || 'Tesis türü belirtilmemiş'}</span>
+          <span className={`org-status-pill status-${n.status}`}>{n.statusLabel}</span>
+        </div>
+        <h3>{n.name}</h3>
+        <p className="org-card-manager">{amirText(true, n.managerName)}</p>
+        <p className="org-card-count">
+          <strong>{activeCount}</strong> aktif personel
+        </p>
+        <div className="org-card-actions" onClick={(e) => e.stopPropagation()}>
+          {canManage && (
+            <>
+              <button type="button" className="org-card-btn" onClick={() => onEdit(n)}>
+                Düzenle
+              </button>
+              <button type="button" className="org-card-btn danger" onClick={() => onDelete(n)}>
+                Sil
+              </button>
+            </>
+          )}
+        </div>
+      </article>
+    )
+  }
+
   return (
     <div className="org-facility-groups">
-      {groups.map(([key, group]) => (
+      {restGroups.map(([key, group]) => (
         <section key={key} className="org-facility-group">
           <div className="org-card-section-head">
             <div>
@@ -1354,47 +1464,22 @@ function OrgFacilitiesGroupedView({
             </div>
             <span>{group.items.length} tesis</span>
           </div>
-          <div className="org-cards">
-            {group.items.map((n) => {
-              const activeCount = n.activeEmployeeCount ?? n.employeeCount ?? 0
-              return (
-                <article
-                  key={n.id}
-                  className={`org-card${selectedId === n.id ? ' is-selected' : ''}`}
-                  onClick={() => onSelect(n.id)}
-                >
-                  <div className="org-card-top">
-                    <span className="org-card-type">{n.facilityCategoryName || 'Tesis türü belirtilmemiş'}</span>
-                    <span className={`org-status-pill status-${n.status}`}>{n.statusLabel}</span>
-                  </div>
-                  <h3>{n.name}</h3>
-                  <p className="org-card-manager">{n.managerName ?? 'Sorumlu atanmamış'}</p>
-                  <p className="org-card-count">
-                    <strong>{activeCount}</strong> aktif personel
-                    {n.capacity != null ? ` · ${n.capacity} kapasite` : ''}
-                    {n.idealStaffCount != null ? ` · ideal ${n.idealStaffCount}` : ''}
-                  </p>
-                  <div className="org-card-actions" onClick={(e) => e.stopPropagation()}>
-                    <button type="button" className="org-card-btn primary" onClick={() => onSelect(n.id)}>
-                      Detay
-                    </button>
-                    {canManage && (
-                      <>
-                        <button type="button" className="org-card-btn" onClick={() => onEdit(n)}>
-                          Düzenle
-                        </button>
-                        <button type="button" className="org-card-btn danger" onClick={() => onDelete(n)}>
-                          Sil
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </article>
-              )
-            })}
-          </div>
+          <div className="org-cards">{group.items.map(card)}</div>
         </section>
       ))}
+      {youthItems.length > 0 ? (
+        <section className="org-facility-group org-youth-section">
+          <div className="org-card-section-head">
+            <div>
+              <p className="org-card-section-label">Bağlı birim</p>
+              <h2>Gençlik Kütüphaneleri</h2>
+              <p className="muted small">Mahalle kütüphaneleri</p>
+            </div>
+            <span>{youthItems.length} tesis</span>
+          </div>
+          <div className="org-cards">{youthItems.map(card)}</div>
+        </section>
+      ) : null}
     </div>
   )
 }
@@ -1441,15 +1526,12 @@ function OrgCardsView({
             <span className={`org-status-pill status-${n.status}`}>{n.statusLabel}</span>
           </div>
           <h3>{n.name}</h3>
-          <p className="org-card-manager">{n.managerName ?? 'Sorumlu atanmamış'}</p>
+          <p className="org-card-manager">{amirText(n.type === 6, n.managerName)}</p>
           <p className="org-card-count">
             <strong>{activeCount}</strong> aktif personel
             {(n.missingStaffCount ?? 0) > 0 ? ` · ${n.missingStaffCount} eksik` : ''}
           </p>
           <div className="org-card-actions" onClick={(e) => e.stopPropagation()}>
-            <button type="button" className="org-card-btn primary" onClick={() => onSelect(n.id)}>
-              Detay
-            </button>
             {canManage && (
               <>
                 <button type="button" className="org-card-btn" onClick={() => onEdit(n)}>
@@ -1682,7 +1764,7 @@ function UnitDetailPanel({
             <p className="org-detail-parent muted">Üst kayıt yok</p>
           )}
           <p className="org-detail-parent">
-            Sorumlu: <strong>{detail.managerName ?? 'Atanmamış'}</strong>
+            {amirTitle(isFacility)}: <strong>{detail.managerName ?? 'Atanmamış'}</strong>
           </p>
         </div>
         {canManage && (

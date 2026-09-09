@@ -187,7 +187,7 @@ public sealed class SetEmployeeStatusCommandValidator : AbstractValidator<SetEmp
     }
 }
 
-/// <summary>Yanlış oluşturulmuş kaydı arşivler — fiziksel silme yok; yalnızca Employees.Archive.</summary>
+/// <summary>Kaydı listeden kaldırır — fiziksel silme yok; Employees.Archive.</summary>
 public sealed class ArchiveEmployeeCommand : IRequest
 {
     public Guid EmployeeId { get; set; }

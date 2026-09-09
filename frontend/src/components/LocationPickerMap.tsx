@@ -71,7 +71,7 @@ export function LocationPickerMap({
           </>
         ) : null}
       </MapContainer>
-      <p className="location-picker-hint muted small">Haritaya tıklayarak konum seçin.</p>
+      <p className="location-picker-hint muted small">İsterseniz haritaya tıklayarak da pin koyabilirsiniz.</p>
     </div>
   )
 }

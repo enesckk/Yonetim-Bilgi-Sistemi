@@ -1,12 +1,15 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PersonelYonetim.Application.Common;
 using PersonelYonetim.Application.Common.Exceptions;
 using PersonelYonetim.Application.Common.Interfaces;
+using PersonelYonetim.Application.Common.Security;
 using PersonelYonetim.Domain.Entities;
+using PersonelYonetim.Domain.Security;
 using PersonelYonetim.Infrastructure.Auth;
 using PersonelYonetim.Infrastructure.Persistence;
 
@@ -22,6 +25,8 @@ public sealed class AuthService : IAuthService
     private readonly ICurrentUserService _currentUser;
     private readonly JwtOptions _jwtOptions;
     private readonly ILogger<AuthService> _logger;
+    private readonly LoginAttemptGate _loginGate;
+    private readonly IHostEnvironment _env;
     private readonly PasswordHasher<AppUser> _passwordHasher = new();
 
     public AuthService(
@@ -29,13 +34,17 @@ public sealed class AuthService : IAuthService
         IJwtTokenService tokenService,
         ICurrentUserService currentUser,
         IOptions<JwtOptions> jwtOptions,
-        ILogger<AuthService> logger)
+        ILogger<AuthService> logger,
+        LoginAttemptGate loginGate,
+        IHostEnvironment env)
     {
         _db = db;
         _tokenService = tokenService;
         _currentUser = currentUser;
         _jwtOptions = jwtOptions.Value;
         _logger = logger;
+        _loginGate = loginGate;
+        _env = env;
     }
 
     public async Task<LoginResultDto> LoginAsync(
@@ -45,6 +54,14 @@ public sealed class AuthService : IAuthService
     {
         if (string.IsNullOrWhiteSpace(request.UserName) || string.IsNullOrWhiteSpace(request.Password))
             throw new ValidationException("UserName", "Kullanıcı adı ve şifre zorunludur.");
+
+        if (!_loginGate.TryRecord(ipAddress))
+            throw new TooManyRequestsException();
+
+        if (!_env.IsDevelopment() && WellKnownSecrets.IsDevelopmentPassword(request.Password))
+            throw new UnauthorizedAppException(
+                ErrorCodes.InvalidCredentials,
+                "Varsayılan geliştirme şifresi bu ortamda kabul edilmez.");
 
         var userName = request.UserName.Trim();
         var user = await _db.Users

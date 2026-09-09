@@ -1,11 +1,13 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using PersonelYonetim.Application.Common.Exceptions;
 using PersonelYonetim.Application.Common.Interfaces;
 using PersonelYonetim.Application.Features.Employees;
 using PersonelYonetim.Domain.Authorization;
 using PersonelYonetim.Domain.Entities;
 using PersonelYonetim.Domain.Enums;
+using PersonelYonetim.Infrastructure.Caching;
 using PersonelYonetim.Infrastructure.Persistence;
 
 namespace PersonelYonetim.Infrastructure.Employees;
@@ -13,7 +15,8 @@ namespace PersonelYonetim.Infrastructure.Employees;
 public sealed class SetEmployeeStatusHandler(
     AppDbContext db,
     ICurrentUserService currentUser,
-    IUserNotificationService notifications)
+    IUserNotificationService notifications,
+    IMemoryCache cache)
     : IRequestHandler<SetEmployeeStatusCommand>
 {
     public async Task Handle(SetEmployeeStatusCommand request, CancellationToken cancellationToken)
@@ -55,7 +58,9 @@ public sealed class SetEmployeeStatusHandler(
             });
         }
 
+        await EmployeeLifecycleSync.OnStatusChangedAsync(db, employee, actor, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
+        cache.InvalidateOrgLookups();
 
         if (previous != EmployeeStatus.Passive && request.Status == EmployeeStatus.Passive)
         {
@@ -81,14 +86,13 @@ public sealed class SetEmployeeStatusHandler(
     };
 }
 
-public sealed class ArchiveEmployeeHandler(AppDbContext db, ICurrentUserService currentUser)
+public sealed class ArchiveEmployeeHandler(AppDbContext db, ICurrentUserService currentUser, IMemoryCache cache)
     : IRequestHandler<ArchiveEmployeeCommand>
 {
     public async Task Handle(ArchiveEmployeeCommand request, CancellationToken cancellationToken)
     {
         if (!currentUser.HasPermission(PermissionCodes.EmployeesArchive))
-            throw new ForbiddenException(
-                "Personel arşivlemek yalnızca sistem yöneticisine aittir (Employees.Archive).");
+            throw new ForbiddenException("Personel silmek için Employees.Archive gerekir.");
 
         var employee = await db.Employees
             .IgnoreQueryFilters()
@@ -106,6 +110,8 @@ public sealed class ArchiveEmployeeHandler(AppDbContext db, ICurrentUserService 
         employee.UpdatedBy = actor;
         employee.Status = EmployeeStatus.Passive;
 
+        await EmployeeLifecycleSync.ClearManagedUnitsAsync(db, employee.Id, actor, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
+        cache.InvalidateOrgLookups();
     }
 }

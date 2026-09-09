@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using PersonelYonetim.Application.Common.Exceptions;
 using PersonelYonetim.Application.Common.Interfaces;
 using PersonelYonetim.Application.Features.Employees;
@@ -7,7 +8,9 @@ using PersonelYonetim.Application.Features.Organization;
 using PersonelYonetim.Domain.Authorization;
 using PersonelYonetim.Domain.Entities;
 using PersonelYonetim.Domain.Enums;
+using PersonelYonetim.Infrastructure.Caching;
 using PersonelYonetim.Infrastructure.Persistence;
+using PersonelYonetim.Infrastructure.Security;
 using AppValidationException = PersonelYonetim.Application.Common.Exceptions.ValidationException;
 
 namespace PersonelYonetim.Infrastructure.Organization;
@@ -16,13 +19,23 @@ public sealed class GetOrganizationTreeHandler
     : IRequestHandler<GetOrganizationTreeQuery, IReadOnlyList<OrganizationUnitNodeDto>>
 {
     private readonly AppDbContext _db;
+    private readonly IMemoryCache _cache;
+    private readonly ICurrentUserService _currentUser;
 
-    public GetOrganizationTreeHandler(AppDbContext db) => _db = db;
+    public GetOrganizationTreeHandler(AppDbContext db, IMemoryCache cache, ICurrentUserService currentUser)
+    {
+        _db = db;
+        _cache = cache;
+        _currentUser = currentUser;
+    }
 
     public async Task<IReadOnlyList<OrganizationUnitNodeDto>> Handle(
         GetOrganizationTreeQuery request,
         CancellationToken cancellationToken)
     {
+        IReadOnlyList<OrganizationUnitNodeDto>? cached = null;
+        if (_cache.TryGetValue(AppCache.OrgTree, out cached) && cached is not null)
+            return await ScopeTreeAsync(cached, cancellationToken);
         var units = await _db.OrganizationUnits
             .AsNoTracking()
             .Include(x => x.ManagerEmployee)
@@ -46,6 +59,11 @@ public sealed class GetOrganizationTreeHandler
                     .Where(a => a.EndDate == null)
                     .OrderByDescending(a => a.IsPrimary)
                     .Select(a => a.JobDuty.Name)
+                    .FirstOrDefault(),
+                DutyCategory = e.Assignments
+                    .Where(a => a.EndDate == null)
+                    .OrderByDescending(a => a.IsPrimary)
+                    .Select(a => (DutyCategory?)a.JobDuty.Category)
                     .FirstOrDefault()
             })
             .ToListAsync(cancellationToken);
@@ -84,21 +102,28 @@ public sealed class GetOrganizationTreeHandler
                         (e.Id, e.UnitId, e.FacilityId, e.DutyName)), parentById);
 
                     string? managerDuty = null;
-                    if (x.ManagerEmployeeId is Guid managerId)
+                    if (OrgActiveManager.IsShown(x.ManagerEmployee) && x.ManagerEmployeeId is Guid managerId)
                         dutyByEmployeeId.TryGetValue(managerId, out managerDuty);
 
                     var chartPeople = matched
                         .Where(e => x.ManagerEmployeeId == null || e.Id != x.ManagerEmployeeId.Value)
-                        .OrderBy(e => e.LastName).ThenBy(e => e.FirstName)
-                        .Take(80)
-                        .Select(e => new OrganizationChartPersonDto
+                        .Select(e =>
                         {
-                            Id = e.Id,
-                            FullName = $"{e.FirstName} {e.LastName}".Trim(),
-                            JobTitleName = e.JobTitleName,
-                            DutyName = e.DutyName,
-                            EmploymentTypeName = e.EmploymentTypeName
+                            var tone = OrgRoleTone.For(e.DutyCategory, e.DutyName, e.JobTitleName);
+                            return new OrganizationChartPersonDto
+                            {
+                                Id = e.Id,
+                                FullName = $"{e.FirstName} {e.LastName}".Trim(),
+                                JobTitleName = e.JobTitleName,
+                                DutyName = e.DutyName,
+                                EmploymentTypeName = e.EmploymentTypeName,
+                                DutyCategory = e.DutyCategory ?? default,
+                                RoleTone = tone
+                            };
                         })
+                        .OrderBy(e => OrgRoleTone.Rank(e.RoleTone))
+                        .ThenBy(e => e.FullName, StringComparer.Create(System.Globalization.CultureInfo.GetCultureInfo("tr-TR"), true))
+                        .Take(250)
                         .ToList();
 
                     return new OrganizationUnitNodeDto
@@ -122,10 +147,8 @@ public sealed class GetOrganizationTreeHandler
                         Longitude = x.Longitude,
                         Capacity = x.Capacity,
                         WorkingHours = x.WorkingHours,
-                        ManagerEmployeeId = x.ManagerEmployeeId,
-                        ManagerName = x.ManagerEmployee is null
-                            ? null
-                            : $"{x.ManagerEmployee.FirstName} {x.ManagerEmployee.LastName}".Trim(),
+                        ManagerEmployeeId = OrgActiveManager.Id(x.ManagerEmployeeId, x.ManagerEmployee),
+                        ManagerName = OrgActiveManager.Name(x.ManagerEmployee),
                         ManagerDutyName = managerDuty,
                         IdealStaffCount = x.IdealStaffCount,
                         ActiveEmployeeCount = staffing.ActiveCount,
@@ -141,7 +164,69 @@ public sealed class GetOrganizationTreeHandler
                 .ToList();
         }
 
-        return BuildChildren(null);
+        var tree = BuildChildren(null);
+        _cache.Set(AppCache.OrgTree, tree, new MemoryCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = AppCache.LookupTtl
+        });
+        return await ScopeTreeAsync(tree, cancellationToken);
+    }
+
+    private async Task<IReadOnlyList<OrganizationUnitNodeDto>> ScopeTreeAsync(
+        IReadOnlyList<OrganizationUnitNodeDto> tree,
+        CancellationToken cancellationToken)
+    {
+        var visible = await UnitScopeHelper.VisibleUnitIdsAsync(_db, _currentUser, cancellationToken);
+        if (visible is null)
+            return tree;
+        if (visible.Count == 0)
+            return [];
+
+        return tree
+            .Where(n => visible.Contains(n.Id))
+            .Select(n => CloneVisible(n, visible))
+            .ToList();
+    }
+
+    private static OrganizationUnitNodeDto CloneVisible(OrganizationUnitNodeDto src, HashSet<Guid> visible)
+    {
+        return new OrganizationUnitNodeDto
+        {
+            Id = src.Id,
+            Name = src.Name,
+            Code = src.Code,
+            Type = src.Type,
+            TypeLabel = src.TypeLabel,
+            Status = src.Status,
+            StatusLabel = src.StatusLabel,
+            ParentId = src.ParentId,
+            ParentName = src.ParentName,
+            Description = src.Description,
+            Phone = src.Phone,
+            Email = src.Email,
+            FacilityCategoryId = src.FacilityCategoryId,
+            FacilityCategoryName = src.FacilityCategoryName,
+            Address = src.Address,
+            Latitude = src.Latitude,
+            Longitude = src.Longitude,
+            Capacity = src.Capacity,
+            WorkingHours = src.WorkingHours,
+            ManagerEmployeeId = src.ManagerEmployeeId,
+            ManagerName = src.ManagerName,
+            ManagerDutyName = src.ManagerDutyName,
+            IdealStaffCount = src.IdealStaffCount,
+            ActiveEmployeeCount = src.ActiveEmployeeCount,
+            MissingStaffCount = src.MissingStaffCount,
+            OpenedOn = src.OpenedOn,
+            ClosedOn = src.ClosedOn,
+            UpdatedAtUtc = src.UpdatedAtUtc,
+            DutyBreakdown = src.DutyBreakdown,
+            ChartPersonnel = src.ChartPersonnel,
+            Children = src.Children
+                .Where(c => visible.Contains(c.Id))
+                .Select(c => CloneVisible(c, visible))
+                .ToList()
+        };
     }
 }
 
@@ -173,6 +258,10 @@ public sealed class GetOrganizationUnitDetailHandler
             .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
 
         if (unit is null)
+            return null;
+
+        var visible = await UnitScopeHelper.VisibleUnitIdsAsync(_db, _currentUser, cancellationToken);
+        if (visible is not null && !visible.Contains(unit.Id))
             return null;
 
         var canViewEmployees = _currentUser.HasPermission(PermissionCodes.EmployeesView);
@@ -342,10 +431,8 @@ public sealed class GetOrganizationUnitDetailHandler
             Longitude = unit.Longitude,
             Capacity = unit.Capacity,
             WorkingHours = unit.WorkingHours,
-            ManagerEmployeeId = unit.ManagerEmployeeId,
-            ManagerName = unit.ManagerEmployee is null
-                ? null
-                : $"{unit.ManagerEmployee.FirstName} {unit.ManagerEmployee.LastName}".Trim(),
+            ManagerEmployeeId = OrgActiveManager.Id(unit.ManagerEmployeeId, unit.ManagerEmployee),
+            ManagerName = OrgActiveManager.Name(unit.ManagerEmployee),
             IdealStaffCount = unit.IdealStaffCount,
             ActiveEmployeeCount = staffing.ActiveCount,
             MissingStaffCount = staffing.MissingCount,
@@ -366,12 +453,20 @@ public sealed class GetOrganizationFormOptionsHandler
     : IRequestHandler<GetOrganizationFormOptionsQuery, OrganizationFormOptionsDto>
 {
     private readonly AppDbContext _db;
+    private readonly IMemoryCache _cache;
 
-    public GetOrganizationFormOptionsHandler(AppDbContext db) => _db = db;
+    public GetOrganizationFormOptionsHandler(AppDbContext db, IMemoryCache cache)
+    {
+        _db = db;
+        _cache = cache;
+    }
 
-    public async Task<OrganizationFormOptionsDto> Handle(
+    public Task<OrganizationFormOptionsDto> Handle(
         GetOrganizationFormOptionsQuery request,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken) =>
+        _cache.GetOrCreateAsync(AppCache.OrgFormOptions, AppCache.LookupTtl, LoadAsync, cancellationToken);
+
+    private async Task<OrganizationFormOptionsDto> LoadAsync(CancellationToken cancellationToken)
     {
         var parents = await _db.OrganizationUnits
             .AsNoTracking()
@@ -443,11 +538,13 @@ public sealed class CreateOrganizationUnitHandler : IRequestHandler<CreateOrgani
 {
     private readonly AppDbContext _db;
     private readonly ICurrentUserService _currentUser;
+    private readonly IMemoryCache _cache;
 
-    public CreateOrganizationUnitHandler(AppDbContext db, ICurrentUserService currentUser)
+    public CreateOrganizationUnitHandler(AppDbContext db, ICurrentUserService currentUser, IMemoryCache cache)
     {
         _db = db;
         _currentUser = currentUser;
+        _cache = cache;
     }
 
     public async Task<Guid> Handle(CreateOrganizationUnitCommand request, CancellationToken cancellationToken)
@@ -484,6 +581,7 @@ public sealed class CreateOrganizationUnitHandler : IRequestHandler<CreateOrgani
 
         _db.OrganizationUnits.Add(entity);
         await _db.SaveChangesAsync(cancellationToken);
+        _cache.InvalidateOrgLookups();
         return entity.Id;
     }
 
@@ -498,11 +596,13 @@ public sealed class UpdateOrganizationUnitHandler : IRequestHandler<UpdateOrgani
 {
     private readonly AppDbContext _db;
     private readonly ICurrentUserService _currentUser;
+    private readonly IMemoryCache _cache;
 
-    public UpdateOrganizationUnitHandler(AppDbContext db, ICurrentUserService currentUser)
+    public UpdateOrganizationUnitHandler(AppDbContext db, ICurrentUserService currentUser, IMemoryCache cache)
     {
         _db = db;
         _currentUser = currentUser;
+        _cache = cache;
     }
 
     public async Task Handle(UpdateOrganizationUnitCommand request, CancellationToken cancellationToken)
@@ -552,6 +652,7 @@ public sealed class UpdateOrganizationUnitHandler : IRequestHandler<UpdateOrgani
         entity.UpdatedBy = _currentUser.UserName ?? "system";
 
         await _db.SaveChangesAsync(cancellationToken);
+        _cache.InvalidateOrgLookups();
     }
 }
 
@@ -559,11 +660,13 @@ public sealed class DeleteOrganizationUnitHandler : IRequestHandler<DeleteOrgani
 {
     private readonly AppDbContext _db;
     private readonly ICurrentUserService _currentUser;
+    private readonly IMemoryCache _cache;
 
-    public DeleteOrganizationUnitHandler(AppDbContext db, ICurrentUserService currentUser)
+    public DeleteOrganizationUnitHandler(AppDbContext db, ICurrentUserService currentUser, IMemoryCache cache)
     {
         _db = db;
         _currentUser = currentUser;
+        _cache = cache;
     }
 
     public async Task Handle(DeleteOrganizationUnitCommand request, CancellationToken cancellationToken)
@@ -589,6 +692,7 @@ public sealed class DeleteOrganizationUnitHandler : IRequestHandler<DeleteOrgani
         entity.DeletedAtUtc = DateTime.UtcNow;
         entity.DeletedBy = _currentUser.UserName ?? "system";
         await _db.SaveChangesAsync(cancellationToken);
+        _cache.InvalidateOrgLookups();
     }
 }
 
@@ -606,6 +710,9 @@ internal static class OrgChartPlacement
     {
         if (node.Type == OrganizationUnitType.Facility)
         {
+            // Kadro doğrudan tesise bağlıysa (FacilityId boş olsa bile) burada listelenir.
+            if (employeeUnitId == node.Id)
+                return true;
             if (employeeFacilityId != node.Id || employeeUnitId is not Guid unitId)
                 return false;
 
@@ -828,4 +935,80 @@ internal static class OrgLabels
         MovementType.ReturnToDuty => "Göreve dönüş",
         _ => t.ToString()
     };
+}
+
+internal static class OrgActiveManager
+{
+    public static bool IsShown(Employee? manager) =>
+        manager is { Status: EmployeeStatus.Active };
+
+    public static string? Name(Employee? manager) =>
+        IsShown(manager) ? $"{manager!.FirstName} {manager.LastName}".Trim() : null;
+
+    public static Guid? Id(Guid? managerId, Employee? manager) =>
+        IsShown(manager) ? managerId : null;
+}
+
+internal static class OrgRoleTone
+{
+    public static string For(DutyCategory? category, string? duty, string? title)
+    {
+        var blob = $"{duty} {title}";
+        if (IsLead(blob, category))
+            return "lead";
+        if (Contains(blob, "Temizlik") || category == DutyCategory.Cleaning)
+            return "cleaning";
+        if (Contains(blob, "Teknik") || category == DutyCategory.Technical)
+            return "technical";
+        if (Contains(blob, "Danışma") || category == DutyCategory.Reception)
+            return "reception";
+        if (Contains(blob, "Eğitmen") || category == DutyCategory.Instructor)
+            return "instructor";
+        if (Contains(blob, "Kütüphane") || category == DutyCategory.Library)
+            return "library";
+        if (Contains(blob, "Yardımcı") || category == DutyCategory.Auxiliary)
+            return "auxiliary";
+        if (category == DutyCategory.Project || Contains(blob, "Geliştirici"))
+            return "project";
+        if (category is DutyCategory.SocialMedia or DutyCategory.PublicRelations)
+            return "comms";
+        if (category == DutyCategory.Administrative
+            || Contains(blob, "Memur")
+            || Contains(blob, "Büro")
+            || Contains(blob, "Nikah")
+            || Contains(blob, "Harita"))
+            return "admin";
+        return "staff";
+    }
+
+    public static int Rank(string tone) => tone switch
+    {
+        "lead" => 0,
+        "technical" => 1,
+        "reception" => 2,
+        "instructor" => 3,
+        "library" => 4,
+        "admin" => 5,
+        "project" => 6,
+        "comms" => 7,
+        "auxiliary" => 8,
+        "cleaning" => 9,
+        _ => 10
+    };
+
+    private static bool IsLead(string blob, DutyCategory? category)
+    {
+        if (category == DutyCategory.Manager)
+            return true;
+        return Contains(blob, "Şef")
+            || Contains(blob, "Amir")
+            || Contains(blob, "Yönetici")
+            || Contains(blob, "Müdür")
+            || Contains(blob, "Yürütücü")
+            || Contains(blob, "Koordinatör")
+            || Contains(blob, "Sorumlusu");
+    }
+
+    private static bool Contains(string blob, string token) =>
+        blob.Contains(token, StringComparison.OrdinalIgnoreCase);
 }

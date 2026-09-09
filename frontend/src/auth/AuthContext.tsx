@@ -10,11 +10,8 @@ import {
 } from 'react'
 import * as authApi from '@/api/authApi'
 import type { CurrentUser, SessionPolicy } from '@/api/types'
-import {
-  ApiClientError,
-  markSessionExpiredNotice,
-  setSessionExpiredListener,
-} from '@/api/client'
+import { ApiClientError, markSessionExpiredNotice, setSessionExpiredListener } from '@/api/client'
+import { clearLookupCache } from '@/lib/lookupCache'
 
 const DEFAULT_IDLE_MINUTES = 30
 
@@ -105,6 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (userName: string, password: string) => {
     const result = await authApi.login(userName, password)
+    clearLookupCache()
     setUser(result.user)
     setSessionPolicy(result.sessionPolicy)
   }, [])
@@ -118,6 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error(err)
       }
     } finally {
+      clearLookupCache()
       setUser(null)
       setSessionPolicy(null)
     }

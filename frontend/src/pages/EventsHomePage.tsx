@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import {
   EVENT_STATUSES,
+  eventPhase,
   fetchEventFacilityStats,
   fetchEvents,
   fetchMapPins,
@@ -12,7 +13,7 @@ import { fetchOrganizationTree, type OrgNode } from '@/api/organizationApi'
 import { ApiClientError } from '@/api/client'
 import { useAuth } from '@/auth/AuthContext'
 import { PermissionCodes } from '@/auth/permissionCodes'
-import { endOfMonth, startOfMonth } from '@/lib/eventsDates'
+import { isSystemAdmin } from '@/auth/roles'
 
 const ORG_FACILITY = 6
 
@@ -89,6 +90,7 @@ function StatusChart({ events }: { events: EventListItem[] }) {
 
 export function EventsHomePage() {
   const { user, hasPermission } = useAuth()
+  const admin = isSystemAdmin(user)
   const canView = hasPermission(PermissionCodes.EventsView)
   const canManage = hasPermission(PermissionCodes.EventsManage)
   const canOrg = hasPermission(PermissionCodes.OrganizationView)
@@ -152,8 +154,6 @@ export function EventsHomePage() {
   const stats = useMemo(() => {
     const now = Date.now()
     const weekAhead = now + 7 * 24 * 60 * 60 * 1000
-    const thisMonthStart = startOfMonth().getTime()
-    const thisMonthEnd = endOfMonth().getTime()
 
     const upcoming = events.filter((e) => {
       const t = new Date(e.startAtUtc).getTime()
@@ -165,19 +165,16 @@ export function EventsHomePage() {
       const n = new Date()
       return t.toDateString() === n.toDateString()
     })
-    const thisMonth = events.filter((e) => {
-      const t = new Date(e.startAtUtc).getTime()
-      return t >= thisMonthStart && t <= thisMonthEnd
-    })
     const draft = events.filter((e) => e.status === 1).length
+    const done = events.filter((e) => eventPhase(e.status, e.startAtUtc) === 'done').length
 
     return {
       total: events.length,
       draft,
+      done,
       upcoming: upcoming.length,
       thisWeek: thisWeek.length,
       today: today.length,
-      thisMonth: thisMonth.length,
       upcomingList: [...upcoming]
         .sort((a, b) => +new Date(a.startAtUtc) - +new Date(b.startAtUtc))
         .slice(0, 6),
@@ -193,6 +190,10 @@ export function EventsHomePage() {
 
   const firstName = user?.displayName?.split(' ')[0] ?? 'Yönetici'
 
+  if (!admin) {
+    return <Navigate to="/events/map" replace />
+  }
+
   if (!canView) {
     return (
       <div className="panel">
@@ -205,7 +206,7 @@ export function EventsHomePage() {
     <div className="events-home dashboard">
       <header className="dash-hero events-home-hero">
         <div className="dash-hero-main">
-          <p className="dash-hero-brand">Etkinlik Yönetim Takip</p>
+          <p className="dash-hero-brand">Yönetim Bilgi Sistemi</p>
           <h2>Genel bakış</h2>
           <p className="dash-hero-lead">
             <span>
@@ -227,14 +228,14 @@ export function EventsHomePage() {
                 <strong>{stats.draft}</strong>
               </li>
               <li>
-                <span>Bu ay</span>
-                <strong>{stats.thisMonth}</strong>
+                <span>Yapılan</span>
+                <strong>{stats.done}</strong>
               </li>
               <li>
                 <span>Harita pin</span>
                 <strong>{eventPins + facilityPins}</strong>
               </li>
-              {canOrg ? (
+              {admin && canOrg ? (
                 <li className={facilityMissing > 0 ? 'is-warn' : undefined}>
                   <Link to="/events/facilities-locations?missing=1">
                     <span>Konum eksik</span>
@@ -362,7 +363,11 @@ export function EventsHomePage() {
                 <tbody>
                   {facilityStats.map((row) => (
                     <tr key={row.facilityId}>
-                      <td>{row.facilityName}</td>
+                      <td>
+                        <Link to={`/events/facilities?facility=${encodeURIComponent(row.facilityId)}`}>
+                          {row.facilityName}
+                        </Link>
+                      </td>
                       <td>{row.upcomingEvents}</td>
                       <td>{row.totalEvents}</td>
                     </tr>
@@ -389,15 +394,23 @@ export function EventsHomePage() {
               </Link>
               <Link to="/events/map">
                 <strong>Harita</strong>
-                <span>Pinler</span>
+                <span>Mahalleler</span>
               </Link>
+              {admin ? (
               <Link to="/events/list">
                 <strong>Liste</strong>
                 <span>Tümü</span>
               </Link>
+              ) : null}
+              {admin ? (
               <Link to="/events/facilities-locations">
+                <strong>Konumlar</strong>
+                <span>{canOrg && facilityMissing > 0 ? `${facilityMissing} eksik` : 'Harita'}</span>
+              </Link>
+              ) : null}
+              <Link to="/events/facilities">
                 <strong>Tesisler</strong>
-                <span>{canOrg && facilityMissing > 0 ? `${facilityMissing} eksik` : 'Konum'}</span>
+                <span>Program</span>
               </Link>
               {canManage ? (
                 <Link to="/events/new" className="is-primary">

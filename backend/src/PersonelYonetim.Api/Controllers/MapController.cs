@@ -6,7 +6,9 @@ using PersonelYonetim.Application.Common.Interfaces;
 using PersonelYonetim.Application.Common.Models;
 using PersonelYonetim.Application.Features.Events;
 using PersonelYonetim.Application.Features.Geo;
+using PersonelYonetim.Application.Features.Map;
 using PersonelYonetim.Domain.Authorization;
+using PersonelYonetim.Domain.Enums;
 
 namespace PersonelYonetim.Api.Controllers;
 
@@ -36,7 +38,22 @@ public sealed class MapController : ControllerBase
         return Ok(ApiResponse<MapPinsDto>.Ok(result, HttpContext.TraceIdentifier));
     }
 
-    /// <summary>Adres → koordinat (Nominatim, sunucu tarafı).</summary>
+    [HttpGet("settlements/summary")]
+    [RequirePermission(PermissionCodes.EventsView)]
+    [ProducesResponseType(typeof(ApiResponse<SettlementSummaryListDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<SettlementSummaryListDto>>> SettlementSummary(
+        [FromQuery] DateTime? fromUtc,
+        [FromQuery] DateTime? toUtc,
+        [FromQuery] string? category,
+        [FromQuery] EventStatus? status,
+        [FromQuery] string? search,
+        CancellationToken ct)
+    {
+        var result = await _sender.Send(
+            new GetSettlementSummariesQuery(fromUtc, toUtc, category, status, search), ct);
+        return Ok(ApiResponse<SettlementSummaryListDto>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
     [HttpGet("geocode")]
     [Authorize]
     [ProducesResponseType(typeof(ApiResponse<GeocodeLookupDto>), StatusCodes.Status200OK)]
@@ -55,7 +72,32 @@ public sealed class MapController : ControllerBase
         return Ok(ApiResponse<GeocodeLookupDto>.Ok(ToLookup(hit), HttpContext.TraceIdentifier));
     }
 
-    /// <summary>Koordinat → adres.</summary>
+    [HttpGet("geocode/suggest")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<GeocodeSuggestDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<GeocodeSuggestDto>>> Suggest(
+        [FromQuery] string q,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(q) || q.Trim().Length < 3)
+        {
+            return Ok(ApiResponse<GeocodeSuggestDto>.Ok(new GeocodeSuggestDto(), HttpContext.TraceIdentifier));
+        }
+
+        var hits = await _geocoding.SuggestAsync(q, ct);
+        return Ok(ApiResponse<GeocodeSuggestDto>.Ok(
+            new GeocodeSuggestDto
+            {
+                Results = hits.Select(h => new GeocodeResultDto
+                {
+                    Latitude = h.Latitude,
+                    Longitude = h.Longitude,
+                    DisplayName = h.DisplayName,
+                }).ToArray(),
+            },
+            HttpContext.TraceIdentifier));
+    }
+
     [HttpGet("reverse")]
     [Authorize]
     [ProducesResponseType(typeof(ApiResponse<GeocodeLookupDto>), StatusCodes.Status200OK)]

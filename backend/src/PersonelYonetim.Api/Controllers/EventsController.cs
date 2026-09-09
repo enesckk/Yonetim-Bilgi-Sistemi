@@ -1,4 +1,3 @@
-using System.Text;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using PersonelYonetim.Api.Authorization;
@@ -25,9 +24,11 @@ public sealed class EventsController : ControllerBase
         [FromQuery] EventStatus? status,
         [FromQuery] DateTime? fromUtc,
         [FromQuery] DateTime? toUtc,
+        [FromQuery] Guid? settlementId,
+        [FromQuery] Guid? facilityId,
         CancellationToken ct)
     {
-        var result = await _sender.Send(new GetEventsQuery(search, status, fromUtc, toUtc), ct);
+        var result = await _sender.Send(new GetEventsQuery(search, status, fromUtc, toUtc, settlementId, facilityId), ct);
         return Ok(ApiResponse<EventListDto>.Ok(result, HttpContext.TraceIdentifier));
     }
 
@@ -56,6 +57,18 @@ public sealed class EventsController : ControllerBase
         return Ok(ApiResponse<EventFacilityStatsDto>.Ok(result, HttpContext.TraceIdentifier));
     }
 
+    [HttpGet("hall-board")]
+    [RequirePermission(PermissionCodes.EventsView)]
+    [ProducesResponseType(typeof(ApiResponse<HallBoardDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<HallBoardDto>>> HallBoard(
+        [FromQuery] DateTime? fromUtc,
+        [FromQuery] DateTime? toUtc,
+        CancellationToken ct)
+    {
+        var result = await _sender.Send(new GetHallBoardQuery(fromUtc, toUtc), ct);
+        return Ok(ApiResponse<HallBoardDto>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
     [HttpGet("{id:guid}/timeline")]
     [RequirePermission(PermissionCodes.EventsView)]
     [ProducesResponseType(typeof(ApiResponse<EventTimelineDto>), StatusCodes.Status200OK)]
@@ -67,19 +80,16 @@ public sealed class EventsController : ControllerBase
 
     [HttpGet("import/template")]
     [RequirePermission(PermissionCodes.EventsManage)]
-    public IActionResult ImportTemplate()
+    public async Task<IActionResult> ImportTemplate(CancellationToken ct)
     {
-        const string csv =
-            "Baslik,Aciklama,Baslangic,Bitis,Durum,TesisKodu,Enlem,Boylam,Adres,BeklenenKatilimci\n" +
-            "Ornek Etkinlik,Aciklama,2026-09-15T14:00,2026-09-15T16:00,Taslak,FAC_KKM,,,Onatli Mah.,120\n";
-        var bytes = Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(csv)).ToArray();
-        return File(bytes, "text/csv", "etkinlik-import-sablon.csv");
+        var file = await _sender.Send(new GetEventImportTemplateQuery(), ct);
+        return File(file.Content, file.ContentType, file.FileName);
     }
 
     [HttpPost("import")]
     [RequirePermission(PermissionCodes.EventsManage)]
     [ProducesResponseType(typeof(ApiResponse<EventImportResultDto>), StatusCodes.Status200OK)]
-    [RequestSizeLimit(5 * 1024 * 1024)]
+    [RequestSizeLimit(10 * 1024 * 1024)]
     public async Task<ActionResult<ApiResponse<EventImportResultDto>>> Import(
         IFormFile file,
         CancellationToken ct)
@@ -165,6 +175,32 @@ public sealed class EventsController : ControllerBase
     {
         await _sender.Send(new DeleteEventCommand(id), ct);
         return Ok(ApiResponse.Ok(HttpContext.TraceIdentifier));
+    }
+
+    [HttpGet("{id:guid}/notes")]
+    [RequirePermission(PermissionCodes.EventsView)]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<EventNoteDto>>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<EventNoteDto>>>> Notes(
+        Guid id,
+        CancellationToken ct)
+    {
+        var result = await _sender.Send(new GetEventNotesQuery(id), ct);
+        return Ok(ApiResponse<IReadOnlyList<EventNoteDto>>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
+    [HttpPost("{id:guid}/notes")]
+    [RequirePermission(PermissionCodes.EventsView)]
+    [ProducesResponseType(typeof(ApiResponse<EventNoteDto>), StatusCodes.Status201Created)]
+    public async Task<ActionResult<ApiResponse<EventNoteDto>>> AddNote(
+        Guid id,
+        [FromBody] CreateEventNoteCommand command,
+        CancellationToken ct)
+    {
+        command.EventId = id;
+        var result = await _sender.Send(command, ct);
+        return StatusCode(
+            StatusCodes.Status201Created,
+            ApiResponse<EventNoteDto>.Ok(result, HttpContext.TraceIdentifier));
     }
 }
 

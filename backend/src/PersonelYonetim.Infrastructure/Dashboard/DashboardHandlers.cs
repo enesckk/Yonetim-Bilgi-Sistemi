@@ -8,6 +8,7 @@ using PersonelYonetim.Domain.Enums;
 using PersonelYonetim.Infrastructure.Movements;
 using PersonelYonetim.Infrastructure.Persistence;
 using PersonelYonetim.Infrastructure.Reports;
+using PersonelYonetim.Infrastructure.Security;
 
 namespace PersonelYonetim.Infrastructure.Dashboard;
 
@@ -46,11 +47,15 @@ public sealed class GetDashboardSummaryHandler
         var active = await employees.CountAsync(x => x.Status == EmployeeStatus.Active, cancellationToken);
         var passive = await employees.CountAsync(x => x.Status == EmployeeStatus.Passive, cancellationToken);
 
-        var totalUnits = await _db.OrganizationUnits.AsNoTracking()
+        var allowedUnits = await UnitScopeHelper.AllowedUnitIdsAsync(_db, _currentUser, cancellationToken);
+        var unitsQuery = _db.OrganizationUnits.AsNoTracking().AsQueryable();
+        if (allowedUnits is not null)
+            unitsQuery = unitsQuery.Where(x => allowedUnits.Contains(x.Id));
+
+        var totalUnits = await unitsQuery
             .CountAsync(x => x.Type == OrganizationUnitType.MainUnit, cancellationToken);
 
-        var facilities = _db.OrganizationUnits.AsNoTracking()
-            .Where(x => x.Type == OrganizationUnitType.Facility);
+        var facilities = unitsQuery.Where(x => x.Type == OrganizationUnitType.Facility);
         var totalFacilities = await facilities.CountAsync(cancellationToken);
         var activeFacilities = await facilities.CountAsync(
             x => x.Status == OrganizationUnitStatus.Active, cancellationToken);
@@ -317,7 +322,7 @@ public sealed class GetDashboardSummaryHandler
                 .CountAsync(m => employeeIds.Contains(m.EmployeeId) && m.StartDate >= recentFrom, ct);
 
             var rows = await _db.EmployeeMovements.AsNoTracking()
-                .Where(m => employeeIds.Contains(m.EmployeeId))
+                .Where(m => employeeIds.Contains(m.EmployeeId) && m.Employee.Status == EmployeeStatus.Active)
                 .OrderByDescending(m => m.StartDate)
                 .ThenByDescending(m => m.CreatedAtUtc)
                 .Take(6)

@@ -53,6 +53,8 @@ public sealed class OrganizationChartPersonDto
     public string? JobTitleName { get; init; }
     public string? DutyName { get; init; }
     public string? EmploymentTypeName { get; init; }
+    public DutyCategory DutyCategory { get; init; }
+    public string RoleTone { get; init; } = "staff";
 }
 
 public sealed class NamedCountDto

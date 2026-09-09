@@ -22,7 +22,13 @@ import { downloadEmployeesExcel, downloadEmployeesPdf } from '@/api/reportsApi'
 import { ApiClientError } from '@/api/client'
 import { useAuth } from '@/auth/AuthContext'
 import { PermissionCodes } from '@/auth/permissionCodes'
+import { canImportEmployees, isSystemAdmin } from '@/auth/roles'
 import { EmployeeAvatar } from '@/components/EmployeeAvatar'
+import {
+  DeleteEmployeeDialog,
+  TransferDirectorateDialog,
+  WorkplaceChangeDialog,
+} from '@/components/EmployeeLifecycleDialogs'
 import {
   COLUMN_DEFS,
   builtInViews,
@@ -95,13 +101,17 @@ function loadPageSize(): number {
 }
 
 export function EmployeesPage() {
-  const { hasPermission } = useAuth()
+  const { hasPermission, user } = useAuth()
   const [urlParams] = useSearchParams()
   const urlSearch = urlParams.get('search')?.trim() ?? ''
   const canViewPhone = hasPermission(PermissionCodes.EmployeesViewPhone)
   const canCreate = hasPermission(PermissionCodes.EmployeesCreate)
   const canUpdate = hasPermission(PermissionCodes.EmployeesUpdate)
-  const canImport = hasPermission(PermissionCodes.ImportExcel)
+  const canCreateMovements = hasPermission(PermissionCodes.MovementsCreate)
+  const canSetStatus = hasPermission(PermissionCodes.EmployeesSetStatus)
+  const canArchive = hasPermission(PermissionCodes.EmployeesArchive)
+  const admin = isSystemAdmin(user)
+  const canImport = canImportEmployees(user)
   const canExportExcel = hasPermission(PermissionCodes.ReportsExportExcel)
   const canExportPdf = hasPermission(PermissionCodes.ReportsExportPdf)
 
@@ -135,6 +145,12 @@ export function EmployeesPage() {
   const [error, setError] = useState<string | null>(null)
   const [exportBusy, setExportBusy] = useState<'excel' | 'pdf' | null>(null)
   const [optionsError, setOptionsError] = useState<string | null>(null)
+  const [lifecycle, setLifecycle] = useState<
+    | { kind: 'workplace'; id: string }
+    | { kind: 'transfer'; id: string; name: string }
+    | { kind: 'delete'; id: string; name: string }
+    | null
+  >(null)
 
   const columnsPanelRef = useRef<HTMLDivElement>(null)
   const viewsPanelRef = useRef<HTMLDivElement>(null)
@@ -195,13 +211,13 @@ export function EmployeesPage() {
     [canViewPhone],
   )
 
-  const activeColumns = useMemo(
-    () =>
-      prefsReady
-        ? normalizeColumns(visibleColumns, canViewPhone)
-        : defaultVisibleColumns(canViewPhone),
-    [visibleColumns, canViewPhone, prefsReady],
-  )
+  const activeColumns = useMemo(() => {
+    const cols = prefsReady
+      ? normalizeColumns(visibleColumns, canViewPhone)
+      : defaultVisibleColumns(canViewPhone)
+    if (admin) return cols
+    return cols.filter((id) => id !== 'completion')
+  }, [visibleColumns, canViewPhone, prefsReady, admin])
 
   useEffect(() => {
     const loaded = loadVisibleColumns(canViewPhone)
@@ -618,7 +634,9 @@ export function EmployeesPage() {
               <div className="stat-chip mobile-inline-chip">{totalCount} kayıt</div>
             </div>
             <p className="muted small employees-toolbar-lead">
-              Filtreleyin, sütun seçin, görünüm kaydedin. Excel/PDF mevcut filtreleri dışa aktarır.
+              {admin
+                ? 'Filtreleyin, sütun seçin, görünüm kaydedin. Excel/PDF mevcut filtreleri dışa aktarır.'
+                : 'Ad, sicil veya birim ile arayın. Durum ve birim filtreleriyle listeyi daraltın.'}
             </p>
           </div>
 
@@ -802,14 +820,16 @@ export function EmployeesPage() {
               ))}
             </select>
             <div className="employees-filters-actions">
-              <button
-                type="button"
-                className={`btn-advanced ${advancedOpen || hasAdvancedActive ? 'is-active' : ''}`}
-                onClick={() => setAdvancedOpen((v) => !v)}
-                aria-expanded={advancedOpen}
-              >
-                Gelişmiş filtre{hasAdvancedActive ? ` (${countAdvancedActive(advanced, unitId)})` : ''}
-              </button>
+              {admin ? (
+                <button
+                  type="button"
+                  className={`btn-advanced ${advancedOpen || hasAdvancedActive ? 'is-active' : ''}`}
+                  onClick={() => setAdvancedOpen((v) => !v)}
+                  aria-expanded={advancedOpen}
+                >
+                  Gelişmiş filtre{hasAdvancedActive ? ` (${countAdvancedActive(advanced, unitId)})` : ''}
+                </button>
+              ) : null}
               {hasActiveFilters && (
                 <button type="button" className="btn-filter-clear" onClick={clearFilters}>
                   Temizle
@@ -819,7 +839,7 @@ export function EmployeesPage() {
           </div>
         </form>
 
-        {advancedOpen && (
+        {admin && advancedOpen && (
           <div className="advanced-filters">
             <div className="advanced-filters-head">
               <strong>Gelişmiş filtreler</strong>
@@ -1053,6 +1073,7 @@ export function EmployeesPage() {
           </div>
         )}
 
+        {admin ? (
         <div className="employees-viewbar">
           <div className="employees-viewbar-left">
             <div className="popover-wrap" ref={viewsPanelRef}>
@@ -1189,6 +1210,7 @@ export function EmployeesPage() {
           </div>
           <p className="muted small employees-viewbar-hint">Tercihler bu tarayıcıda saklanır.</p>
         </div>
+        ) : null}
 
         {filterChips.length > 0 && (
           <div className="active-filter-chips" aria-label="Aktif filtreler">
@@ -1237,7 +1259,12 @@ export function EmployeesPage() {
               {loading && (
                 <tr>
                   <td colSpan={activeColumns.length} className="muted">
-                    Yükleniyor…
+                    <div className="ui-skeleton-stack" aria-hidden="true">
+                      <span className="ui-skeleton" />
+                      <span className="ui-skeleton" />
+                      <span className="ui-skeleton" />
+                    </div>
+                    Personel listesi yükleniyor…
                   </td>
                 </tr>
               )}
@@ -1259,6 +1286,10 @@ export function EmployeesPage() {
                         id={id}
                         row={row}
                         canUpdate={canUpdate}
+                        canCreateMovements={canCreateMovements}
+                        canSetStatus={canSetStatus}
+                        canArchive={canArchive}
+                        onLifecycle={setLifecycle}
                       />
                     ))}
                   </tr>
@@ -1313,6 +1344,38 @@ export function EmployeesPage() {
           </label>
         </div>
       </section>
+      {lifecycle?.kind === 'workplace' ? (
+        <WorkplaceChangeDialog
+          employeeId={lifecycle.id}
+          onClose={() => setLifecycle(null)}
+          onSaved={async () => {
+            setLifecycle(null)
+            await load()
+          }}
+        />
+      ) : null}
+      {lifecycle?.kind === 'transfer' ? (
+        <TransferDirectorateDialog
+          employeeId={lifecycle.id}
+          fullName={lifecycle.name}
+          onClose={() => setLifecycle(null)}
+          onSaved={async () => {
+            setLifecycle(null)
+            await load()
+          }}
+        />
+      ) : null}
+      {lifecycle?.kind === 'delete' ? (
+        <DeleteEmployeeDialog
+          employeeId={lifecycle.id}
+          fullName={lifecycle.name}
+          onClose={() => setLifecycle(null)}
+          onDeleted={async () => {
+            setLifecycle(null)
+            await load()
+          }}
+        />
+      ) : null}
     </div>
   )
 }
@@ -1321,10 +1384,23 @@ function EmployeeCell({
   id,
   row,
   canUpdate,
+  canCreateMovements,
+  canSetStatus,
+  canArchive,
+  onLifecycle,
 }: {
   id: ColumnId
   row: EmployeeListItem
   canUpdate: boolean
+  canCreateMovements: boolean
+  canSetStatus: boolean
+  canArchive: boolean
+  onLifecycle: (
+    next:
+      | { kind: 'workplace'; id: string }
+      | { kind: 'transfer'; id: string; name: string }
+      | { kind: 'delete'; id: string; name: string },
+  ) => void
 }) {
   switch (id) {
     case 'name':
@@ -1394,7 +1470,16 @@ function EmployeeCell({
     case 'actions':
       return (
         <td className="col-actions is-sticky-end">
-          <EmployeeRowActionsMenu employeeId={row.id} canUpdate={canUpdate} />
+          <EmployeeRowActionsMenu
+            employeeId={row.id}
+            fullName={row.fullName}
+            status={row.status}
+            canUpdate={canUpdate}
+            canCreateMovements={canCreateMovements}
+            canSetStatus={canSetStatus}
+            canArchive={canArchive}
+            onLifecycle={onLifecycle}
+          />
         </td>
       )
     default:
@@ -1404,10 +1489,27 @@ function EmployeeCell({
 
 function EmployeeRowActionsMenu({
   employeeId,
+  fullName,
+  status,
   canUpdate,
+  canCreateMovements,
+  canSetStatus,
+  canArchive,
+  onLifecycle,
 }: {
   employeeId: string
+  fullName: string
+  status: EmployeeStatus
   canUpdate: boolean
+  canCreateMovements: boolean
+  canSetStatus: boolean
+  canArchive: boolean
+  onLifecycle: (
+    next:
+      | { kind: 'workplace'; id: string }
+      | { kind: 'transfer'; id: string; name: string }
+      | { kind: 'delete'; id: string; name: string },
+  ) => void
 }) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState<{ top: number; right: number } | null>(null)
@@ -1498,6 +1600,45 @@ function EmployeeRowActionsMenu({
               >
                 Düzenle
               </Link>
+            )}
+            {canCreateMovements && status === 1 && (
+              <button
+                type="button"
+                className="row-actions-item"
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false)
+                  onLifecycle({ kind: 'workplace', id: employeeId })
+                }}
+              >
+                Görev yeri değiştir
+              </button>
+            )}
+            {canSetStatus && status === 1 && (
+              <button
+                type="button"
+                className="row-actions-item"
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false)
+                  onLifecycle({ kind: 'transfer', id: employeeId, name: fullName })
+                }}
+              >
+                Başka müdürlüğe geçti
+              </button>
+            )}
+            {canArchive && (
+              <button
+                type="button"
+                className="row-actions-item is-danger"
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false)
+                  onLifecycle({ kind: 'delete', id: employeeId, name: fullName })
+                }}
+              >
+                Sil
+              </button>
             )}
           </div>,
           document.body,

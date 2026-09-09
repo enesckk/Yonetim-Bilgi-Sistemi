@@ -5,6 +5,7 @@ using PersonelYonetim.Application.Features.Employees;
 using PersonelYonetim.Domain.Authorization;
 using PersonelYonetim.Domain.Enums;
 using PersonelYonetim.Infrastructure.Persistence;
+using PersonelYonetim.Infrastructure.Security;
 
 namespace PersonelYonetim.Infrastructure.Employees;
 
@@ -344,6 +345,7 @@ public sealed class EmployeeQueryService : IEmployeeQueryService
                 MainUnitName = orgPath.MainUnitName,
                 SubUnitName = orgPath.SubUnitName,
                 UnitName = x.Unit?.Name,
+                FacilityId = x.FacilityId,
                 FacilityName = x.Facility?.Name,
                 EmploymentTypeName = x.EmploymentType?.Name,
                 JobTitleName = x.JobTitle?.Name,
@@ -592,14 +594,7 @@ public sealed class EmployeeQueryService : IEmployeeQueryService
         IQueryable<Domain.Entities.Employee> employees,
         CancellationToken cancellationToken)
     {
-        if (_currentUser.HasPermission(PermissionCodes.EmployeesViewAllUnits))
-            return employees;
-
-        var unitId = await GetCurrentUserUnitIdAsync(cancellationToken);
-        if (unitId is null)
-            return null;
-
-        return employees.Where(x => x.UnitId == unitId);
+        return await UnitScopeHelper.ApplyAsync(_db, _currentUser, employees, cancellationToken);
     }
 
     private async Task<HashSet<Guid>> GetUnitAndDescendantIdsAsync(
@@ -634,18 +629,6 @@ public sealed class EmployeeQueryService : IEmployeeQueryService
         }
 
         return result;
-    }
-
-    private async Task<Guid?> GetCurrentUserUnitIdAsync(CancellationToken cancellationToken)
-    {
-        if (_currentUser.UserId is null)
-            return null;
-
-        return await _db.Users
-            .AsNoTracking()
-            .Where(x => x.Id == _currentUser.UserId)
-            .Select(x => x.Employee != null ? x.Employee.UnitId : null)
-            .FirstOrDefaultAsync(cancellationToken);
     }
 
     private (string? Display, bool IsMasked) BuildNationalIdDisplay(string? stored, bool canViewFull)

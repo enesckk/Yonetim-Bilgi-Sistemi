@@ -1,38 +1,13 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
-import { Link, Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Outlet, NavLink, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { fetchUnreadNotificationCount } from '@/api/notificationsApi'
+import { fetchUnreadMessageCount } from '@/api/messagesApi'
 import { useAuth } from '@/auth/AuthContext'
 import { PermissionCodes } from '@/auth/permissionCodes'
+import { isSystemAdmin, canUsePersonnelModule } from '@/auth/roles'
 import { AccountMenu } from '@/components/AccountMenu'
 import { EmployeeAvatar } from '@/components/EmployeeAvatar'
 import { NotificationBell } from '@/components/NotificationBell'
-
-const TITLES: Record<string, string> = {
-  '/': 'Kontrol Paneli',
-  '/employees': 'Personeller',
-  '/employees/import': 'Toplu personel yükleme',
-  '/movements': 'Görev geçmişi',
-  '/units': 'Birimler',
-  '/facilities': 'Tesisler',
-  '/organization': 'Organizasyon Şeması',
-  '/skills': 'Yetkinlikler',
-  '/certificates': 'Sertifikalar',
-  '/catalogs': 'Kataloglar',
-  '/audit-logs': 'İşlem geçmişi',
-  '/reports': 'Raporlar',
-  '/data-quality': 'Veri Eksikleri',
-  '/notifications': 'Bildirimler',
-  '/settings': 'Sistem Ayarları',
-  '/users': 'Kullanıcılar',
-  '/roles': 'Yetki Matrisi',
-  '/events': 'Genel bakış',
-  '/events/list': 'Etkinlikler',
-  '/events/calendar': 'Takvim',
-  '/events/map': 'Harita',
-  '/events/facilities-locations': 'Tesis konumları',
-  '/events/import': 'Etkinlik CSV aktarımı',
-  '/events/new': 'Yeni etkinlik',
-}
 
 type AppModule = 'personnel' | 'events'
 const MODULE_KEY = 'py.app.module'
@@ -82,14 +57,23 @@ const I = {
   map: 'M9 20l-6-3V4l6 3 6-3 6 3v13l-6-3-6 3ZM9 7v13M15 4v13',
   calendar: 'M8 2v3M16 2v3M4 9h16M6 5h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z',
   pin: 'M12 21s7-5.2 7-11a7 7 0 1 0-14 0c0 5.8 7 11 7 11ZM12 10.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z',
+  message: 'M4 5h16v10H7l-3 3V5Z',
+  box: 'M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16ZM3.3 7 12 12l8.7-5M12 22V12',
+  logout: 'M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3',
 }
 
 export function AppLayout() {
   const { user, logout, hasPermission } = useAuth()
   const location = useLocation()
+  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+  const admin = isSystemAdmin(user)
+  const showPersonnelModule = canUsePersonnelModule(user)
   const canNotifications = hasPermission(PermissionCodes.NotificationsView)
+  const canMessages =
+    hasPermission(PermissionCodes.MessagesUse) || hasPermission(PermissionCodes.NotificationsView)
   const [unread, setUnread] = useState(0)
+  const [unreadMessages, setUnreadMessages] = useState(0)
   const [collapsed, setCollapsed] = useState(() => {
     try {
       return localStorage.getItem(SIDEBAR_KEY) === '1'
@@ -132,16 +116,34 @@ export function AppLayout() {
     }
   }, [canNotifications])
 
+  const refreshUnreadMessages = useCallback(async () => {
+    if (!canMessages) {
+      setUnreadMessages(0)
+      return
+    }
+    try {
+      setUnreadMessages(await fetchUnreadMessageCount())
+    } catch {
+      // rozet kritik değil
+    }
+  }, [canMessages])
+
   useEffect(() => {
     void refreshUnread()
-    const onChange = () => void refreshUnread()
+    void refreshUnreadMessages()
+    const onChange = () => {
+      void refreshUnread()
+      void refreshUnreadMessages()
+    }
     window.addEventListener('notifications:changed', onChange)
-    const timer = window.setInterval(() => void refreshUnread(), 60_000)
+    window.addEventListener('messages:changed', onChange)
+    const timer = window.setInterval(onChange, 60_000)
     return () => {
       window.removeEventListener('notifications:changed', onChange)
+      window.removeEventListener('messages:changed', onChange)
       window.clearInterval(timer)
     }
-  }, [refreshUnread])
+  }, [refreshUnread, refreshUnreadMessages])
 
   useEffect(() => {
     if (location.pathname === '/notifications') void refreshUnread()
@@ -156,23 +158,6 @@ export function AppLayout() {
     }
   }, [collapsed])
 
-  const title =
-    location.pathname === '/employees/import'
-      ? 'Toplu personel yükleme'
-      : location.pathname.startsWith('/employees/') && location.pathname !== '/employees'
-        ? 'Personel Detayı'
-        : location.pathname.startsWith('/events/') &&
-            location.pathname !== '/events/list' &&
-            location.pathname !== '/events/calendar' &&
-            location.pathname !== '/events/map' &&
-            location.pathname !== '/events/facilities-locations' &&
-            location.pathname !== '/events/import' &&
-            location.pathname !== '/events/new'
-          ? location.pathname.endsWith('/edit')
-            ? 'Etkinlik düzenle'
-            : 'Etkinlik detayı'
-          : (TITLES[location.pathname] ?? 'Yönetim')
-
   const moduleFromPath: AppModule = location.pathname.startsWith('/events') ? 'events' : 'personnel'
   const [appModule, setAppModule] = useState<AppModule>(() => {
     try {
@@ -185,13 +170,14 @@ export function AppLayout() {
   })
 
   useEffect(() => {
+    if (location.pathname.startsWith('/messages')) return
     setAppModule(moduleFromPath)
     try {
       localStorage.setItem(MODULE_KEY, moduleFromPath)
     } catch {
       /* ignore */
     }
-  }, [moduleFromPath])
+  }, [moduleFromPath, location.pathname])
 
   function switchModule(next: AppModule) {
     setAppModule(next)
@@ -200,13 +186,17 @@ export function AppLayout() {
     } catch {
       /* ignore */
     }
-    navigate(next === 'events' ? '/events' : '/')
+    navigate(next === 'events' ? '/events/map' : admin ? '/employees' : '/personnel')
   }
 
   function onGlobalSearch(e: FormEvent) {
     e.preventDefault()
     const value = globalSearch.trim()
     if (!value) return
+    if (!showPersonnelModule) {
+      navigate(`/events/map?q=${encodeURIComponent(value)}`)
+      return
+    }
     if (appModule === 'events') {
       navigate(`/events/list?search=${encodeURIComponent(value)}`)
     } else {
@@ -214,7 +204,7 @@ export function AppLayout() {
     }
   }
 
-  const sharedSystemNav: NavItem[] = [
+  const adminSystemNav: NavItem[] = [
     {
       to: '/notifications',
       label: 'Bildirimler',
@@ -222,14 +212,15 @@ export function AppLayout() {
       permission: PermissionCodes.NotificationsView,
       badge: unread,
     },
-    { to: '/users', label: 'Kullanıcı yönetimi', icon: <Icon d={I.users} />, permission: PermissionCodes.UsersManage },
+    { to: '/users', label: 'Kullanıcılar', icon: <Icon d={I.users} />, permission: PermissionCodes.UsersManage },
     { to: '/roles', label: 'Yetki matrisi', icon: <Icon d={I.roles} />, permission: PermissionCodes.RolesManage },
     { to: '/settings', label: 'Ayarlar', icon: <Icon d={I.settings} />, permission: PermissionCodes.SettingsManage },
   ]
 
   const personnelNav: NavItem[] = [
-    { to: '/', label: 'Genel bakış', end: true, icon: <Icon d={I.home} />, permission: PermissionCodes.DashboardView },
     { to: '/employees', label: 'Personeller', icon: <Icon d={I.users} />, permission: PermissionCodes.EmployeesView },
+    { to: '/stock', label: 'Stok takip', icon: <Icon d={I.box} />, permission: PermissionCodes.StockView },
+    { to: '/tasks', label: 'İş ataması', icon: <Icon d={I.history} />, permission: PermissionCodes.TasksView },
     { to: '/movements', label: 'Görev geçmişi', icon: <Icon d={I.history} />, permission: PermissionCodes.MovementsView },
     { to: '/units', label: 'Birimler', icon: <Icon d={I.building} />, permission: PermissionCodes.OrganizationView },
     { to: '/facilities', label: 'Tesisler', icon: <Icon d={I.facility} />, permission: PermissionCodes.OrganizationView },
@@ -240,34 +231,99 @@ export function AppLayout() {
     { to: '/reports', label: 'Raporlar', icon: <Icon d={I.reports} />, permission: PermissionCodes.ReportsView },
     { to: '/data-quality', label: 'Veri eksikleri', icon: <Icon d={I.quality} />, permission: PermissionCodes.DataQualityView },
     { to: '/audit-logs', label: 'İşlem geçmişi', icon: <Icon d={I.audit} />, permission: PermissionCodes.AuditLogsView },
-    ...sharedSystemNav,
+    ...adminSystemNav,
+  ]
+
+  const personnelNavLean: NavItem[] = [
+    { to: '/personnel', label: 'Özet', end: true, icon: <Icon d={I.home} />, permission: PermissionCodes.DashboardView },
+    { to: '/employees', label: 'Personeller', icon: <Icon d={I.users} />, permission: PermissionCodes.EmployeesView },
+    { to: '/stock', label: 'Stok takip', icon: <Icon d={I.box} />, permission: PermissionCodes.StockView },
+    { to: '/tasks', label: 'İş ataması', icon: <Icon d={I.history} />, permission: PermissionCodes.TasksView },
+    { to: '/facilities', label: 'Tesisler', icon: <Icon d={I.facility} />, permission: PermissionCodes.OrganizationView },
+    { to: '/organization', label: 'Organizasyon şeması', icon: <Icon d={I.chart} />, permission: PermissionCodes.OrganizationView },
+    {
+      to: '/notifications',
+      label: 'Bildirimler',
+      icon: <Icon d={I.bell} />,
+      permission: PermissionCodes.NotificationsView,
+      badge: unread,
+    },
+    {
+      to: '/messages',
+      label: 'Mesajlar',
+      icon: <Icon d={I.message} />,
+      permission: PermissionCodes.MessagesUse,
+      badge: unreadMessages,
+    },
   ]
 
   const eventsNav: NavItem[] = [
-    { to: '/events', label: 'Genel bakış', end: true, icon: <Icon d={I.home} />, permission: PermissionCodes.EventsView },
-    { to: '/events/map', label: 'Harita', icon: <Icon d={I.map} />, permission: PermissionCodes.EventsView },
+    { to: '/events/map', label: 'Mahalleler', icon: <Icon d={I.map} />, permission: PermissionCodes.EventsView },
     { to: '/events/calendar', label: 'Takvim', icon: <Icon d={I.calendar} />, permission: PermissionCodes.EventsView },
+    { to: '/events/facilities', label: 'Tesisler', icon: <Icon d={I.building} />, permission: PermissionCodes.EventsView },
     { to: '/events/list', label: 'Etkinlikler', icon: <Icon d={I.catalog} />, permission: PermissionCodes.EventsView },
     {
-      to: '/events/facilities-locations',
-      label: 'Tesis konumları',
-      icon: <Icon d={I.pin} />,
-      permission: PermissionCodes.OrganizationView,
+      to: '/messages',
+      label: 'Mesajlar',
+      icon: <Icon d={I.message} />,
+      permission: PermissionCodes.MessagesUse,
+      badge: unreadMessages,
     },
-    ...sharedSystemNav,
   ]
 
-  const navItems = appModule === 'events' ? eventsNav : personnelNav
-  const brandTitle = appModule === 'events' ? 'Etkinlik Yönetim Takip' : 'Personel Yönetim Takip'
-  const brandShort = appModule === 'events' ? 'Etkinlik' : 'Personel'
+  const operatorNav: NavItem[] = [
+    { to: '/events/map', label: 'Mahalleler', icon: <Icon d={I.map} />, permission: PermissionCodes.EventsView },
+    { to: '/events/calendar', label: 'Takvim', icon: <Icon d={I.calendar} />, permission: PermissionCodes.EventsView },
+    { to: '/events/facilities', label: 'Tesisler', icon: <Icon d={I.building} />, permission: PermissionCodes.EventsView },
+    { to: '/events/list', label: 'Etkinlikler', icon: <Icon d={I.catalog} />, permission: PermissionCodes.EventsView },
+    {
+      to: '/messages',
+      label: 'Mesajlar',
+      icon: <Icon d={I.message} />,
+      permission: PermissionCodes.MessagesUse,
+      badge: unreadMessages,
+    },
+  ]
+
+  const navItems = showPersonnelModule
+    ? appModule === 'events'
+      ? eventsNav
+      : admin
+        ? personnelNav
+        : personnelNavLean
+    : operatorNav
 
   const shellClass = [
     'app-shell',
     collapsed ? 'sidebar-collapsed' : '',
     mobileOpen ? 'sidebar-mobile-open' : '',
+    admin ? '' : 'is-operator',
+    location.pathname === '/events/map' && searchParams.get('view') !== 'cards' ? 'is-map-page' : '',
+    location.pathname.startsWith('/messages') ? 'is-messages-page' : '',
   ]
     .filter(Boolean)
     .join(' ')
+
+  const showTopbarSearch = (() => {
+    const path = location.pathname
+    if (path === '/events/map' || path === '/messages' || path.startsWith('/events/settlements')) return false
+    if (path === '/employees' || path === '/units' || path === '/facilities' || path === '/organization' || path === '/stock' || path.startsWith('/stock/') || path === '/tasks') {
+      return false
+    }
+    if (
+      path === '/events/list' ||
+      path === '/events/facilities' ||
+      path === '/events/calendar' ||
+      path === '/events/halls' ||
+      path === '/events/new' ||
+      path === '/events/import' ||
+      path === '/events/facilities-locations'
+    ) {
+      return false
+    }
+    if (/^\/events\/[^/]+(\/edit)?$/.test(path)) return false
+    return true
+  })()
 
   return (
     <div className={shellClass}>
@@ -282,19 +338,23 @@ export function AppLayout() {
 
       <aside className="sidebar" aria-label="Ana menü">
         <div className="sidebar-top">
-          <div className="sidebar-brand">
-            <div className="sidebar-brand-mark" aria-hidden="true">
-              {brandShort.slice(0, 1)}
-            </div>
-            <div className="sidebar-brand-text">
-              <strong title={brandTitle}>{brandTitle}</strong>
-              <span className="muted">Tek platform</span>
-            </div>
-          </div>
+          <Link to="/" className="sidebar-brand" title="Yönetim Bilgi Sistemi">
+            <span className="sidebar-brand-mark">
+              <img src="/logo.svg?v=4" alt="" width={40} height={40} />
+            </span>
+            <span className="sidebar-brand-text">
+              <strong>Yönetim Bilgi Sistemi</strong>
+              <span>Mahalle · etkinlik · tesis</span>
+            </span>
+          </Link>
           <button
             type="button"
             className="sidebar-collapse-btn desktop-only"
-            onClick={() => setCollapsed((v) => !v)}
+            onClick={() => {
+              setCollapsed((v) => !v)
+              window.setTimeout(() => window.dispatchEvent(new Event('sidebar:toggled')), 40)
+              window.setTimeout(() => window.dispatchEvent(new Event('sidebar:toggled')), 280)
+            }}
             aria-pressed={collapsed}
             aria-label={collapsed ? 'Menüyü genişlet' : 'Menüyü daralt'}
             title={collapsed ? 'Menüyü genişlet' : 'Menüyü daralt'}
@@ -302,63 +362,46 @@ export function AppLayout() {
             <Icon d={collapsed ? I.expand : I.collapse} size={16} />
           </button>
         </div>
-
-        <div className="module-switcher" role="group" aria-label="Uygulama modülü">
-          <button
-            type="button"
-            className={appModule === 'personnel' ? 'is-active' : ''}
-            aria-pressed={appModule === 'personnel'}
-            title="Personel Yönetim Takip"
-            onClick={() => switchModule('personnel')}
-          >
-            <span className="module-switcher-icon" aria-hidden="true">
-              P
-            </span>
-            <span className="module-switcher-full">Personel Yönetim Takip</span>
-            <span className="module-switcher-short">Personel</span>
-          </button>
-          <button
-            type="button"
-            className={appModule === 'events' ? 'is-active' : ''}
-            aria-pressed={appModule === 'events'}
-            title="Etkinlik Yönetim Takip"
-            onClick={() => switchModule('events')}
-          >
-            <span className="module-switcher-icon" aria-hidden="true">
-              E
-            </span>
-            <span className="module-switcher-full">Etkinlik Yönetim Takip</span>
-            <span className="module-switcher-short">Etkinlik</span>
-          </button>
-        </div>
-
         <nav className="sidebar-nav">
           {navItems.map((item) => {
-            const allowed = !item.permission || hasPermission(item.permission)
-            if (!allowed) {
-              return (
-                <span
-                  key={item.to}
-                  className="nav-disabled"
-                  title={collapsed ? item.label : undefined}
-                >
-                  <span className="nav-icon">{item.icon}</span>
-                  <span className="nav-label">{item.label}</span>
-                </span>
-              )
-            }
+            const allowed =
+              item.to === '/messages'
+                ? canMessages
+                : !item.permission || hasPermission(item.permission)
+            if (!allowed) return null
 
             return (
               <NavLink
                 key={item.to}
                 to={item.to}
-                end={item.end}
+                end={item.to !== '/employees' && item.to !== '/stock'}
                 title={collapsed ? item.label : undefined}
-                className={({ isActive }) =>
-                  ['nav-link', isActive ? 'active' : '', item.badge ? 'nav-with-badge' : '']
+                className={({ isActive }) => {
+                  const path = location.pathname
+                  let active = isActive
+                  if (item.to === '/events/map') {
+                    active = path === '/events/map' || path.startsWith('/events/settlements/')
+                  } else if (item.to === '/events/list') {
+                    const seg = path.split('/')[2]
+                    active =
+                      path === '/events/list' ||
+                      path === '/events/new' ||
+                      path === '/events/import' ||
+                      (Boolean(seg) &&
+                        !['map', 'list', 'calendar', 'halls', 'facilities', 'import', 'new', 'settlements'].includes(seg))
+                  } else if (item.to === '/employees') {
+                    active = path === '/employees' || path.startsWith('/employees/')
+                  } else if (item.to === '/stock') {
+                    active = path === '/stock' || path.startsWith('/stock/')
+                  } else if (item.to === '/personnel') {
+                    active = path === '/personnel'
+                  } else {
+                    active = path === item.to
+                  }
+                  return ['nav-link', active ? 'active' : '', item.badge ? 'nav-with-badge' : '']
                     .filter(Boolean)
                     .join(' ')
-                }
+                }}
               >
                 <span className="nav-icon">{item.icon}</span>
                 <span className="nav-label">{item.label}</span>
@@ -382,51 +425,52 @@ export function AppLayout() {
             >
               <Icon d={I.menu} />
             </button>
-            <button
-              type="button"
-              className="topbar-icon-btn desktop-only"
-              onClick={() => setCollapsed((v) => !v)}
-              aria-pressed={collapsed}
-              aria-label={collapsed ? 'Menüyü genişlet' : 'Menüyü daralt'}
-              title={collapsed ? 'Menüyü genişlet' : 'Menüyü daralt'}
-            >
-              <Icon d={collapsed ? I.expand : I.collapse} />
-            </button>
-            <div className="topbar-titles">
-              <h1 className="page-title">{title}</h1>
-            </div>
+            {showPersonnelModule ? (
+              <div className="topbar-tabs" role="tablist" aria-label="Modül">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={appModule === 'personnel'}
+                  className={appModule === 'personnel' ? 'is-active' : ''}
+                  onClick={() => switchModule('personnel')}
+                >
+                  Müdürlük
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={appModule === 'events'}
+                  className={appModule === 'events' ? 'is-active' : ''}
+                  onClick={() => switchModule('events')}
+                >
+                  Etkinlik
+                </button>
+              </div>
+            ) : null}
           </div>
 
-          <form className="topbar-search" role="search" onSubmit={onGlobalSearch}>
-            <Icon d={I.search} size={17} />
-            <input
-              type="search"
-              value={globalSearch}
-              onChange={(e) => setGlobalSearch(e.target.value)}
-              placeholder={
-                appModule === 'events'
-                  ? 'Etkinlik ara…'
-                  : 'Personel, sicil veya birim ara…'
-              }
-              aria-label="Genel arama"
-            />
-          </form>
+          {showTopbarSearch ? (
+            <form className="topbar-search" role="search" onSubmit={onGlobalSearch}>
+              <Icon d={I.search} size={17} />
+              <input
+                type="search"
+                value={globalSearch}
+                onChange={(e) => setGlobalSearch(e.target.value)}
+                placeholder={
+                  !showPersonnelModule
+                    ? 'Mahalle ara…'
+                    : appModule === 'events'
+                      ? 'Etkinlik ara…'
+                      : 'Personel, sicil veya birim ara…'
+                }
+                aria-label="Arama"
+              />
+            </form>
+          ) : (
+            <div className="topbar-search-spacer" aria-hidden="true" />
+          )}
 
           <div className="topbar-actions">
-            {appModule === 'events' ? (
-              hasPermission(PermissionCodes.EventsManage) ? (
-                <Link to="/events/new" className="topbar-quick-add">
-                  <Icon d={I.plus} size={17} />
-                  <span>Etkinlik ekle</span>
-                </Link>
-              ) : null
-            ) : hasPermission(PermissionCodes.EmployeesCreate) ? (
-              <Link to="/employees/new" className="topbar-quick-add">
-                <Icon d={I.plus} size={17} />
-                <span>Personel ekle</span>
-              </Link>
-            ) : null}
-
             {canNotifications ? (
               <NotificationBell
                 unread={unread}
@@ -457,9 +501,14 @@ export function AppLayout() {
               }
             />
 
-            <button type="button" className="btn-logout" onClick={() => void logout()}>
-              <span className="logout-full">Çıkış yap</span>
-              <span className="logout-short">Çıkış</span>
+            <button
+              type="button"
+              className="btn-logout"
+              onClick={() => void logout()}
+              aria-label="Çıkış yap"
+              title="Çıkış yap"
+            >
+              <Icon d={I.logout} size={18} />
             </button>
           </div>
         </header>

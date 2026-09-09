@@ -36,5 +36,12 @@ export const PermissionCodes = {
   UsersManage: 'Users.Manage',
   DataQualityView: 'DataQuality.View',
   NotificationsView: 'Notifications.View',
+  MessagesUse: 'Messages.Use',
   SettingsManage: 'Settings.Manage',
+  StockView: 'Stock.View',
+  StockManage: 'Stock.Manage',
+  TasksView: 'Tasks.View',
+  TasksAssign: 'Tasks.Assign',
+  TasksSubmit: 'Tasks.Submit',
+  TasksReview: 'Tasks.Review',
 } as const

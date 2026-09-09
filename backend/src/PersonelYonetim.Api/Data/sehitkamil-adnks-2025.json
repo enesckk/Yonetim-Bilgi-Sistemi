@@ -1,0 +1,722 @@
+{
+  "year": 2025,
+  "source": "TUIK_ADNKS",
+  "sourceReference": "TÜİK ADNKS 31.12.2025 — mahalle toplam/erkek/kadın (Şehitkamil)",
+  "districtPopulation": 905880,
+  "items": [
+    {
+      "name": "Belkız",
+      "population": 39504,
+      "maleCount": 20007,
+      "femaleCount": 19497
+    },
+    {
+      "name": "Seyrantepe",
+      "population": 37514,
+      "maleCount": 18930,
+      "femaleCount": 18584
+    },
+    {
+      "name": "Güvenevler",
+      "population": 31410,
+      "maleCount": 15429,
+      "femaleCount": 15981
+    },
+    {
+      "name": "Karşıyaka",
+      "population": 30555,
+      "maleCount": 15479,
+      "femaleCount": 15076
+    },
+    {
+      "name": "Kayaönü",
+      "population": 29268,
+      "maleCount": 16585,
+      "femaleCount": 12683
+    },
+    {
+      "name": "Pancarlı",
+      "population": 29120,
+      "maleCount": 14107,
+      "femaleCount": 15013
+    },
+    {
+      "name": "Fıstıklık",
+      "population": 28348,
+      "maleCount": 14200,
+      "femaleCount": 14148
+    },
+    {
+      "name": "Batıkent",
+      "population": 27678,
+      "maleCount": 12338,
+      "femaleCount": 15340
+    },
+    {
+      "name": "Karacaahmet",
+      "population": 26147,
+      "maleCount": 13005,
+      "femaleCount": 13142
+    },
+    {
+      "name": "Çıksorut",
+      "population": 25979,
+      "maleCount": 13312,
+      "femaleCount": 12667
+    },
+    {
+      "name": "Beykent",
+      "population": 25249,
+      "maleCount": 12788,
+      "femaleCount": 12461
+    },
+    {
+      "name": "Atatürk",
+      "population": 25082,
+      "maleCount": 12030,
+      "femaleCount": 13052
+    },
+    {
+      "name": "Gazikent",
+      "population": 23900,
+      "maleCount": 12079,
+      "femaleCount": 11821
+    },
+    {
+      "name": "Onat Kutlar",
+      "population": 20320,
+      "maleCount": 10321,
+      "femaleCount": 9999
+    },
+    {
+      "name": "Karacaören",
+      "population": 19942,
+      "maleCount": 10053,
+      "femaleCount": 9889
+    },
+    {
+      "name": "Şirinevler",
+      "population": 19316,
+      "maleCount": 9831,
+      "femaleCount": 9485
+    },
+    {
+      "name": "Pirsultan",
+      "population": 19268,
+      "maleCount": 9708,
+      "femaleCount": 9560
+    },
+    {
+      "name": "Gaziler",
+      "population": 18871,
+      "maleCount": 9479,
+      "femaleCount": 9392
+    },
+    {
+      "name": "Burak",
+      "population": 18642,
+      "maleCount": 9380,
+      "femaleCount": 9262
+    },
+    {
+      "name": "8 Şubat",
+      "population": 18217,
+      "maleCount": 9246,
+      "femaleCount": 8971
+    },
+    {
+      "name": "Mevlana",
+      "population": 18033,
+      "maleCount": 9119,
+      "femaleCount": 8914
+    },
+    {
+      "name": "Selimiye",
+      "population": 17872,
+      "maleCount": 9164,
+      "femaleCount": 8708
+    },
+    {
+      "name": "Sacır",
+      "population": 16654,
+      "maleCount": 8527,
+      "femaleCount": 8127
+    },
+    {
+      "name": "Sarıgüllük",
+      "population": 16566,
+      "maleCount": 7888,
+      "femaleCount": 8678
+    },
+    {
+      "name": "Osmangazi",
+      "population": 16435,
+      "maleCount": 8039,
+      "femaleCount": 8396
+    },
+    {
+      "name": "Değirmiçem",
+      "population": 15535,
+      "maleCount": 7455,
+      "femaleCount": 8080
+    },
+    {
+      "name": "15 Temmuz",
+      "population": 15143,
+      "maleCount": 6961,
+      "femaleCount": 8182
+    },
+    {
+      "name": "Göllüce",
+      "population": 14864,
+      "maleCount": 7585,
+      "femaleCount": 7279
+    },
+    {
+      "name": "Hacıbaba",
+      "population": 14763,
+      "maleCount": 7433,
+      "femaleCount": 7330
+    },
+    {
+      "name": "Merveşehir",
+      "population": 14625,
+      "maleCount": 7290,
+      "femaleCount": 7335
+    },
+    {
+      "name": "Karacaoğlan",
+      "population": 14434,
+      "maleCount": 7341,
+      "femaleCount": 7093
+    },
+    {
+      "name": "Mücahitler",
+      "population": 14418,
+      "maleCount": 7253,
+      "femaleCount": 7165
+    },
+    {
+      "name": "Çamlıtepe",
+      "population": 13588,
+      "maleCount": 6854,
+      "femaleCount": 6734
+    },
+    {
+      "name": "Eyüpsultan",
+      "population": 12732,
+      "maleCount": 6505,
+      "femaleCount": 6227
+    },
+    {
+      "name": "Selahattin Eyyubi",
+      "population": 11863,
+      "maleCount": 6128,
+      "femaleCount": 5735
+    },
+    {
+      "name": "İbrahimli",
+      "population": 11582,
+      "maleCount": 5745,
+      "femaleCount": 5837
+    },
+    {
+      "name": "Boyno",
+      "population": 11459,
+      "maleCount": 5771,
+      "femaleCount": 5688
+    },
+    {
+      "name": "29 Ekim",
+      "population": 10692,
+      "maleCount": 5399,
+      "femaleCount": 5293
+    },
+    {
+      "name": "Umut",
+      "population": 8356,
+      "maleCount": 4231,
+      "femaleCount": 4125
+    },
+    {
+      "name": "Aktoprak",
+      "population": 8289,
+      "maleCount": 4235,
+      "femaleCount": 4054
+    },
+    {
+      "name": "Alpaslan",
+      "population": 8028,
+      "maleCount": 4059,
+      "femaleCount": 3969
+    },
+    {
+      "name": "Göktürk",
+      "population": 7956,
+      "maleCount": 4070,
+      "femaleCount": 3886
+    },
+    {
+      "name": "Dündarlı",
+      "population": 6689,
+      "maleCount": 3376,
+      "femaleCount": 3313
+    },
+    {
+      "name": "Güngürge",
+      "population": 6340,
+      "maleCount": 5363,
+      "femaleCount": 977
+    },
+    {
+      "name": "Sam",
+      "population": 5489,
+      "maleCount": 2799,
+      "femaleCount": 2690
+    },
+    {
+      "name": "Karacaburç",
+      "population": 4638,
+      "maleCount": 2393,
+      "femaleCount": 2245
+    },
+    {
+      "name": "Yalankoz",
+      "population": 3844,
+      "maleCount": 1969,
+      "femaleCount": 1875
+    },
+    {
+      "name": "Eydibaba",
+      "population": 3561,
+      "maleCount": 1808,
+      "femaleCount": 1753
+    },
+    {
+      "name": "Yaprak",
+      "population": 3386,
+      "maleCount": 1741,
+      "femaleCount": 1645
+    },
+    {
+      "name": "Beylerbeyi",
+      "population": 3241,
+      "maleCount": 1714,
+      "femaleCount": 1527
+    },
+    {
+      "name": "Dülük",
+      "population": 2834,
+      "maleCount": 1442,
+      "femaleCount": 1392
+    },
+    {
+      "name": "Bilek",
+      "population": 2823,
+      "maleCount": 1497,
+      "femaleCount": 1326
+    },
+    {
+      "name": "Işıklı",
+      "population": 2742,
+      "maleCount": 1425,
+      "femaleCount": 1317
+    },
+    {
+      "name": "Göksüncük",
+      "population": 2646,
+      "maleCount": 1343,
+      "femaleCount": 1303
+    },
+    {
+      "name": "Atalar",
+      "population": 2638,
+      "maleCount": 1341,
+      "femaleCount": 1297
+    },
+    {
+      "name": "Bağbaşı",
+      "population": 2488,
+      "maleCount": 1299,
+      "femaleCount": 1189
+    },
+    {
+      "name": "Büyükpınar",
+      "population": 2375,
+      "maleCount": 1233,
+      "femaleCount": 1142
+    },
+    {
+      "name": "Öğümsöğüt",
+      "population": 1857,
+      "maleCount": 976,
+      "femaleCount": 881
+    },
+    {
+      "name": "Atabek",
+      "population": 1839,
+      "maleCount": 946,
+      "femaleCount": 893
+    },
+    {
+      "name": "Yığınlı",
+      "population": 1482,
+      "maleCount": 755,
+      "femaleCount": 727
+    },
+    {
+      "name": "Akçagöze",
+      "population": 1473,
+      "maleCount": 753,
+      "femaleCount": 720
+    },
+    {
+      "name": "Taşlıca",
+      "population": 1419,
+      "maleCount": 724,
+      "femaleCount": 695
+    },
+    {
+      "name": "Karahüyük",
+      "population": 1413,
+      "maleCount": 711,
+      "femaleCount": 702
+    },
+    {
+      "name": "Karakesek",
+      "population": 1287,
+      "maleCount": 686,
+      "femaleCount": 601
+    },
+    {
+      "name": "Sanayi",
+      "population": 1243,
+      "maleCount": 646,
+      "femaleCount": 597
+    },
+    {
+      "name": "Erikli",
+      "population": 1232,
+      "maleCount": 643,
+      "femaleCount": 589
+    },
+    {
+      "name": "Aşağı Arıl",
+      "population": 1217,
+      "maleCount": 637,
+      "femaleCount": 580
+    },
+    {
+      "name": "Köksalan",
+      "population": 1107,
+      "maleCount": 575,
+      "femaleCount": 532
+    },
+    {
+      "name": "Kızıkhamurkesen",
+      "population": 1081,
+      "maleCount": 574,
+      "femaleCount": 507
+    },
+    {
+      "name": "İncesu",
+      "population": 1062,
+      "maleCount": 543,
+      "femaleCount": 519
+    },
+    {
+      "name": "Akçaburç",
+      "population": 1036,
+      "maleCount": 536,
+      "femaleCount": 500
+    },
+    {
+      "name": "Yamaçoba",
+      "population": 1010,
+      "maleCount": 516,
+      "femaleCount": 494
+    },
+    {
+      "name": "Küllü",
+      "population": 960,
+      "maleCount": 485,
+      "femaleCount": 475
+    },
+    {
+      "name": "Kozluyazı",
+      "population": 950,
+      "maleCount": 485,
+      "femaleCount": 465
+    },
+    {
+      "name": "Sinan",
+      "population": 934,
+      "maleCount": 487,
+      "femaleCount": 447
+    },
+    {
+      "name": "Bayatlı",
+      "population": 807,
+      "maleCount": 418,
+      "femaleCount": 389
+    },
+    {
+      "name": "Tekirsin",
+      "population": 791,
+      "maleCount": 413,
+      "femaleCount": 378
+    },
+    {
+      "name": "Çağkuyu",
+      "population": 790,
+      "maleCount": 424,
+      "femaleCount": 366
+    },
+    {
+      "name": "Suboğaz",
+      "population": 729,
+      "maleCount": 377,
+      "femaleCount": 352
+    },
+    {
+      "name": "Yukarı Arıl",
+      "population": 696,
+      "maleCount": 358,
+      "femaleCount": 338
+    },
+    {
+      "name": "Yayıktaş",
+      "population": 667,
+      "maleCount": 354,
+      "femaleCount": 313
+    },
+    {
+      "name": "Koçlu",
+      "population": 666,
+      "maleCount": 335,
+      "femaleCount": 331
+    },
+    {
+      "name": "Bedirköy",
+      "population": 659,
+      "maleCount": 348,
+      "femaleCount": 311
+    },
+    {
+      "name": "Karadede",
+      "population": 656,
+      "maleCount": 339,
+      "femaleCount": 317
+    },
+    {
+      "name": "Sülüklü",
+      "population": 650,
+      "maleCount": 317,
+      "femaleCount": 333
+    },
+    {
+      "name": "Uğruca",
+      "population": 613,
+      "maleCount": 314,
+      "femaleCount": 299
+    },
+    {
+      "name": "Övündük",
+      "population": 599,
+      "maleCount": 310,
+      "femaleCount": 289
+    },
+    {
+      "name": "Serintepe",
+      "population": 575,
+      "maleCount": 294,
+      "femaleCount": 281
+    },
+    {
+      "name": "Yeşilce",
+      "population": 542,
+      "maleCount": 290,
+      "femaleCount": 252
+    },
+    {
+      "name": "Kızık Karasakal",
+      "population": 528,
+      "maleCount": 263,
+      "femaleCount": 265
+    },
+    {
+      "name": "Sancaktepe",
+      "population": 499,
+      "maleCount": 256,
+      "femaleCount": 243
+    },
+    {
+      "name": "Seymenli",
+      "population": 489,
+      "maleCount": 249,
+      "femaleCount": 240
+    },
+    {
+      "name": "Battal",
+      "population": 487,
+      "maleCount": 252,
+      "femaleCount": 235
+    },
+    {
+      "name": "Cerityeniyapan",
+      "population": 481,
+      "maleCount": 254,
+      "femaleCount": 227
+    },
+    {
+      "name": "Tuğlu",
+      "population": 465,
+      "maleCount": 258,
+      "femaleCount": 207
+    },
+    {
+      "name": "Sefaşehir",
+      "population": 435,
+      "maleCount": 221,
+      "femaleCount": 214
+    },
+    {
+      "name": "Karpuzkaya",
+      "population": 418,
+      "maleCount": 226,
+      "femaleCount": 192
+    },
+    {
+      "name": "Ülkerli",
+      "population": 418,
+      "maleCount": 204,
+      "femaleCount": 214
+    },
+    {
+      "name": "Yenişarkaya",
+      "population": 408,
+      "maleCount": 218,
+      "femaleCount": 190
+    },
+    {
+      "name": "Tokdemir",
+      "population": 395,
+      "maleCount": 201,
+      "femaleCount": 194
+    },
+    {
+      "name": "Sofalıcı",
+      "population": 378,
+      "maleCount": 201,
+      "femaleCount": 177
+    },
+    {
+      "name": "Sarılar",
+      "population": 373,
+      "maleCount": 197,
+      "femaleCount": 176
+    },
+    {
+      "name": "Eskişarkaya",
+      "population": 362,
+      "maleCount": 171,
+      "femaleCount": 191
+    },
+    {
+      "name": "Ağaçlıboyno",
+      "population": 355,
+      "maleCount": 188,
+      "femaleCount": 167
+    },
+    {
+      "name": "Üçgöze",
+      "population": 328,
+      "maleCount": 187,
+      "femaleCount": 141
+    },
+    {
+      "name": "Zülfikar",
+      "population": 328,
+      "maleCount": 162,
+      "femaleCount": 166
+    },
+    {
+      "name": "İbrahimşehir",
+      "population": 310,
+      "maleCount": 161,
+      "femaleCount": 149
+    },
+    {
+      "name": "Günbulur",
+      "population": 243,
+      "maleCount": 117,
+      "femaleCount": 126
+    },
+    {
+      "name": "Dımışkılı",
+      "population": 233,
+      "maleCount": 125,
+      "femaleCount": 108
+    },
+    {
+      "name": "Acaroba",
+      "population": 229,
+      "maleCount": 115,
+      "femaleCount": 114
+    },
+    {
+      "name": "Beyreli",
+      "population": 184,
+      "maleCount": 82,
+      "femaleCount": 102
+    },
+    {
+      "name": "Nesimi",
+      "population": 180,
+      "maleCount": 101,
+      "femaleCount": 79
+    },
+    {
+      "name": "Medegöz",
+      "population": 173,
+      "maleCount": 97,
+      "femaleCount": 76
+    },
+    {
+      "name": "Durnalık",
+      "population": 170,
+      "maleCount": 92,
+      "femaleCount": 78
+    },
+    {
+      "name": "Karayusuflu",
+      "population": 152,
+      "maleCount": 84,
+      "femaleCount": 68
+    },
+    {
+      "name": "Bozobası",
+      "population": 118,
+      "maleCount": 63,
+      "femaleCount": 55
+    },
+    {
+      "name": "Kabasakız",
+      "population": 97,
+      "maleCount": 51,
+      "femaleCount": 46
+    },
+    {
+      "name": "Türkyurdu",
+      "population": 70,
+      "maleCount": 40,
+      "femaleCount": 30
+    },
+    {
+      "name": "İskenderli",
+      "population": 65,
+      "maleCount": 40,
+      "femaleCount": 25
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 import { apiRequest } from './client'
+import { cachedGet, invalidateCached, LOOKUP_TTL_MS } from '@/lib/lookupCache'
 
 export interface NamedCount {
   name: string
@@ -47,6 +48,8 @@ export interface ChartPerson {
   jobTitleName?: string | null
   dutyName?: string | null
   employmentTypeName?: string | null
+  dutyCategory?: number
+  roleTone?: string
 }
 
 export interface OrgUnitDetail {
@@ -136,7 +139,7 @@ export interface UpsertOrgUnitPayload {
 }
 
 export async function fetchOrganizationTree(): Promise<OrgNode[]> {
-  return apiRequest<OrgNode[]>('/api/organization/units/tree')
+  return cachedGet('org:tree', LOOKUP_TTL_MS, () => apiRequest<OrgNode[]>('/api/organization/units/tree'))
 }
 
 export async function fetchOrganizationUnitDetail(id: string): Promise<OrgUnitDetail> {
@@ -144,16 +147,20 @@ export async function fetchOrganizationUnitDetail(id: string): Promise<OrgUnitDe
 }
 
 export async function fetchOrganizationFormOptions(): Promise<OrgFormOptions> {
-  return apiRequest<OrgFormOptions>('/api/organization/units/form-options')
+  return cachedGet('org:form-options', LOOKUP_TTL_MS, () =>
+    apiRequest<OrgFormOptions>('/api/organization/units/form-options'),
+  )
 }
 
 export async function createOrganizationUnit(
   payload: UpsertOrgUnitPayload,
 ): Promise<{ id: string }> {
-  return apiRequest<{ id: string }>('/api/organization/units', {
+  const result = await apiRequest<{ id: string }>('/api/organization/units', {
     method: 'POST',
     body: payload,
   })
+  invalidateCached('org')
+  return result
 }
 
 export async function updateOrganizationUnit(
@@ -164,10 +171,12 @@ export async function updateOrganizationUnit(
     method: 'PUT',
     body: payload,
   })
+  invalidateCached('org')
 }
 
 export async function deleteOrganizationUnit(id: string): Promise<void> {
   await apiRequest<unknown>(`/api/organization/units/${id}`, {
     method: 'DELETE',
   })
+  invalidateCached('org')
 }

@@ -1,5 +1,6 @@
 import { apiDownloadFile, apiRequest, apiUpload } from './client'
 import type { PagedResult } from './types'
+import { cachedGet, invalidateCached, LOOKUP_TTL_MS } from '@/lib/lookupCache'
 
 export type EmployeeStatus =
   | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11
@@ -183,7 +184,9 @@ export interface EmployeeWritePayload {
 }
 
 export async function fetchEmployeeFormOptions(): Promise<EmployeeFormOptions> {
-  return apiRequest<EmployeeFormOptions>('/api/employees/form-options')
+  return cachedGet('emp:form-options', LOOKUP_TTL_MS, () =>
+    apiRequest<EmployeeFormOptions>('/api/employees/form-options'),
+  )
 }
 
 export async function fetchEmployeeForEdit(id: string): Promise<EmployeeEdit> {
@@ -191,10 +194,13 @@ export async function fetchEmployeeForEdit(id: string): Promise<EmployeeEdit> {
 }
 
 export async function createEmployee(payload: EmployeeWritePayload): Promise<{ id: string }> {
-  return apiRequest<{ id: string }>('/api/employees', {
+  const result = await apiRequest<{ id: string }>('/api/employees', {
     method: 'POST',
     body: payload,
   })
+  invalidateCached('emp')
+  invalidateCached('org')
+  return result
 }
 
 export async function updateEmployee(id: string, payload: EmployeeWritePayload): Promise<void> {
@@ -202,6 +208,8 @@ export async function updateEmployee(id: string, payload: EmployeeWritePayload):
     method: 'PUT',
     body: payload,
   })
+  invalidateCached('emp')
+  invalidateCached('org')
 }
 
 export interface SetEmployeeStatusPayload {
@@ -644,6 +652,7 @@ export interface EmployeeDetail {
     mainUnitName?: string | null
     subUnitName?: string | null
     unitName?: string | null
+    facilityId?: string | null
     facilityName?: string | null
     employmentTypeName?: string | null
     jobTitleName?: string | null

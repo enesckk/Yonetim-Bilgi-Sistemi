@@ -8,6 +8,8 @@ import {
 import { ApiClientError } from '@/api/client'
 import { useAuth } from '@/auth/AuthContext'
 import { PermissionCodes } from '@/auth/permissionCodes'
+import { canImportEmployees } from '@/auth/roles'
+import { PageBackLink } from '@/components/PageBackLink'
 
 const TEMPLATE_COLUMNS: { name: string; hint: string; required?: boolean }[] = [
   { name: 'Ad', hint: 'Zorunlu', required: true },
@@ -31,8 +33,8 @@ function formatBytes(bytes: number) {
 }
 
 export function EmployeeImportPage() {
-  const { hasPermission } = useAuth()
-  const canImport = hasPermission(PermissionCodes.ImportExcel)
+  const { user, hasPermission } = useAuth()
+  const canImport = canImportEmployees(user) && hasPermission(PermissionCodes.ImportExcel)
   const canCreate = hasPermission(PermissionCodes.EmployeesCreate)
 
   const [file, setFile] = useState<File | null>(null)
@@ -60,9 +62,7 @@ export function EmployeeImportPage() {
         <div className="panel">
           <h1>Toplu personel yükleme</h1>
           <p className="muted">Bu ekranı görüntüleme yetkiniz bulunmuyor.</p>
-          <Link to="/employees" className="back-link">
-            ← Personeller
-          </Link>
+          <PageBackLink to="/employees">Personeller</PageBackLink>
         </div>
       </div>
     )

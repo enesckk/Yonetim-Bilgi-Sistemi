@@ -56,6 +56,7 @@ public sealed class EmployeeCorporateInfoDto
     public string? MainUnitName { get; init; }
     public string? SubUnitName { get; init; }
     public string? UnitName { get; init; }
+    public Guid? FacilityId { get; init; }
     public string? FacilityName { get; init; }
     public string? EmploymentTypeName { get; init; }
     public string? JobTitleName { get; init; }

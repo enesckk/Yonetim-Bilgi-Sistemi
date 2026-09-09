@@ -11,6 +11,7 @@ public static class RoleCodes
     public const string Director = "DIRECTOR";
     public const string DeputyDirector = "DEPUTY_DIRECTOR";
     public const string UnitManager = "UNIT_MANAGER";
+    public const string AdministrativeOfficer = "ADMINISTRATIVE_OFFICER";
     public const string DataEntry = "DATA_ENTRY";
     public const string Viewer = "VIEWER";
 
@@ -21,11 +22,13 @@ public static class RoleCodes
         (DeputyMayor, "Başkan Yardımcısı",
             "Müdürlüğün genel verilerini görür; rapor ve personel dağılım analizlerine erişir; yetki verilen yönetici notlarını görür."),
         (Director, "Müdür",
-            "Müdürlükteki tüm personelleri görür ve günceller; birim/tesis yönetimi, görevlendirme, yönetici notu, özel durum ve rapor oluşturma."),
+            "Müdürlükteki tüm personelleri görür ve günceller; birim/tesis ve şemayı yönetir; stok takibini görüntüler; iş atar ve onaylar. Stok giriş/çıkışını amirler yapar."),
         (DeputyDirector, "Müdür Yardımcısı",
-            "Yetki verilen birimleri yönetir; personel görüntüleme/güncelleme, görev ve not ekleme, birim raporları."),
-        (UnitManager, "Birim Sorumlusu",
-            "Yalnızca kendi birimindeki personelleri görür; temel iletişim ve görev bilgisi; görev notu ekleyebilir; hassas bilgileri göremez."),
+            "Yetki verilen birimleri yönetir; personel görüntüleme/güncelleme, görev ve not ekleme; stok takibini görüntüler; iş atar ve onaylar."),
+        (AdministrativeOfficer, "İdari Amir",
+            "Müdürlük özetini görür; stok takip giriş, çıkış, transfer ve sayım işlemlerini yapar; iş teslim eder ve müdüre onay sunar."),
+        (UnitManager, "Birim Amiri",
+            "Yalnızca kendi birimindeki personelleri görür (ör. kütüphane); birim amiri olarak o birimde görünür; hassas bilgileri göremez."),
         (DataEntry, "Veri Giriş Personeli",
             "Personel ekler/günceller; yetkinlik ve eğitim girer; raporları sınırlı görür; özel durum ve yönetici notlarını göremez."),
         (Viewer, "Görüntüleme Kullanıcısı",

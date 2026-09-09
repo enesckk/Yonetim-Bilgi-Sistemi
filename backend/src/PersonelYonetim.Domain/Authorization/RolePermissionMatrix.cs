@@ -27,6 +27,7 @@ public static class RolePermissionMatrix
             PermissionCodes.ReportsExportPdf,
             PermissionCodes.DataQualityView,
             PermissionCodes.NotificationsView,
+            PermissionCodes.MessagesUse,
             PermissionCodes.FilesView,
             PermissionCodes.EventsView
         ],
@@ -39,6 +40,7 @@ public static class RolePermissionMatrix
             PermissionCodes.EmployeesCreate,
             PermissionCodes.EmployeesUpdate,
             PermissionCodes.EmployeesSetStatus,
+            PermissionCodes.EmployeesArchive,
             PermissionCodes.EmployeesViewAllUnits,
             PermissionCodes.EmployeesViewPhone,
             PermissionCodes.EmployeesViewAddress,
@@ -61,6 +63,11 @@ public static class RolePermissionMatrix
             PermissionCodes.NotesCreateManager,
             PermissionCodes.OrganizationView,
             PermissionCodes.OrganizationManage,
+            PermissionCodes.StockView,
+            PermissionCodes.TasksView,
+            PermissionCodes.TasksAssign,
+            PermissionCodes.TasksReview,
+            PermissionCodes.TasksSubmit,
             PermissionCodes.ReportsView,
             PermissionCodes.ReportsExportExcel,
             PermissionCodes.ReportsExportPdf,
@@ -69,6 +76,7 @@ public static class RolePermissionMatrix
             PermissionCodes.FilesView,
             PermissionCodes.FilesUpload,
             PermissionCodes.NotificationsView,
+            PermissionCodes.MessagesUse,
             PermissionCodes.AuditLogsView,
             PermissionCodes.EventsView,
             PermissionCodes.EventsManage
@@ -96,6 +104,11 @@ public static class RolePermissionMatrix
             PermissionCodes.NotesViewDirectorate,
             PermissionCodes.NotesCreate,
             PermissionCodes.OrganizationView,
+            PermissionCodes.StockView,
+            PermissionCodes.TasksView,
+            PermissionCodes.TasksAssign,
+            PermissionCodes.TasksReview,
+            PermissionCodes.TasksSubmit,
             PermissionCodes.ReportsView,
             PermissionCodes.ReportsExportExcel,
             PermissionCodes.ReportsExportPdf,
@@ -103,11 +116,34 @@ public static class RolePermissionMatrix
             PermissionCodes.FilesView,
             PermissionCodes.FilesUpload,
             PermissionCodes.NotificationsView,
+            PermissionCodes.MessagesUse,
             PermissionCodes.EventsView,
             PermissionCodes.EventsManage
         ],
 
-        // Birim sorumlusu: sadece kendi birimi (ViewAllUnits YOK)
+        // İdari amir: yalnızca kendi tesis ağacı (ViewAllUnits yok)
+        [RoleCodes.AdministrativeOfficer] =
+        [
+            PermissionCodes.DashboardView,
+            PermissionCodes.EmployeesView,
+            PermissionCodes.EmployeesViewPhone,
+            PermissionCodes.MovementsView,
+            PermissionCodes.NotesViewOwn,
+            PermissionCodes.NotesViewUnit,
+            PermissionCodes.NotesCreate,
+            PermissionCodes.OrganizationView,
+            PermissionCodes.StockView,
+            PermissionCodes.StockManage,
+            PermissionCodes.TasksView,
+            PermissionCodes.TasksSubmit,
+            PermissionCodes.FilesView,
+            PermissionCodes.NotificationsView,
+            PermissionCodes.MessagesUse,
+            PermissionCodes.EventsView,
+            PermissionCodes.EventsManage
+        ],
+
+        // Birim amiri: sadece kendi birimi ve altı (ViewAllUnits YOK)
         [RoleCodes.UnitManager] =
         [
             PermissionCodes.DashboardView,
@@ -118,9 +154,13 @@ public static class RolePermissionMatrix
             PermissionCodes.NotesViewUnit,
             PermissionCodes.NotesCreate,
             PermissionCodes.OrganizationView,
-            PermissionCodes.ReportsView,
+            PermissionCodes.StockView,
+            PermissionCodes.StockManage,
+            PermissionCodes.TasksView,
+            PermissionCodes.TasksSubmit,
             PermissionCodes.FilesView,
             PermissionCodes.NotificationsView,
+            PermissionCodes.MessagesUse,
             PermissionCodes.EventsView
         ],
 
@@ -143,6 +183,7 @@ public static class RolePermissionMatrix
             PermissionCodes.FilesView,
             PermissionCodes.FilesUpload,
             PermissionCodes.NotificationsView,
+            PermissionCodes.MessagesUse,
             PermissionCodes.EventsView,
             PermissionCodes.EventsManage
         ],
@@ -155,6 +196,7 @@ public static class RolePermissionMatrix
             PermissionCodes.OrganizationView,
             PermissionCodes.ReportsView,
             PermissionCodes.NotificationsView,
+            PermissionCodes.MessagesUse,
             PermissionCodes.EventsView
         ]
     };

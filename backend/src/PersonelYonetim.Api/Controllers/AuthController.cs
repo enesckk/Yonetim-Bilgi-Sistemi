@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PersonelYonetim.Application.Common.Interfaces;
 using PersonelYonetim.Application.Common.Models;
@@ -24,6 +25,7 @@ public sealed class AuthController : ControllerBase
     /// refresh token HttpOnly cookie'de (JS okuyamaz → XSS'e karşı daha güvenli).
     /// </summary>
     [HttpPost("login")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(ApiResponse<LoginResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<LoginResponse>>> Login(
         [FromBody] LoginRequestDto request,
@@ -45,6 +47,7 @@ public sealed class AuthController : ControllerBase
     }
 
     [HttpPost("refresh")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(ApiResponse<LoginResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<LoginResponse>>> Refresh(CancellationToken cancellationToken)
     {
@@ -65,6 +68,7 @@ public sealed class AuthController : ControllerBase
     }
 
     [HttpPost("logout")]
+    [AllowAnonymous]
     public async Task<ActionResult<ApiResponse>> Logout(CancellationToken cancellationToken)
     {
         var refreshToken = Request.Cookies[RefreshCookieName];
@@ -87,6 +91,7 @@ public sealed class AuthController : ControllerBase
     }
 
     [HttpGet("session-policy")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(ApiResponse<SessionPolicyDto>), StatusCodes.Status200OK)]
     public ActionResult<ApiResponse<SessionPolicyDto>> SessionPolicy()
     {

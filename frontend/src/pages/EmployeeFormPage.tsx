@@ -16,6 +16,7 @@ import { ApiClientError } from '@/api/client'
 import { useAuth } from '@/auth/AuthContext'
 import { PermissionCodes } from '@/auth/permissionCodes'
 import { EmployeeAvatar } from '@/components/EmployeeAvatar'
+import { PageBackLink } from '@/components/PageBackLink'
 import { useAlert } from '@/components/ConfirmDialog'
 import {
   ORG_TYPE,
@@ -572,9 +573,7 @@ export function EmployeeFormPage() {
     return (
       <div className="panel">
         <p className="form-error">Bu işlem için yetkiniz yok.</p>
-        <Link to="/employees" className="back-link">
-          ← Personel listesine dön
-        </Link>
+        <PageBackLink to="/employees">Personel listesine dön</PageBackLink>
       </div>
     )
   }
@@ -591,9 +590,7 @@ export function EmployeeFormPage() {
     return (
       <div className="panel">
         <p className="form-error">{error ?? 'Form seçenekleri alınamadı.'}</p>
-        <Link to="/employees" className="back-link">
-          ← Personel listesine dön
-        </Link>
+        <PageBackLink to="/employees">Personel listesine dön</PageBackLink>
       </div>
     )
   }
@@ -662,9 +659,7 @@ export function EmployeeFormPage() {
           </div>
 
           <div className="emp-form-hero-copy">
-            <Link to={backTo} className="back-link">
-              ← {isEdit ? 'Personele dön' : 'Personeller'}
-            </Link>
+            <PageBackLink to={backTo}>{isEdit ? 'Personele dön' : 'Personeller'}</PageBackLink>
             <p className="emp-form-eyebrow">{isEdit ? 'Personel kaydı' : 'Yeni kayıt'}</p>
             <h1>{displayName}</h1>
             <p className="muted emp-form-lead">
