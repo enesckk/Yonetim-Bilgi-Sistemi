@@ -4,6 +4,7 @@ import {
   EVENT_STATUSES,
   eventPhase,
   fetchEventFacilityStats,
+  eventsLookbackFromUtc,
   fetchEvents,
   fetchMapPins,
   type EventListItem,
@@ -91,6 +92,7 @@ function StatusChart({ events }: { events: EventListItem[] }) {
 export function EventsHomePage() {
   const { user, hasPermission } = useAuth()
   const admin = isSystemAdmin(user)
+  const seesAllUnits = admin || hasPermission(PermissionCodes.EmployeesViewAllUnits)
   const canView = hasPermission(PermissionCodes.EventsView)
   const canManage = hasPermission(PermissionCodes.EventsManage)
   const canOrg = hasPermission(PermissionCodes.OrganizationView)
@@ -115,7 +117,7 @@ export function EventsHomePage() {
       setError(null)
       try {
         const tasks: Promise<unknown>[] = [
-          fetchEvents(),
+          fetchEvents({ fromUtc: eventsLookbackFromUtc() }),
           fetchMapPins({ kinds: 'facility,event' }),
           fetchEventFacilityStats(),
         ]
@@ -191,7 +193,7 @@ export function EventsHomePage() {
   const firstName = user?.displayName?.split(' ')[0] ?? 'Yönetici'
 
   if (!admin) {
-    return <Navigate to="/events/map" replace />
+    return <Navigate to={seesAllUnits ? '/events/map' : '/events/calendar'} replace />
   }
 
   if (!canView) {

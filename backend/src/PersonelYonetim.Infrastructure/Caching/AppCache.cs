@@ -1,9 +1,12 @@
+using System.Collections.Concurrent;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace PersonelYonetim.Infrastructure.Caching;
 
 public static class AppCache
 {
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> Gates = new();
+
     public const string OrgTree = "lookup:org-tree";
     public const string OrgFormOptions = "lookup:org-form-options";
     public const string EmployeeFormOptions = "lookup:employee-form-options";
@@ -42,11 +45,23 @@ public static class AppCache
         if (cache.TryGetValue(key, out T? cached) && cached is not null)
             return cached;
 
-        var value = await factory(cancellationToken);
-        cache.Set(key, value, new MemoryCacheEntryOptions
+        var gate = Gates.GetOrAdd(key, static _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(cancellationToken);
+        try
         {
-            AbsoluteExpirationRelativeToNow = ttl
-        });
-        return value;
+            if (cache.TryGetValue(key, out cached) && cached is not null)
+                return cached;
+
+            var value = await factory(cancellationToken);
+            cache.Set(key, value, new MemoryCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = ttl
+            });
+            return value;
+        }
+        finally
+        {
+            gate.Release();
+        }
     }
 }

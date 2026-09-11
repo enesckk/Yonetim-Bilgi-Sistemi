@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using PersonelYonetim.Application.Common.Exceptions;
 using PersonelYonetim.Application.Common.Interfaces;
 using PersonelYonetim.Domain.Authorization;
 using PersonelYonetim.Domain.Entities;
@@ -11,6 +12,15 @@ namespace PersonelYonetim.Infrastructure.Security;
 /// </summary>
 internal static class UnitScopeHelper
 {
+    public static bool SeesAllUnits(ICurrentUserService currentUser) =>
+        currentUser.HasPermission(PermissionCodes.EmployeesViewAllUnits);
+
+    public static void EnsureDirectorateWide(ICurrentUserService currentUser)
+    {
+        if (!SeesAllUnits(currentUser))
+            throw new ForbiddenException("Mahalle ve müdürlük geneli yalnızca müdür kapsamındadır.");
+    }
+
     /// <summary>null = kısıt yok (tüm birimler). Boş küme = bağlı birim yok.</summary>
     public static async Task<HashSet<Guid>?> AllowedUnitIdsAsync(
         AppDbContext db,
@@ -79,6 +89,28 @@ internal static class UnitScopeHelper
         return employees.Where(x =>
             (x.UnitId != null && allowed.Contains(x.UnitId.Value))
             || (x.FacilityId != null && allowed.Contains(x.FacilityId.Value)));
+    }
+
+    public static bool IsUnitAllowed(HashSet<Guid>? allowed, Guid? unitId, Guid? facilityId)
+    {
+        if (allowed is null) return true;
+        if (unitId is Guid u && allowed.Contains(u)) return true;
+        if (facilityId is Guid f && allowed.Contains(f)) return true;
+        return false;
+    }
+
+    public static async Task EnsureFacilityInScopeAsync(
+        AppDbContext db,
+        ICurrentUserService currentUser,
+        Guid? facilityId,
+        CancellationToken cancellationToken)
+    {
+        var allowed = await AllowedUnitIdsAsync(db, currentUser, cancellationToken);
+        if (allowed is null) return;
+        if (facilityId is null)
+            throw new ValidationException("facilityId", "Kendi tesisiniz için bir salon veya bina seçin.");
+        if (!allowed.Contains(facilityId.Value))
+            throw new ForbiddenException("Bu tesis sizin kapsamınızda değil.");
     }
 
     private static async Task<HashSet<Guid>> DescendantsOfAsync(

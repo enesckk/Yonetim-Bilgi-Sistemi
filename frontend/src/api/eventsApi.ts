@@ -18,6 +18,13 @@ export const EVENT_WORK_STATUSES: { value: EventStatus; label: string }[] = [
 
 export type EventPhase = 'planned' | 'done' | 'other'
 
+/** Özet ve tesis ekranlarında tarihsiz tam geçmiş çekilmesin. */
+export function eventsLookbackFromUtc(months = 18): string {
+  const d = new Date()
+  d.setUTCMonth(d.getUTCMonth() - months)
+  return d.toISOString()
+}
+
 export function eventPhase(status: EventStatus, startAtUtc: string): EventPhase {
   if (status === 3 || status === 1) return 'other'
   if (status === 4) return 'done'

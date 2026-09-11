@@ -1,8 +1,8 @@
 namespace PersonelYonetim.Api.Middleware;
 
 /// <summary>
-/// Yalnızca sık değişmeyen lookup GET yanıtlarına kısa private Cache-Control ekler.
-/// Personel, mesaj, kimlik ve gösterge paneli yanıtları cache edilmez.
+/// Kimliği doğrulanmış org/harita/mahalle lookup'ları tarayıcıda tutulmaz (yazımdan sonra bayat veri olmasın).
+/// Yalnızca geocode yanıtları kısa private cache alır.
 /// </summary>
 public sealed class LookupCacheHeadersMiddleware(RequestDelegate next)
 {
@@ -13,13 +13,22 @@ public sealed class LookupCacheHeadersMiddleware(RequestDelegate next)
             if (!HttpMethods.IsGet(context.Request.Method) || context.Response.StatusCode != StatusCodes.Status200OK)
                 return Task.CompletedTask;
 
-            if (IsLookup(context.Request.Path))
-                context.Response.Headers.CacheControl = "private, max-age=60";
+            if (IsGeocode(context.Request.Path))
+                context.Response.Headers.CacheControl = "private, max-age=300";
+            else if (IsLookup(context.Request.Path))
+                context.Response.Headers.CacheControl = "private, no-store";
 
             return Task.CompletedTask;
         });
 
         return next(context);
+    }
+
+    private static bool IsGeocode(PathString path)
+    {
+        var value = path.Value ?? string.Empty;
+        return value.StartsWith("/api/map/geocode", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("/api/map/reverse", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsLookup(PathString path)
@@ -29,8 +38,6 @@ public sealed class LookupCacheHeadersMiddleware(RequestDelegate next)
             || value.Equals("/api/organization/units/form-options", StringComparison.OrdinalIgnoreCase)
             || value.Equals("/api/employees/form-options", StringComparison.OrdinalIgnoreCase)
             || value.Equals("/api/settlements", StringComparison.OrdinalIgnoreCase)
-            || value.Equals("/api/map/settlements/summary", StringComparison.OrdinalIgnoreCase)
-            || value.StartsWith("/api/map/geocode", StringComparison.OrdinalIgnoreCase)
-            || value.Equals("/api/map/reverse", StringComparison.OrdinalIgnoreCase);
+            || value.Equals("/api/map/settlements/summary", StringComparison.OrdinalIgnoreCase);
     }
 }

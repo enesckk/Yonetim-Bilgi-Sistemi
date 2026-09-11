@@ -9,6 +9,7 @@ import {
   type RoleListItem,
   type UserListItem,
 } from '@/api/adminApi'
+import { fetchEmployees, type EmployeeListItem } from '@/api/employeesApi'
 import { ApiClientError } from '@/api/client'
 import { useAuth } from '@/auth/AuthContext'
 import { PermissionCodes } from '@/auth/permissionCodes'
@@ -64,6 +65,8 @@ function roleTone(code?: string | null) {
       return 'director'
     case 'DEPUTY_DIRECTOR':
       return 'deputy'
+    case 'ADMINISTRATIVE_OFFICER':
+      return 'idari'
     case 'UNIT_MANAGER':
       return 'unit'
     case 'DATA_ENTRY':
@@ -73,6 +76,67 @@ function roleTone(code?: string | null) {
     default:
       return 'default'
   }
+}
+
+function slugUserName(fullName: string) {
+  return fullName
+    .toLocaleLowerCase('tr-TR')
+    .replaceAll('ı', 'i')
+    .replaceAll('ğ', 'g')
+    .replaceAll('ü', 'u')
+    .replaceAll('ş', 's')
+    .replaceAll('ö', 'o')
+    .replaceAll('ç', 'c')
+    .replace(/[^a-z0-9]+/g, '.')
+    .replace(/^\.+|\.+$/g, '')
+    .slice(0, 40)
+}
+
+function roleNeedsPerson(code?: string | null) {
+  return code === 'ADMINISTRATIVE_OFFICER' || code === 'UNIT_MANAGER'
+}
+
+const ROLE_CREATE_ORDER = [
+  'ADMINISTRATIVE_OFFICER',
+  'DIRECTOR',
+  'UNIT_MANAGER',
+  'DEPUTY_DIRECTOR',
+  'DATA_ENTRY',
+  'VIEWER',
+  'DEPUTY_MAYOR',
+  'SYSTEM_ADMIN',
+]
+
+function accessPreview(roleCode: string | undefined, person: EmployeeListItem | null) {
+  const place = person?.facilityName || person?.unitName || 'bağlı birimi'
+  if (roleCode === 'DIRECTOR' || roleCode === 'SYSTEM_ADMIN' || roleCode === 'DEPUTY_MAYOR') {
+    return {
+      title: 'Müdürlük geneli',
+      lines: ['Tüm tesis, personel, stok ve takvim.'],
+    }
+  }
+  if (roleCode === 'ADMINISTRATIVE_OFFICER') {
+    return {
+      title: `${place} idari amiri`,
+      lines: ['Yalnızca bu bina, kadro, stok ve takvim.'],
+    }
+  }
+  if (roleCode === 'UNIT_MANAGER') {
+    return {
+      title: `${place} birim amiri`,
+      lines: ['Yalnızca bu birim ve personeli.'],
+    }
+  }
+  return {
+    title: 'Seçilen role göre erişim',
+    lines: ['Menü atanan yetkiye göre açılır.'],
+  }
+}
+
+function roleScopeHint(code?: string | null) {
+  if (code === 'DIRECTOR' || code === 'SYSTEM_ADMIN' || code === 'DEPUTY_MAYOR') return 'Müdürlük geneli'
+  if (roleNeedsPerson(code)) return 'Kendi binası'
+  return 'Yetkiye göre'
 }
 
 export function UsersAdminPage() {
@@ -101,6 +165,9 @@ export function UsersAdminPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [isActive, setIsActive] = useState(true)
   const [roleCodes, setRoleCodes] = useState<string[]>([])
+  const [employeeId, setEmployeeId] = useState('')
+  const [personQuery, setPersonQuery] = useState('')
+  const [people, setPeople] = useState<EmployeeListItem[]>([])
   const [resetPwd, setResetPwd] = useState('')
   const [showResetPwd, setShowResetPwd] = useState(false)
 
@@ -109,9 +176,16 @@ export function UsersAdminPage() {
     setLoading(true)
     setError(null)
     try {
-      const [u, r] = await Promise.all([fetchUsers(), fetchRoles()])
+      const [u, r, staff] = await Promise.all([
+        fetchUsers(),
+        fetchRoles(),
+        fetchEmployees({ page: 1, pageSize: 250 }).catch(
+          () => ({ items: [] as EmployeeListItem[] }),
+        ),
+      ])
       setUsers(u)
       setRoles(r)
+      setPeople(staff.items ?? [])
     } catch (err) {
       setError(err instanceof ApiClientError ? err.message : 'Yüklenemedi.')
     } finally {
@@ -165,6 +239,38 @@ export function UsersAdminPage() {
     [users, roles],
   )
 
+  const selectedPerson = useMemo(
+    () => people.find((p) => p.id === employeeId) ?? null,
+    [people, employeeId],
+  )
+
+  const personChoices = useMemo(() => {
+    const q = personQuery.trim().toLocaleLowerCase('tr-TR')
+    const linked = new Set(
+      users.filter((u) => u.employeeId && u.id !== editingId).map((u) => u.employeeId as string),
+    )
+    return people
+      .filter((p) => !linked.has(p.id) || p.id === employeeId)
+      .filter((p) =>
+        !q
+          ? true
+          : p.fullName.toLocaleLowerCase('tr-TR').includes(q)
+            || (p.facilityName ?? '').toLocaleLowerCase('tr-TR').includes(q)
+            || (p.unitName ?? '').toLocaleLowerCase('tr-TR').includes(q),
+      )
+      .slice(0, 8)
+  }, [people, personQuery, users, editingId, employeeId])
+
+  const preview = accessPreview(roleCodes[0], selectedPerson)
+  const sortedRoles = useMemo(() => {
+    const rank = (code?: string | null) => {
+      const i = ROLE_CREATE_ORDER.indexOf(code ?? '')
+      return i === -1 ? 99 : i
+    }
+    return [...roles].sort((a, b) => rank(a.code) - rank(b.code))
+  }, [roles])
+  const missingPerson = roleNeedsPerson(roleCodes[0]) && !employeeId
+
   if (!canManage) {
     return (
       <div className="org-page">
@@ -185,7 +291,9 @@ export function UsersAdminPage() {
     setPassword('')
     setShowPassword(false)
     setIsActive(true)
-    setRoleCodes(roles[0]?.code ? [roles[0].code] : [])
+    setRoleCodes(['ADMINISTRATIVE_OFFICER'])
+    setEmployeeId('')
+    setPersonQuery('')
     setResetPwd('')
     setShowResetPwd(false)
     setFieldErrors({})
@@ -203,6 +311,8 @@ export function UsersAdminPage() {
     setShowPassword(false)
     setIsActive(u.isActive)
     setRoleCodes([...u.roleCodes])
+    setEmployeeId(u.employeeId ?? '')
+    setPersonQuery(u.employeeName ?? '')
     setResetPwd('')
     setShowResetPwd(false)
     setFieldErrors({})
@@ -215,10 +325,19 @@ export function UsersAdminPage() {
     setFieldErrors({})
   }
 
-  function toggleRole(code: string) {
-    setRoleCodes((prev) =>
-      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code],
-    )
+  function selectRole(code: string) {
+    setRoleCodes([code])
+  }
+
+  function pickPerson(person: EmployeeListItem) {
+    setEmployeeId(person.id)
+    setPersonQuery(person.fullName)
+    setDisplayName(person.fullName)
+    if (mode === 'create') {
+      const slug = slugUserName(person.fullName)
+      if (slug) setUserName(slug)
+      setEmail(`${slug}@sehitkamil.local`)
+    }
   }
 
   async function onSubmit(e: FormEvent) {
@@ -228,9 +347,22 @@ export function UsersAdminPage() {
     setFieldErrors({})
     try {
       if (mode === 'create') {
-        await createUser({ userName, displayName, email, password, roleCodes })
+        await createUser({
+          userName,
+          displayName,
+          email,
+          password,
+          roleCodes,
+          employeeId: employeeId || null,
+        })
       } else if (editingId) {
-        await updateUser(editingId, { displayName, email, isActive, roleCodes })
+        await updateUser(editingId, {
+          displayName,
+          email,
+          isActive,
+          roleCodes,
+          employeeId: employeeId || null,
+        })
         if (resetPwd.trim()) await resetUserPassword(editingId, resetPwd.trim())
       }
       setShowForm(false)
@@ -257,10 +389,7 @@ export function UsersAdminPage() {
         <div>
           <p className="org-eyebrow">Yetkilendirme</p>
           <h1>Kullanıcı yönetimi</h1>
-          <p className="muted">
-            Sisteme giriş hesaplarını yönetin. Her kullanıcıya uygun rol atayarak hangi bilgilere
-            erişebileceğini belirleyin.
-          </p>
+          <p className="muted">Kim girecek, ne görecek.</p>
         </div>
         <div className="report-hero-side">
           <div className="report-hero-stats">
@@ -318,11 +447,6 @@ export function UsersAdminPage() {
             <h2 id="user-form-title">
               {mode === 'create' ? 'Yeni kullanıcı' : 'Kullanıcıyı düzenle'}
             </h2>
-            <p className="muted iam-modal-lead">
-              {mode === 'create'
-                ? 'Giriş hesabı oluşturun ve en az bir rol atayın. Birden fazla rolde yetkiler birleşir.'
-                : `${displayName || userName} hesabının bilgilerini ve rollerini güncelleyin.`}
-            </p>
           </div>
 
           {error ? (
@@ -333,8 +457,97 @@ export function UsersAdminPage() {
 
           <section className="iam-form-section">
             <header className="iam-form-section-head">
+              <h2>Bu kim?</h2>
+            </header>
+            <label>
+              Personel
+              <input
+                value={personQuery}
+                onChange={(e) => {
+                  setPersonQuery(e.target.value)
+                  if (employeeId) setEmployeeId('')
+                }}
+                placeholder="Ad veya tesis ara… örn. Tarık, DT"
+                autoComplete="off"
+                autoFocus
+              />
+              {fieldError('employeeId')}
+            </label>
+            {selectedPerson ? (
+              <p className="iam-person-picked">
+                <strong>{selectedPerson.fullName}</strong>
+                <span>
+                  {[selectedPerson.primaryDutyName, selectedPerson.facilityName || selectedPerson.unitName]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </span>
+                <button type="button" className="btn-secondary" onClick={() => { setEmployeeId(''); setPersonQuery('') }}>
+                  Değiştir
+                </button>
+              </p>
+            ) : (
+              <ul className="iam-person-choices">
+                {personChoices.map((p) => (
+                  <li key={p.id}>
+                    <button type="button" onClick={() => pickPerson(p)}>
+                      <strong>{p.fullName}</strong>
+                      <span>
+                        {[p.primaryDutyName, p.facilityName || p.unitName].filter(Boolean).join(' · ') || 'Birim yok'}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+                {personChoices.length === 0 ? <li className="muted">Eşleşen personel yok.</li> : null}
+              </ul>
+            )}
+          </section>
+
+          <section className="iam-form-section">
+            <header className="iam-form-section-head">
+              <h2>Bu ne olacak?</h2>
+            </header>
+            <div className="iam-role-pick iam-role-pick-grid">
+              {sortedRoles.map((r) =>
+                r.code ? (
+                  <label
+                    key={r.id}
+                    className={`iam-role-option tone-${roleTone(r.code)} ${
+                      roleCodes.includes(r.code) ? 'is-on' : ''
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="user-role"
+                      checked={roleCodes.includes(r.code)}
+                      onChange={() => selectRole(r.code!)}
+                    />
+                    <span>
+                      <strong>{r.name}</strong>
+                      <small>{roleScopeHint(r.code)}</small>
+                    </span>
+                  </label>
+                ) : null,
+              )}
+            </div>
+            {fieldError('roleCodes')}
+            {roleCodes[0] ? (
+              <aside className="iam-access-preview" aria-live="polite">
+                <strong>{preview.title}</strong>
+                <ul>
+                  {preview.lines.map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
+                {missingPerson ? (
+                  <p className="form-error">Bu görev için yukarıdan personel seçin.</p>
+                ) : null}
+              </aside>
+            ) : null}
+          </section>
+
+          <section className="iam-form-section">
+            <header className="iam-form-section-head">
               <h2>Hesap bilgileri</h2>
-              <p className="muted">Giriş için kullanılan temel kimlik bilgileri.</p>
             </header>
             <div className="form-grid">
               {mode === 'create' ? (
@@ -344,7 +557,6 @@ export function UsersAdminPage() {
                     value={userName}
                     onChange={(e) => setUserName(e.target.value)}
                     autoComplete="off"
-                    autoFocus
                   />
                   {fieldError('userName')}
                 </label>
@@ -431,38 +643,8 @@ export function UsersAdminPage() {
             </div>
           </section>
 
-          <section className="iam-form-section">
-            <header className="iam-form-section-head">
-              <h2>Rol ataması</h2>
-              <p className="muted">En az bir rol seçin. Seçilen rollerin yetkileri birleşerek uygulanır.</p>
-            </header>
-            <div className="iam-role-pick iam-role-pick-grid">
-              {roles.map((r) =>
-                r.code ? (
-                  <label
-                    key={r.id}
-                    className={`iam-role-option tone-${roleTone(r.code)} ${
-                      roleCodes.includes(r.code) ? 'is-on' : ''
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={roleCodes.includes(r.code)}
-                      onChange={() => toggleRole(r.code!)}
-                    />
-                    <span>
-                      <strong>{r.name}</strong>
-                      <small>{r.description || 'Açıklama henüz eklenmedi.'}</small>
-                    </span>
-                  </label>
-                ) : null,
-              )}
-            </div>
-            {fieldError('roleCodes')}
-          </section>
-
           <div className="iam-form-actions">
-            <button type="submit" className="btn-primary" disabled={saving}>
+            <button type="submit" className="btn-primary" disabled={saving || missingPerson}>
               {saving
                 ? 'Kaydediliyor…'
                 : mode === 'create'
@@ -594,7 +776,6 @@ export function UsersAdminPage() {
         <header className="iam-section-head">
           <div>
             <h2>Kurumsal roller</h2>
-            <p className="muted">Her rolün erişim kapsamı. Detaylı ayar için rolleri düzenleyin.</p>
           </div>
           {canSeeMatrix ? (
             <Link to="/roles" className="btn-ghost">
@@ -608,7 +789,7 @@ export function UsersAdminPage() {
               <header>
                 <strong>{r.name}</strong>
               </header>
-              <p>{r.description || 'Açıklama henüz eklenmedi.'}</p>
+              <p>{roleScopeHint(r.code)}</p>
               <footer>
                 <span>{r.userCount} kullanıcı</span>
                 <span>{r.permissionCount} erişim hakkı</span>

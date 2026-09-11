@@ -9,6 +9,7 @@ using PersonelYonetim.Domain.Entities;
 using PersonelYonetim.Domain.Enums;
 using PersonelYonetim.Infrastructure.Caching;
 using PersonelYonetim.Infrastructure.Persistence;
+using PersonelYonetim.Infrastructure.Security;
 using AppValidationException = PersonelYonetim.Application.Common.Exceptions.ValidationException;
 
 namespace PersonelYonetim.Infrastructure.Employees;
@@ -47,6 +48,9 @@ public sealed class CreateEmployeeHandler : IRequestHandler<CreateEmployeeReques
         await EmployeeWriteHelpers.EnsureLookupsExistAsync(
             _db, request.UnitId, request.FacilityId, request.EmploymentTypeId,
             request.JobTitleId, request.ManagerEmployeeId, cancellationToken);
+        var createScope = await UnitScopeHelper.AllowedUnitIdsAsync(_db, _currentUser, cancellationToken);
+        if (!UnitScopeHelper.IsUnitAllowed(createScope, request.UnitId, request.FacilityId))
+            throw new ForbiddenException("Personeli yalnızca kendi tesis kapsamınıza ekleyebilirsiniz.");
         await EmployeeWriteHelpers.EnsurePrimaryDutyExistsAsync(
             _db, request.PrimaryJobDutyId, cancellationToken);
         await EmployeeWriteHelpers.EnsureEmployeeNumberUniqueAsync(
@@ -187,6 +191,12 @@ public sealed class UpdateEmployeeHandler : IRequestHandler<UpdateEmployeeComman
             .Include(x => x.Assignments)
             .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken)
             ?? throw new NotFoundException("Personel bulunamadı.");
+
+        var allowed = await UnitScopeHelper.AllowedUnitIdsAsync(_db, _currentUser, cancellationToken);
+        if (!UnitScopeHelper.IsUnitAllowed(allowed, employee.UnitId, employee.FacilityId))
+            throw new ForbiddenException("Bu personel sizin tesis kapsamınızda değil.");
+        if (!UnitScopeHelper.IsUnitAllowed(allowed, request.UnitId, request.FacilityId))
+            throw new ForbiddenException("Personeli kapsamınız dışındaki birime taşıyamazsınız.");
 
         var previousStatus = employee.Status;
 
@@ -382,23 +392,45 @@ public sealed class GetEmployeeFormOptionsHandler
 {
     private readonly AppDbContext _db;
     private readonly IMemoryCache _cache;
+    private readonly ICurrentUserService _currentUser;
 
-    public GetEmployeeFormOptionsHandler(AppDbContext db, IMemoryCache cache)
+    public GetEmployeeFormOptionsHandler(AppDbContext db, IMemoryCache cache, ICurrentUserService currentUser)
     {
         _db = db;
         _cache = cache;
+        _currentUser = currentUser;
     }
 
-    public Task<EmployeeFormOptionsDto> Handle(
+    public async Task<EmployeeFormOptionsDto> Handle(
         GetEmployeeFormOptionsQuery request,
-        CancellationToken cancellationToken) =>
-        _cache.GetOrCreateAsync(AppCache.EmployeeFormOptions, AppCache.LookupTtl, LoadAsync, cancellationToken);
-
-    private async Task<EmployeeFormOptionsDto> LoadAsync(CancellationToken cancellationToken)
+        CancellationToken cancellationToken)
     {
-        var units = await _db.OrganizationUnits
+        var allowed = await UnitScopeHelper.AllowedUnitIdsAsync(_db, _currentUser, cancellationToken);
+        if (allowed is null)
+            return await _cache.GetOrCreateAsync(
+                AppCache.EmployeeFormOptions,
+                AppCache.LookupTtl,
+                ct => LoadAsync(null, ct),
+                cancellationToken);
+
+        return await LoadAsync(allowed, cancellationToken);
+    }
+
+    private async Task<EmployeeFormOptionsDto> LoadAsync(HashSet<Guid>? allowed, CancellationToken cancellationToken)
+    {
+        var unitsQ = _db.OrganizationUnits
             .AsNoTracking()
-            .Where(x => x.Type != OrganizationUnitType.Facility)
+            .Where(x => x.Type != OrganizationUnitType.Facility);
+        var facilitiesQ = _db.OrganizationUnits
+            .AsNoTracking()
+            .Where(x => x.Type == OrganizationUnitType.Facility);
+        if (allowed is not null)
+        {
+            unitsQ = unitsQ.Where(x => allowed.Contains(x.Id));
+            facilitiesQ = facilitiesQ.Where(x => allowed.Contains(x.Id));
+        }
+
+        var units = await unitsQ
             .OrderBy(x => x.Name)
             .Select(x => new LookupItemDto
             {
@@ -410,9 +442,7 @@ public sealed class GetEmployeeFormOptionsHandler
             })
             .ToListAsync(cancellationToken);
 
-        var facilities = await _db.OrganizationUnits
-            .AsNoTracking()
-            .Where(x => x.Type == OrganizationUnitType.Facility)
+        var facilities = await facilitiesQ
             .OrderBy(x => x.Name)
             .Select(x => new LookupItemDto
             {
@@ -450,9 +480,17 @@ public sealed class GetEmployeeFormOptionsHandler
             .Select(x => new LookupItemDto { Id = x.Id, Name = x.Name })
             .ToListAsync(cancellationToken);
 
-        var managers = await _db.Employees
+        var managersQ = _db.Employees
             .AsNoTracking()
-            .Where(x => x.Status == EmployeeStatus.Active)
+            .Where(x => x.Status == EmployeeStatus.Active);
+        if (allowed is not null)
+        {
+            managersQ = managersQ.Where(x =>
+                (x.UnitId != null && allowed.Contains(x.UnitId.Value))
+                || (x.FacilityId != null && allowed.Contains(x.FacilityId.Value)));
+        }
+
+        var managers = await managersQ
             .OrderBy(x => x.LastName)
             .ThenBy(x => x.FirstName)
             .Select(x => new LookupItemDto

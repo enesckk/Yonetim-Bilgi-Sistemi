@@ -33,15 +33,14 @@ public sealed class GetOrganizationTreeHandler
         GetOrganizationTreeQuery request,
         CancellationToken cancellationToken)
     {
-        IReadOnlyList<OrganizationUnitNodeDto>? cached = null;
-        if (_cache.TryGetValue(AppCache.OrgTree, out cached) && cached is not null)
-            return await ScopeTreeAsync(cached, cancellationToken);
+        var tree = await _cache.GetOrCreateAsync(AppCache.OrgTree, AppCache.LookupTtl, async ct =>
+        {
         var units = await _db.OrganizationUnits
             .AsNoTracking()
             .Include(x => x.ManagerEmployee)
             .Include(x => x.FacilityCategory)
             .Include(x => x.Parent)
-            .ToListAsync(cancellationToken);
+            .ToListAsync(ct);
 
         var activeEmployees = await _db.Employees
             .AsNoTracking()
@@ -66,7 +65,7 @@ public sealed class GetOrganizationTreeHandler
                     .Select(a => (DutyCategory?)a.JobDuty.Category)
                     .FirstOrDefault()
             })
-            .ToListAsync(cancellationToken);
+            .ToListAsync(ct);
 
         var dutyByEmployeeId = activeEmployees
             .Where(e => !string.IsNullOrWhiteSpace(e.DutyName))
@@ -164,11 +163,8 @@ public sealed class GetOrganizationTreeHandler
                 .ToList();
         }
 
-        var tree = BuildChildren(null);
-        _cache.Set(AppCache.OrgTree, tree, new MemoryCacheEntryOptions
-        {
-            AbsoluteExpirationRelativeToNow = AppCache.LookupTtl
-        });
+        return BuildChildren(null);
+        }, cancellationToken);
         return await ScopeTreeAsync(tree, cancellationToken);
     }
 

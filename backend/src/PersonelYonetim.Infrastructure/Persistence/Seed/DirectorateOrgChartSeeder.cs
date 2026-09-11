@@ -100,7 +100,7 @@ internal static class DirectorateOrgChartSeeder
         var sanat = await Ensure("SANAT", "Şehitkamil Sanat Merkezi", OrganizationUnitType.Facility, directorate.Id, OrganizationUnitStatus.Active, "KULTUR_MERKEZI", 37.0912, 37.3515);
         var nikah = await Ensure("NIKAH", "Şehitkamil Nikah Salonu", OrganizationUnitType.Facility, directorate.Id, OrganizationUnitStatus.Active, "SOSYAL_TESIS", 37.0850, 37.3650);
         var dtss = await Ensure("DTSS", "Devlet Tiyatroları Şehitkamil Sahnesi", OrganizationUnitType.Facility, directorate.Id, OrganizationUnitStatus.Active, "KULTUR_MERKEZI", 37.0740, 37.3810);
-        var sami = await Ensure("SAMI", "M. Sami Benli Kütüphanesi", OrganizationUnitType.Facility, dtss.Id, OrganizationUnitStatus.Active, "KUTUPHANE", 37.0890, 37.3600);
+        var sami = await Ensure("SAMI", "M. Sami Benli Kütüphanesi", OrganizationUnitType.Facility, directorate.Id, OrganizationUnitStatus.Active, "KUTUPHANE", 37.0890, 37.3600);
         await Ensure("SAMI_COCUK", "M. Sami Benli Kütüphanesi Çocuk Kütüphanesi", OrganizationUnitType.SubUnit, sami.Id, OrganizationUnitStatus.Active, "KUTUPHANE", null, null);
         var genc = await Ensure("GENCLIK_KUT", "Gençlik Kütüphaneleri", OrganizationUnitType.SubUnit, directorate.Id, OrganizationUnitStatus.Active, "KUTUPHANE", null, null);
         var bilim = await Ensure("BILIM", "Bilim Şehitkamil", OrganizationUnitType.Facility, directorate.Id, OrganizationUnitStatus.Active, "GENCLIK_MERKEZI", 37.0955, 37.3400);

@@ -31,6 +31,13 @@ function fromLocalInput(value: string) {
   return new Date(value).toISOString()
 }
 
+function agendaTitle(e: EventListItem) {
+  const title = e.title.trim()
+  if (e.status === 3) return title.replace(/^İptal:\s*/i, '')
+  if (e.status === 1) return title.replace(/^Taslak:\s*/i, '')
+  return title
+}
+
 function addCanvasToPdf(pdf: jsPDF, canvas: HTMLCanvasElement) {
   const pageW = pdf.internal.pageSize.getWidth()
   const pageH = pdf.internal.pageSize.getHeight()
@@ -487,30 +494,42 @@ export function EventsCalendarPage() {
 
         <div className="events-cal-detail">
           <div className="events-cal-detail-head">
-            <h3>
-              {selectedDay
-                ? new Date(selectedDay + 'T12:00:00').toLocaleDateString('tr-TR', {
-                    weekday: 'long',
-                    day: 'numeric',
-                    month: 'long',
-                  })
-                : 'Gün seçin'}
-            </h3>
+            <div>
+              <h3>
+                {selectedDay
+                  ? new Date(selectedDay + 'T12:00:00').toLocaleDateString('tr-TR', {
+                      weekday: 'long',
+                      day: 'numeric',
+                      month: 'long',
+                    })
+                  : 'Gün seçin'}
+              </h3>
+              {selectedDay ? (
+                <p className="events-cal-detail-meta">
+                  {loading
+                    ? 'Yükleniyor…'
+                    : selectedEvents.length === 0
+                      ? 'Kayıt yok'
+                      : `${selectedEvents.length} kayıt`}
+                  {selectedSpecial
+                    ? ` · ${selectedSpecial.kind === 'holiday' ? 'Resmi tatil' : 'Özel gün'}: ${selectedSpecial.name}`
+                    : ''}
+                </p>
+              ) : (
+                <p className="events-cal-detail-meta">Takvimden bir gün seçin</p>
+              )}
+            </div>
             {canManage && selectedDay ? (
-              <Link to={newEventHref} className="btn-secondary events-cal-add">
+              <Link to={newEventHref} className="btn-link events-cal-add">
                 Detaylı form
               </Link>
             ) : null}
           </div>
-          {selectedSpecial ? (
-            <p className={`events-cal-detail-special is-${selectedSpecial.kind}`}>
-              {selectedSpecial.kind === 'holiday' ? 'Resmi tatil' : 'Özel gün'} · {selectedSpecial.name}
-            </p>
-          ) : null}
           {canManage && selectedDay ? (
             <form className="events-cal-compose" onSubmit={(e) => void onQuickCreate(e)}>
               <input
                 ref={quickTitleRef}
+                className="events-cal-compose-title"
                 value={quickTitle}
                 onChange={(e) => setQuickTitle(e.target.value)}
                 placeholder="Etkinlik adı"
@@ -520,12 +539,14 @@ export function EventsCalendarPage() {
               />
               <input
                 type="time"
+                className="events-cal-compose-time"
                 value={quickTime}
                 onChange={(e) => setQuickTime(e.target.value)}
                 aria-label="Saat"
                 disabled={quickSaving}
               />
               <select
+                className="events-cal-compose-venue"
                 value={quickFacility}
                 onChange={(e) => setQuickFacility(e.target.value)}
                 aria-label="Tesis veya salon"
@@ -558,34 +579,49 @@ export function EventsCalendarPage() {
             </form>
           ) : null}
           {!selectedDay ? (
-            <p className="muted">Detay için takvimden bir güne tıklayın.</p>
+            <p className="events-cal-empty">Detay için takvimden bir güne tıklayın.</p>
           ) : loading ? (
-            <p className="muted">Bu günün etkinlikleri yükleniyor…</p>
+            <p className="events-cal-empty">Bu günün etkinlikleri yükleniyor…</p>
           ) : selectedEvents.length === 0 ? (
-            <p className="muted">{canManage ? 'Bu günde henüz etkinlik yok. Yukarıdan ekleyin.' : 'Bu günde etkinlik yok.'}</p>
+            <p className="events-cal-empty">
+              {canManage ? 'Bu günde henüz etkinlik yok.' : 'Bu günde etkinlik yok.'}
+            </p>
           ) : (
-            <ul className="events-home-feed">
-              {selectedEvents.map((e) => (
-                <li key={e.id}>
-                  <Link to={`/events/${e.id}`}>
-                    <span className="events-home-feed-date">
-                      {new Date(e.startAtUtc).toLocaleTimeString('tr-TR', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        timeZone: 'Europe/Istanbul',
-                      })}
-                    </span>
-                    <span>
-                      <strong>{e.title}</strong>
-                      <em>
-                        {eventPhaseLabel(e.status, e.startAtUtc)}
-                        {e.categoryLabel ? ` · ${e.categoryLabel}` : ''}
-                        {e.facilityName ? ` · ${e.facilityName}` : ''}
-                      </em>
-                    </span>
-                  </Link>
-                </li>
-              ))}
+            <ul className="events-cal-agenda">
+              {selectedEvents.map((e) => {
+                const phase = eventPhase(e.status, e.startAtUtc)
+                const showStatus = e.status === 1 || e.status === 3 || e.status === 4
+                return (
+                  <li
+                    key={e.id}
+                    className={e.status === 3 ? 'is-cancelled' : phase === 'done' ? 'is-done' : ''}
+                  >
+                    <Link to={`/events/${e.id}`}>
+                      <time dateTime={e.startAtUtc}>
+                        {new Date(e.startAtUtc).toLocaleTimeString('tr-TR', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          timeZone: 'Europe/Istanbul',
+                        })}
+                      </time>
+                      <span className="events-cal-agenda-body">
+                        <strong>{agendaTitle(e)}</strong>
+                        {e.categoryLabel || e.facilityName ? (
+                          <em>
+                            {e.categoryLabel ? <span>{e.categoryLabel}</span> : null}
+                            {e.facilityName ? <span>{e.facilityName}</span> : null}
+                          </em>
+                        ) : null}
+                      </span>
+                      {showStatus ? (
+                        <span className={`event-status-pill status-${e.status}`}>
+                          {eventPhaseLabel(e.status, e.startAtUtc)}
+                        </span>
+                      ) : null}
+                    </Link>
+                  </li>
+                )
+              })}
             </ul>
           )}
         </div>

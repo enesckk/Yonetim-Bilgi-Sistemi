@@ -7,6 +7,7 @@ using PersonelYonetim.Domain.Authorization;
 using PersonelYonetim.Domain.Enums;
 using PersonelYonetim.Domain.Events;
 using PersonelYonetim.Infrastructure.Persistence;
+using PersonelYonetim.Infrastructure.Security;
 
 namespace PersonelYonetim.Infrastructure.Events;
 
@@ -64,13 +65,24 @@ public sealed class GetHallBoardHandler : IRequestHandler<GetHallBoardQuery, Hal
             .ThenBy(x => x.Name, StringComparer.Create(System.Globalization.CultureInfo.GetCultureInfo("tr-TR"), false))
             .ToList();
 
+        var allowed = await UnitScopeHelper.AllowedUnitIdsAsync(_db, _currentUser, cancellationToken);
+        if (allowed is not null)
+            halls = halls.Where(x => allowed.Contains(x.Id)).ToList();
+
         var hallIds = halls.Select(x => x.Id).ToList();
-        if (kkm is not null)
+        if (kkm is not null && (allowed is null || allowed.Contains(kkm.Id)))
             hallIds.Add(kkm.Id);
 
         var now = DateTime.UtcNow;
+        var lastDoneFrom = now.AddMonths(-24);
+        var nextUntil = now.AddYears(2);
         var events = await _db.Events.AsNoTracking()
             .Where(e => e.FacilityId != null && hallIds.Contains(e.FacilityId.Value) && e.Status != EventStatus.Cancelled)
+            .Where(e =>
+                (e.StartAtUtc < to && (e.EndAtUtc ?? e.StartAtUtc) >= from)
+                || (e.Status == EventStatus.Published && e.StartAtUtc >= now && e.StartAtUtc < nextUntil)
+                || (e.Status == EventStatus.Completed && e.StartAtUtc <= now && e.StartAtUtc >= lastDoneFrom)
+                || (e.StartAtUtc <= now && (e.EndAtUtc ?? e.StartAtUtc.AddHours(2)) >= now))
             .Select(e => new
             {
                 e.Id,

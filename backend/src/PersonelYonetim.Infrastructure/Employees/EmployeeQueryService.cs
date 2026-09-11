@@ -39,7 +39,7 @@ public sealed class EmployeeQueryService : IEmployeeQueryService
         CancellationToken cancellationToken = default)
     {
         var page = query.Page < 1 ? 1 : query.Page;
-        var pageSize = query.PageSize is < 1 or > 100 ? 20 : query.PageSize;
+        var pageSize = query.PageSize is < 1 or > 300 ? 20 : query.PageSize;
 
         var employees = _db.Employees
             .AsNoTracking()

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { GeoJSON, MapContainer, useMap } from 'react-leaflet'
 import L, { type LatLngBoundsExpression, type Layer, type Path } from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -7,6 +7,7 @@ import { fetchSettlementSummaries, type SettlementSummary } from '@/api/mapApi'
 import { ApiClientError } from '@/api/client'
 import { useAuth } from '@/auth/AuthContext'
 import { PermissionCodes } from '@/auth/permissionCodes'
+import { canSeeAllUnits } from '@/auth/roles'
 import {
   COVERAGE_LEGEND,
   coverageFill,
@@ -277,6 +278,12 @@ function MahalleViewSwitch({
 }
 
 export function EventsMapPage() {
+  const { user } = useAuth()
+  if (!canSeeAllUnits(user)) return <Navigate to="/events/calendar" replace />
+  return <EventsMapPageInner />
+}
+
+function EventsMapPageInner() {
   const { hasPermission } = useAuth()
   const canView = hasPermission(PermissionCodes.EventsView)
   const navigate = useNavigate()

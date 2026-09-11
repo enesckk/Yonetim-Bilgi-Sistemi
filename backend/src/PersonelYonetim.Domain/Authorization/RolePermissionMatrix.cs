@@ -121,12 +121,14 @@ public static class RolePermissionMatrix
             PermissionCodes.EventsManage
         ],
 
-        // İdari amir: yalnızca kendi tesis ağacı (ViewAllUnits yok)
+        // İdari amir: yalnızca kendi tesis ağacı (ViewAllUnits yok); kendi kadrosunu günceller
         [RoleCodes.AdministrativeOfficer] =
         [
             PermissionCodes.DashboardView,
             PermissionCodes.EmployeesView,
+            PermissionCodes.EmployeesUpdate,
             PermissionCodes.EmployeesViewPhone,
+            PermissionCodes.EmployeesViewAddress,
             PermissionCodes.MovementsView,
             PermissionCodes.NotesViewOwn,
             PermissionCodes.NotesViewUnit,

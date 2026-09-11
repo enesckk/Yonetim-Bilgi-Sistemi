@@ -116,7 +116,12 @@ public sealed class CreateUserHandler : IRequestHandler<CreateUserCommand, Guid>
             && !await _db.Employees.AnyAsync(x => x.Id == request.EmployeeId, cancellationToken))
             throw new ValidationException("employeeId", "Personel bulunamadı.");
 
+        if (request.EmployeeId.HasValue
+            && await _db.Users.AnyAsync(x => x.EmployeeId == request.EmployeeId, cancellationToken))
+            throw new ConflictException("Bu personele zaten bir giriş hesabı bağlı.");
+
         var roles = await ResolveRolesAsync(request.RoleCodes, cancellationToken);
+        EnsureScopedRoleHasEmployee(roles, request.EmployeeId);
         var actor = _currentUser.UserName ?? "system";
 
         var user = new AppUser
@@ -184,6 +189,16 @@ public sealed class CreateUserHandler : IRequestHandler<CreateUserCommand, Guid>
 
         return roles;
     }
+
+    private static void EnsureScopedRoleHasEmployee(IReadOnlyList<Role> roles, Guid? employeeId)
+    {
+        var needsPerson = roles.Any(r =>
+            r.Code is RoleCodes.AdministrativeOfficer or RoleCodes.UnitManager);
+        if (needsPerson && employeeId is null)
+            throw new ValidationException(
+                "employeeId",
+                "İdari amir ve birim amiri için personel seçin. Göreceği bina bu kayıttan gelir.");
+    }
 }
 
 public sealed class UpdateUserHandler : IRequestHandler<UpdateUserCommand>
@@ -220,7 +235,17 @@ public sealed class UpdateUserHandler : IRequestHandler<UpdateUserCommand>
             && !await _db.Employees.AnyAsync(x => x.Id == request.EmployeeId, cancellationToken))
             throw new ValidationException("employeeId", "Personel bulunamadı.");
 
+        if (request.EmployeeId.HasValue
+            && await _db.Users.AnyAsync(
+                x => x.EmployeeId == request.EmployeeId && x.Id != request.Id, cancellationToken))
+            throw new ConflictException("Bu personele zaten bir giriş hesabı bağlı.");
+
         var newRoles = await ResolveRolesAsync(request.RoleCodes, cancellationToken);
+        if (newRoles.Any(r => r.Code is RoleCodes.AdministrativeOfficer or RoleCodes.UnitManager)
+            && request.EmployeeId is null)
+            throw new ValidationException(
+                "employeeId",
+                "İdari amir ve birim amiri için personel seçin. Göreceği bina bu kayıttan gelir.");
 
         // Son SYSTEM_ADMIN'i rolsüz bırakma
         var wasAdmin = user.UserRoles.Any(r => r.Role.Code == RoleCodes.SystemAdmin);

@@ -9,6 +9,7 @@ using PersonelYonetim.Domain.Authorization;
 using PersonelYonetim.Domain.Entities;
 using PersonelYonetim.Domain.Enums;
 using PersonelYonetim.Infrastructure.Persistence;
+using PersonelYonetim.Infrastructure.Security;
 
 namespace PersonelYonetim.Infrastructure.Events;
 
@@ -74,8 +75,18 @@ public sealed class GetEventFacilityStatsHandler : IRequestHandler<GetEventFacil
             throw new ForbiddenException("Etkinlik istatistiklerini görüntüleme yetkiniz yok.");
 
         var now = DateTime.UtcNow;
-        var rows = await _db.Events.AsNoTracking()
-            .Where(e => e.FacilityId != null && e.Status != EventStatus.Cancelled)
+        var q = _db.Events.AsNoTracking()
+            .Where(e => e.FacilityId != null && e.Status != EventStatus.Cancelled);
+
+        var allowed = await UnitScopeHelper.AllowedUnitIdsAsync(_db, _currentUser, cancellationToken);
+        if (allowed is not null)
+        {
+            if (allowed.Count == 0)
+                return new EventFacilityStatsDto { Items = [] };
+            q = q.Where(e => allowed.Contains(e.FacilityId!.Value));
+        }
+
+        var rows = await q
             .GroupBy(e => new { e.FacilityId, Name = e.Facility!.Name })
             .Select(g => new FacilityEventStatDto
             {

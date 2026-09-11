@@ -12,6 +12,7 @@ using PersonelYonetim.Domain.Enums;
 using PersonelYonetim.Domain.Events;
 using PersonelYonetim.Infrastructure.Caching;
 using PersonelYonetim.Infrastructure.Persistence;
+using PersonelYonetim.Infrastructure.Security;
 
 namespace PersonelYonetim.Infrastructure.Events;
 
@@ -240,8 +241,23 @@ public sealed class GetEventsHandler : IRequestHandler<GetEventsQuery, EventList
             q = q.Where(e => e.FacilityId != null && venueIds.Contains(e.FacilityId.Value));
         }
 
+        var allowed = await UnitScopeHelper.AllowedUnitIdsAsync(_db, _currentUser, cancellationToken);
+        if (allowed is not null)
+        {
+            if (allowed.Count == 0)
+                return new EventListDto { Items = [], TotalCount = 0 };
+            q = q.Where(e => e.FacilityId != null && allowed.Contains(e.FacilityId.Value));
+        }
+
+        if (request.FromUtc is null)
+        {
+            var lookback = DateTime.UtcNow.AddMonths(-18);
+            q = q.Where(e => (e.EndAtUtc ?? e.StartAtUtc) >= lookback);
+        }
+
         var items = await q
             .OrderByDescending(e => e.StartAtUtc)
+            .Take(2000)
             .Select(e => new EventListItemDto
             {
                 Id = e.Id,
@@ -312,6 +328,10 @@ public sealed class GetEventByIdHandler : IRequestHandler<GetEventByIdQuery, Eve
 
         if (e is null) return null;
 
+        var allowed = await UnitScopeHelper.AllowedUnitIdsAsync(_db, _currentUser, cancellationToken);
+        if (!UnitScopeHelper.IsUnitAllowed(allowed, e.OrganizingUnitId, e.FacilityId))
+            throw new ForbiddenException("Bu etkinlik sizin tesis kapsamınızda değil.");
+
         var seriesCount = e.SeriesId is Guid sid
             ? await _db.Events.AsNoTracking().CountAsync(x => x.SeriesId == sid, cancellationToken)
             : 0;
@@ -374,6 +394,10 @@ public sealed class CreateEventHandler : IRequestHandler<CreateEventCommand, Gui
             throw new ForbiddenException("Etkinlik oluşturma yetkiniz yok.");
 
         await EnsureRefsAsync(request.OrganizingUnitId, request.FacilityId, request.ResponsibleEmployeeId, cancellationToken);
+        await UnitScopeHelper.EnsureFacilityInScopeAsync(_db, _currentUser, request.FacilityId, cancellationToken);
+        var settlements = UnitScopeHelper.SeesAllUnits(_currentUser)
+            ? request.Settlements
+            : [];
 
         var start = DateTime.SpecifyKind(request.StartAtUtc, DateTimeKind.Utc);
         var end = request.EndAtUtc is null
@@ -427,11 +451,11 @@ public sealed class CreateEventHandler : IRequestHandler<CreateEventCommand, Gui
             };
 
             if (entity.Status is EventStatus.Published or EventStatus.Completed)
-                EventConflictHelper.EnsurePublishLocation(entity, request.Settlements.Count > 0);
+                EventConflictHelper.EnsurePublishLocation(entity, settlements.Count > 0);
 
             _db.Events.Add(entity);
             await EventSettlementSync.ApplyAsync(
-                _db, entity, request.Settlements, entity.CreatedBy ?? "system", cancellationToken);
+                _db, entity, settlements, entity.CreatedBy ?? "system", cancellationToken);
             first ??= entity;
             createdIds.Add(entity.Id);
         }
@@ -533,6 +557,10 @@ public sealed class UpdateEventHandler : IRequestHandler<UpdateEventCommand>
 
         await CreateEventHandler.EnsureRefsAsync(
             _db, request.OrganizingUnitId, request.FacilityId, request.ResponsibleEmployeeId, cancellationToken);
+        await UnitScopeHelper.EnsureFacilityInScopeAsync(_db, _currentUser, request.FacilityId, cancellationToken);
+        var allowed = await UnitScopeHelper.AllowedUnitIdsAsync(_db, _currentUser, cancellationToken);
+        if (!UnitScopeHelper.IsUnitAllowed(allowed, entity.OrganizingUnitId, entity.FacilityId))
+            throw new ForbiddenException("Bu etkinlik sizin tesis kapsamınızda değil.");
         await EventConflictHelper.EnsureNoFacilityConflictsAsync(
             _db,
             request.FacilityId,
@@ -574,11 +602,18 @@ public sealed class UpdateEventHandler : IRequestHandler<UpdateEventCommand>
         entity.UpdatedBy = _currentUser.UserName ?? "system";
         entity.UpdatedAtUtc = DateTime.UtcNow;
 
+        var directorateWide = UnitScopeHelper.SeesAllUnits(_currentUser);
+        var settlementCount = directorateWide
+            ? request.Settlements.Count
+            : await _db.EventSettlements.CountAsync(x => x.EventId == entity.Id, cancellationToken);
         if (entity.Status is EventStatus.Published or EventStatus.Completed)
-            EventConflictHelper.EnsurePublishLocation(entity, request.Settlements.Count > 0);
+            EventConflictHelper.EnsurePublishLocation(entity, settlementCount > 0);
 
-        await EventSettlementSync.ApplyAsync(
-            _db, entity, request.Settlements, entity.UpdatedBy ?? "system", cancellationToken);
+        if (directorateWide)
+        {
+            await EventSettlementSync.ApplyAsync(
+                _db, entity, request.Settlements, entity.UpdatedBy ?? "system", cancellationToken);
+        }
 
         EventAudit.Add(_db, _currentUser, "Update", entity.Id, oldSnapshot, new
         {
@@ -756,10 +791,16 @@ public sealed class GetMapPinsHandler : IRequestHandler<GetMapPinsQuery, MapPins
 
         if (kinds.Contains("facility") && canOrg)
         {
-            var facilities = await _db.OrganizationUnits.AsNoTracking()
+            var facilitiesQ = _db.OrganizationUnits.AsNoTracking()
                 .Where(x => x.Type == OrganizationUnitType.Facility
                     && x.Latitude != null && x.Longitude != null
-                    && x.Status == OrganizationUnitStatus.Active)
+                    && x.Status == OrganizationUnitStatus.Active);
+            var allowed = await UnitScopeHelper.AllowedUnitIdsAsync(_db, _currentUser, cancellationToken);
+            if (allowed is not null)
+                facilitiesQ = allowed.Count == 0
+                    ? facilitiesQ.Where(_ => false)
+                    : facilitiesQ.Where(x => allowed.Contains(x.Id));
+            var facilities = await facilitiesQ
                 .Select(x => new MapPinDto
                 {
                     Id = x.Id.ToString(),
@@ -782,8 +823,19 @@ public sealed class GetMapPinsHandler : IRequestHandler<GetMapPinsQuery, MapPins
 
             if (request.FromUtc is DateTime from)
                 q = q.Where(e => e.StartAtUtc >= from);
+            else
+                q = q.Where(e => e.StartAtUtc >= DateTime.UtcNow.AddMonths(-18));
             if (request.ToUtc is DateTime to)
                 q = q.Where(e => e.StartAtUtc <= to);
+
+            var eventAllowed = await UnitScopeHelper.AllowedUnitIdsAsync(_db, _currentUser, cancellationToken);
+            if (eventAllowed is not null)
+            {
+                if (eventAllowed.Count == 0)
+                    q = q.Where(_ => false);
+                else
+                    q = q.Where(e => e.FacilityId != null && eventAllowed.Contains(e.FacilityId.Value));
+            }
 
             var events = await q
                 .Select(e => new

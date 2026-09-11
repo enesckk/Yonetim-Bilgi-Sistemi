@@ -1,5 +1,15 @@
 const store = new Map<string, { exp: number; value: unknown }>()
 const inflight = new Map<string, Promise<unknown>>()
+const epoch = new Map<string, number>()
+let generation = 0
+
+function matchesPrefix(key: string, prefix: string) {
+  return key === prefix || key.startsWith(`${prefix}:`)
+}
+
+function bump(key: string) {
+  epoch.set(key, (epoch.get(key) ?? 0) + 1)
+}
 
 export function cachedGet<T>(key: string, ttlMs: number, loader: () => Promise<T>): Promise<T> {
   const now = Date.now()
@@ -9,9 +19,12 @@ export function cachedGet<T>(key: string, ttlMs: number, loader: () => Promise<T
   const pending = inflight.get(key)
   if (pending) return pending as Promise<T>
 
+  const gen = epoch.get(key) ?? 0
+  const wave = generation
   const run = loader()
     .then((value) => {
-      store.set(key, { exp: Date.now() + ttlMs, value })
+      if ((epoch.get(key) ?? 0) === gen && generation === wave)
+        store.set(key, { exp: Date.now() + ttlMs, value })
       return value
     })
     .finally(() => {
@@ -24,16 +37,24 @@ export function cachedGet<T>(key: string, ttlMs: number, loader: () => Promise<T
 
 export function invalidateCached(prefix: string) {
   for (const key of [...store.keys()]) {
-    if (key === prefix || key.startsWith(`${prefix}:`) || key.startsWith(prefix)) store.delete(key)
+    if (matchesPrefix(key, prefix)) {
+      store.delete(key)
+      bump(key)
+    }
   }
   for (const key of [...inflight.keys()]) {
-    if (key === prefix || key.startsWith(`${prefix}:`) || key.startsWith(prefix)) inflight.delete(key)
+    if (matchesPrefix(key, prefix)) {
+      inflight.delete(key)
+      bump(key)
+    }
   }
 }
 
 export function clearLookupCache() {
   store.clear()
   inflight.clear()
+  epoch.clear()
+  generation += 1
 }
 
 export const LOOKUP_TTL_MS = 2 * 60_000

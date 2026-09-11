@@ -44,8 +44,14 @@ export function canUsePersonnelModule(user: CurrentUser | null | undefined): boo
   return user?.roles?.some((role) => PERSONNEL_MODULE_ROLES.has(role)) ?? false
 }
 
+/** Müdür ve admin tüm tesis/mahalle genelini görür; idari amir görmez. */
+export function canSeeAllUnits(user: CurrentUser | null | undefined): boolean {
+  if (isSystemAdmin(user)) return true
+  return user?.permissions?.includes('Employees.ViewAllUnits') ?? false
+}
+
 export function defaultHomePath(user: CurrentUser | null | undefined): string {
   if (isSystemAdmin(user)) return '/'
   if (canUsePersonnelModule(user)) return '/personnel'
-  return '/events/map'
+  return canSeeAllUnits(user) ? '/events/map' : '/events/calendar'
 }

@@ -25,6 +25,7 @@ import { fetchSettlements, type SettlementLookup } from '@/api/mapApi'
 import { ApiClientError } from '@/api/client'
 import { useAuth } from '@/auth/AuthContext'
 import { PermissionCodes } from '@/auth/permissionCodes'
+import { canSeeAllUnits } from '@/auth/roles'
 import { EventMiniMap } from '@/components/EventMiniMap'
 import { useAlert, useConfirm } from '@/components/ConfirmDialog'
 
@@ -129,8 +130,9 @@ export function EventFormPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const confirm = useConfirm()
-  const { hasPermission } = useAuth()
+  const { hasPermission, user } = useAuth()
   const canManage = hasPermission(PermissionCodes.EventsManage)
+  const directorateWide = canSeeAllUnits(user)
 
   const [form, setForm] = useState<FormState>(emptyForm)
   const [initialStatus, setInitialStatus] = useState<EventStatus>(1)
@@ -167,7 +169,7 @@ export function EventFormPage() {
         const [org, opts, settlementList] = await Promise.all([
           fetchOrganizationTree(),
           fetchEmployeeFormOptions().catch(() => ({ managers: [] as LookupItem[] })),
-          fetchSettlements().catch(() => [] as SettlementLookup[]),
+          directorateWide ? fetchSettlements() : Promise.resolve([] as SettlementLookup[]),
         ])
         if (cancelled) return
         setTree(org)
@@ -236,7 +238,7 @@ export function EventFormPage() {
     return () => {
       cancelled = true
     }
-  }, [canManage, id, isEdit, searchParams])
+  }, [canManage, directorateWide, id, isEdit, searchParams])
 
   useEffect(() => {
     if (!form.facilityId || !form.startAtLocal) {
@@ -316,16 +318,18 @@ export function EventFormPage() {
           : null,
       allowConflicts,
       category: form.category || null,
-      settlements: linked
-        .filter((x) => x.settlementId)
-        .map((x) => ({
-          settlementId: x.settlementId,
-          attendanceCount: Number(x.attendanceCount) || 0,
-          uniqueBeneficiaryCount: (() => {
-            const n = Number(x.uniqueBeneficiaryCount)
-            return x.uniqueBeneficiaryCount.trim() && Number.isFinite(n) ? n : null
-          })(),
-        })),
+      settlements: directorateWide
+        ? linked
+            .filter((x) => x.settlementId)
+            .map((x) => ({
+              settlementId: x.settlementId,
+              attendanceCount: Number(x.attendanceCount) || 0,
+              uniqueBeneficiaryCount: (() => {
+                const n = Number(x.uniqueBeneficiaryCount)
+                return x.uniqueBeneficiaryCount.trim() && Number.isFinite(n) ? n : null
+              })(),
+            }))
+        : [],
     }
   }
 
@@ -546,9 +550,9 @@ export function EventFormPage() {
           <details className="span-2 events-form-more">
             <summary>Diğer alanlar</summary>
             <div className="form-grid">
+              {directorateWide ? (
               <div className="span-2 settlement-picker">
                 <p>Mahalle</p>
-                <p className="muted small">İsterseniz bir veya birkaç mahalle bağlayın.</p>
                 {linked.length > 0 ? (
                   <div className="settlement-picker-head" aria-hidden>
                     <span>Mahalle</span>
@@ -621,6 +625,7 @@ export function EventFormPage() {
                   Mahalle ekle
                 </button>
               </div>
+              ) : null}
               <label>
                 Düzenleyen birim
                 <select

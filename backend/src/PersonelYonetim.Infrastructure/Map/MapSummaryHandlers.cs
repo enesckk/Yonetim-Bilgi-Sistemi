@@ -9,6 +9,7 @@ using PersonelYonetim.Domain.Enums;
 using PersonelYonetim.Infrastructure.Caching;
 using PersonelYonetim.Infrastructure.Organization;
 using PersonelYonetim.Infrastructure.Persistence;
+using PersonelYonetim.Infrastructure.Security;
 using PersonelYonetim.Infrastructure.Settlements;
 
 namespace PersonelYonetim.Infrastructure.Map;
@@ -35,11 +36,13 @@ public sealed class GetSettlementSummariesHandler
             && !_currentUser.HasPermission(PermissionCodes.EventsManage))
             throw new ForbiddenException("Haritayı görüntüleme yetkiniz yok.");
 
+        UnitScopeHelper.EnsureDirectorateWide(_currentUser);
+
         var cacheKey =
             $"map:sum:{_cache.MapVersion()}:{request.FromUtc:o}|{request.ToUtc:o}|{request.Status}|{request.Category}|{request.Search}";
-        if (_cache.TryGetValue(cacheKey, out SettlementSummaryListDto? cached) && cached is not null)
-            return cached;
 
+        return await _cache.GetOrCreateAsync(cacheKey, AppCache.MapTtl, async ct =>
+        {
         var settlements = await _db.Settlements.AsNoTracking()
             .Where(s => s.IsActive)
             .Where(s => string.IsNullOrWhiteSpace(request.Search)
@@ -71,7 +74,7 @@ public sealed class GetSettlementSummariesHandler
                     })
                     .FirstOrDefault()
             })
-            .ToListAsync(cancellationToken);
+            .ToListAsync(ct);
 
         var eventQuery = _db.EventSettlements.AsNoTracking()
             .Where(x => x.Event.Status != EventStatus.Cancelled && x.Event.Status != EventStatus.Draft);
@@ -98,7 +101,7 @@ public sealed class GetSettlementSummariesHandler
                 UniqueTotal = g.Count(),
                 LastActivityDate = g.Max(x => (DateTime?)x.Event.StartAtUtc)
             })
-            .ToListAsync(cancellationToken);
+            .ToListAsync(ct);
 
         var byId = aggregates.ToDictionary(x => x.SettlementId);
 
@@ -149,12 +152,8 @@ public sealed class GetSettlementSummariesHandler
         .OrderBy(x => x.Name, StringComparer.Create(new System.Globalization.CultureInfo("tr-TR"), false))
         .ToList();
 
-        var result = new SettlementSummaryListDto { Items = items };
-        _cache.Set(cacheKey, result, new MemoryCacheEntryOptions
-        {
-            AbsoluteExpirationRelativeToNow = AppCache.MapTtl
-        });
-        return result;
+        return new SettlementSummaryListDto { Items = items };
+        }, cancellationToken);
     }
 }
 
@@ -179,6 +178,8 @@ public sealed class GetSettlementLookupsHandler
         if (!_currentUser.HasPermission(PermissionCodes.EventsView)
             && !_currentUser.HasPermission(PermissionCodes.EventsManage))
             throw new ForbiddenException("Yerleşimleri görüntüleme yetkiniz yok.");
+
+        UnitScopeHelper.EnsureDirectorateWide(_currentUser);
 
         if (string.IsNullOrWhiteSpace(request.Search)
             && _cache.TryGetValue(AppCache.SettlementsAll, out IReadOnlyList<SettlementLookupDto>? cached)
@@ -220,13 +221,11 @@ public sealed class GetSettlementLookupsHandler
 public sealed class GetSettlementDetailHandler
     : IRequestHandler<GetSettlementDetailQuery, SettlementSummaryDto>
 {
-    private readonly ISender _sender;
     private readonly AppDbContext _db;
     private readonly ICurrentUserService _currentUser;
 
-    public GetSettlementDetailHandler(ISender sender, AppDbContext db, ICurrentUserService currentUser)
+    public GetSettlementDetailHandler(AppDbContext db, ICurrentUserService currentUser)
     {
-        _sender = sender;
         _db = db;
         _currentUser = currentUser;
     }
@@ -239,17 +238,100 @@ public sealed class GetSettlementDetailHandler
             && !_currentUser.HasPermission(PermissionCodes.EventsManage))
             throw new ForbiddenException("Yerleşimleri görüntüleme yetkiniz yok.");
 
+        UnitScopeHelper.EnsureDirectorateWide(_currentUser);
+
         var key = (request.Key ?? string.Empty).Trim();
         if (key.Length == 0)
             throw new NotFoundException("Yerleşim bulunamadı.");
 
-        var list = await _sender.Send(new GetSettlementSummariesQuery(), cancellationToken);
-        var hit = list.Items.FirstOrDefault(s =>
-            string.Equals(s.OfficialCode, key, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(s.SettlementId.ToString(), key, StringComparison.OrdinalIgnoreCase));
+        var parsedId = Guid.TryParse(key, out var gid) ? gid : (Guid?)null;
+        var s = await _db.Settlements.AsNoTracking()
+            .Where(x => x.IsActive && (x.OfficialCode == key || (parsedId != null && x.Id == parsedId.Value)))
+            .Select(x => new
+            {
+                x.Id,
+                x.OfficialCode,
+                x.Name,
+                x.DisplayName,
+                x.SettlementType,
+                x.IsRural,
+                x.CentroidLat,
+                x.CentroidLng,
+                x.HeadmanName,
+                x.HeadmanPhone,
+                Pop = x.Populations
+                    .OrderByDescending(p => p.Year)
+                    .Select(p => new
+                    {
+                        p.Year,
+                        p.Population,
+                        p.MaleCount,
+                        p.FemaleCount,
+                        p.ChildCount,
+                        p.Source,
+                        p.IsOfficial
+                    })
+                    .FirstOrDefault()
+            })
+            .FirstOrDefaultAsync(cancellationToken)
+            ?? throw new NotFoundException("Yerleşim bulunamadı.");
 
-        if (hit is null)
-            throw new NotFoundException("Yerleşim bulunamadı.");
+        var agg = await _db.EventSettlements.AsNoTracking()
+            .Where(x => x.SettlementId == s.Id
+                && x.Event.Status != EventStatus.Cancelled
+                && x.Event.Status != EventStatus.Draft)
+            .GroupBy(x => x.SettlementId)
+            .Select(g => new
+            {
+                ActivityCount = g.Select(x => x.EventId).Distinct().Count(),
+                AttendanceCount = g.Sum(x => x.AttendanceCount),
+                UniqueSum = g.Sum(x => x.UniqueBeneficiaryCount ?? 0),
+                UniqueKnown = g.Count(x => x.UniqueBeneficiaryCount != null),
+                UniqueTotal = g.Count(),
+                LastActivityDate = g.Max(x => (DateTime?)x.Event.StartAtUtc)
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var activityCount = agg?.ActivityCount ?? 0;
+        var attendance = agg?.AttendanceCount ?? 0;
+        var hasUnique = agg is not null && agg.UniqueKnown == agg.UniqueTotal && agg.UniqueTotal > 0;
+        int? unique = hasUnique ? agg!.UniqueSum : null;
+        var population = s.Pop?.Population;
+        decimal? rate = null;
+        if (population is > 0 && activityCount > 0)
+        {
+            var numerator = hasUnique ? unique!.Value : attendance;
+            rate = Math.Min(100m, Math.Round(numerator * 100m / population.Value, 1));
+        }
+
+        var hit = new SettlementSummaryDto
+        {
+            SettlementId = s.Id,
+            OfficialCode = s.OfficialCode,
+            Name = s.Name,
+            DisplayName = s.DisplayName,
+            SettlementType = s.SettlementType,
+            IsRural = s.IsRural,
+            CentroidLat = s.CentroidLat,
+            CentroidLng = s.CentroidLng,
+            Population = population,
+            MaleCount = s.Pop?.MaleCount,
+            FemaleCount = s.Pop?.FemaleCount,
+            ChildCount = s.Pop?.ChildCount,
+            PopulationYear = s.Pop?.Year,
+            PopulationSource = s.Pop?.Source,
+            PopulationIsOfficial = s.Pop?.IsOfficial ?? false,
+            ActivityCount = activityCount,
+            AttendanceCount = attendance,
+            UniqueBeneficiaryCount = unique,
+            HasUniqueBeneficiaries = hasUnique,
+            CoverageRate = rate,
+            CoverageLevel = CoverageScale.Level(activityCount, rate),
+            MetricLabel = "Kaplama",
+            LastActivityDate = agg?.LastActivityDate,
+            HeadmanName = s.HeadmanName,
+            HeadmanPhone = s.HeadmanPhone
+        };
 
         var schools = await _db.SettlementSchools.AsNoTracking()
             .Where(x => x.SettlementId == hit.SettlementId)

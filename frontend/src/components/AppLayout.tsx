@@ -68,6 +68,7 @@ export function AppLayout() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const admin = isSystemAdmin(user)
+  const seesAllUnits = admin || hasPermission(PermissionCodes.EmployeesViewAllUnits)
   const showPersonnelModule = canUsePersonnelModule(user)
   const canNotifications = hasPermission(PermissionCodes.NotificationsView)
   const canMessages =
@@ -186,7 +187,7 @@ export function AppLayout() {
     } catch {
       /* ignore */
     }
-    navigate(next === 'events' ? '/events/map' : admin ? '/employees' : '/personnel')
+    navigate(next === 'events' ? (seesAllUnits ? '/events/map' : '/events/calendar') : admin ? '/employees' : '/personnel')
   }
 
   function onGlobalSearch(e: FormEvent) {
@@ -194,7 +195,11 @@ export function AppLayout() {
     const value = globalSearch.trim()
     if (!value) return
     if (!showPersonnelModule) {
-      navigate(`/events/map?q=${encodeURIComponent(value)}`)
+      navigate(
+        seesAllUnits
+          ? `/events/map?q=${encodeURIComponent(value)}`
+          : `/events/calendar?search=${encodeURIComponent(value)}`,
+      )
       return
     }
     if (appModule === 'events') {
@@ -258,7 +263,9 @@ export function AppLayout() {
   ]
 
   const eventsNav: NavItem[] = [
-    { to: '/events/map', label: 'Mahalleler', icon: <Icon d={I.map} />, permission: PermissionCodes.EventsView },
+    ...(seesAllUnits
+      ? [{ to: '/events/map', label: 'Mahalleler', icon: <Icon d={I.map} />, permission: PermissionCodes.EventsView }]
+      : []),
     { to: '/events/calendar', label: 'Takvim', icon: <Icon d={I.calendar} />, permission: PermissionCodes.EventsView },
     { to: '/events/facilities', label: 'Tesisler', icon: <Icon d={I.building} />, permission: PermissionCodes.EventsView },
     { to: '/events/list', label: 'Etkinlikler', icon: <Icon d={I.catalog} />, permission: PermissionCodes.EventsView },
@@ -272,7 +279,9 @@ export function AppLayout() {
   ]
 
   const operatorNav: NavItem[] = [
-    { to: '/events/map', label: 'Mahalleler', icon: <Icon d={I.map} />, permission: PermissionCodes.EventsView },
+    ...(seesAllUnits
+      ? [{ to: '/events/map', label: 'Mahalleler', icon: <Icon d={I.map} />, permission: PermissionCodes.EventsView }]
+      : []),
     { to: '/events/calendar', label: 'Takvim', icon: <Icon d={I.calendar} />, permission: PermissionCodes.EventsView },
     { to: '/events/facilities', label: 'Tesisler', icon: <Icon d={I.building} />, permission: PermissionCodes.EventsView },
     { to: '/events/list', label: 'Etkinlikler', icon: <Icon d={I.catalog} />, permission: PermissionCodes.EventsView },

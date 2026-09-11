@@ -85,3 +85,28 @@ public class CoverageScaleTests
         Assert.Equal("good", PersonelYonetim.Application.Features.Map.CoverageScale.Level(1, 50));
     }
 }
+
+public class RoleScopeMatrixTests
+{
+    [Fact]
+    public void Administrative_officer_edits_own_staff_but_not_directorate_wide()
+    {
+        var codes = PersonelYonetim.Domain.Authorization.RolePermissionMatrix.GetMap()[
+            PersonelYonetim.Domain.Authorization.RoleCodes.AdministrativeOfficer];
+
+        Assert.Contains(PersonelYonetim.Domain.Authorization.PermissionCodes.EmployeesUpdate, codes);
+        Assert.Contains(PersonelYonetim.Domain.Authorization.PermissionCodes.StockView, codes);
+        Assert.Contains(PersonelYonetim.Domain.Authorization.PermissionCodes.EventsView, codes);
+        Assert.DoesNotContain(PersonelYonetim.Domain.Authorization.PermissionCodes.EmployeesViewAllUnits, codes);
+    }
+
+    [Fact]
+    public void Director_sees_all_units()
+    {
+        var codes = PersonelYonetim.Domain.Authorization.RolePermissionMatrix.GetMap()[
+            PersonelYonetim.Domain.Authorization.RoleCodes.Director];
+
+        Assert.Contains(PersonelYonetim.Domain.Authorization.PermissionCodes.EmployeesViewAllUnits, codes);
+        Assert.Contains(PersonelYonetim.Domain.Authorization.PermissionCodes.EmployeesUpdate, codes);
+    }
+}

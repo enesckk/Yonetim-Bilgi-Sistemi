@@ -23,6 +23,12 @@ export interface StockOptions {
   locations: StockLocationOption[]
 }
 
+export interface StockItemLocation {
+  locationId: string
+  locationName: string
+  quantity: number
+}
+
 export interface StockItemRow {
   id: string
   name: string
@@ -36,6 +42,7 @@ export interface StockItemRow {
   minQuantity: number
   totalQuantity: number
   locationCount: number
+  locations?: StockItemLocation[]
   isLow: boolean
   isActive: boolean
 }

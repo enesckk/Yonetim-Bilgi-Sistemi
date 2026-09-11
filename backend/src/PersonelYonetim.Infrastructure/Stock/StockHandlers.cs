@@ -202,19 +202,28 @@ public sealed class GetStockItemsHandler : IRequestHandler<GetStockItemsQuery, I
         if (allowed is not null)
             balancesQ = balancesQ.Where(x => allowed.Contains(x.LocationId));
         var balances = await balancesQ
-            .Select(x => new { x.StockItemId, x.Quantity, x.LocationId })
+            .Select(x => new
+            {
+                x.StockItemId,
+                x.Quantity,
+                x.LocationId,
+                LocationName = x.Location != null ? x.Location.Name : ""
+            })
             .ToListAsync(ct);
         var grouped = balances
             .GroupBy(x => x.StockItemId)
-            .ToDictionary(
-                g => g.Key,
-                g => new { Qty = g.Sum(x => x.Quantity), Loc = g.Count(x => x.Quantity > 0) });
+            .ToDictionary(g => g.Key, g => g.ToList());
 
         return items.Select(item =>
         {
-            grouped.TryGetValue(item.Id, out var agg);
-            var qty = agg?.Qty ?? 0;
-            var isLow = balances.Any(b => b.StockItemId == item.Id && StockAccess.IsLow(b.Quantity, item.MinQuantity));
+            grouped.TryGetValue(item.Id, out var lines);
+            lines ??= [];
+            var stocked = lines
+                .Where(x => x.Quantity > 0)
+                .OrderBy(x => x.LocationName)
+                .ToList();
+            var qty = stocked.Sum(x => x.Quantity);
+            var isLow = lines.Any(b => StockAccess.IsLow(b.Quantity, item.MinQuantity));
             return new StockItemListRowDto
             {
                 Id = item.Id,
@@ -228,7 +237,13 @@ public sealed class GetStockItemsHandler : IRequestHandler<GetStockItemsQuery, I
                 Model = item.Model,
                 MinQuantity = item.MinQuantity,
                 TotalQuantity = qty,
-                LocationCount = agg?.Loc ?? 0,
+                LocationCount = stocked.Count,
+                Locations = stocked.Select(x => new StockItemLocationBriefDto
+                {
+                    LocationId = x.LocationId,
+                    LocationName = string.IsNullOrWhiteSpace(x.LocationName) ? "—" : x.LocationName,
+                    Quantity = x.Quantity
+                }).ToList(),
                 IsLow = isLow,
                 IsActive = item.IsActive
             };

@@ -39,8 +39,16 @@ public sealed class StockItemListRowDto
     public decimal MinQuantity { get; init; }
     public decimal TotalQuantity { get; init; }
     public int LocationCount { get; init; }
+    public IReadOnlyList<StockItemLocationBriefDto> Locations { get; init; } = [];
     public bool IsLow { get; init; }
     public bool IsActive { get; init; }
+}
+
+public sealed class StockItemLocationBriefDto
+{
+    public Guid LocationId { get; init; }
+    public string LocationName { get; init; } = string.Empty;
+    public decimal Quantity { get; init; }
 }
 
 public sealed class StockBalanceLineDto

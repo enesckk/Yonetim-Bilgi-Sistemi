@@ -37,14 +37,6 @@ const emptyItem = (): UpsertStockItemPayload => ({
   isActive: true,
 })
 
-function Icon({ d }: { d: string }) {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d={d} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
 function todayIso() {
   const d = new Date()
   const m = String(d.getMonth() + 1).padStart(2, '0')
@@ -68,6 +60,7 @@ export function StockPage() {
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState<number | ''>('')
+  const [locationId, setLocationId] = useState('')
 
   const [itemMode, setItemMode] = useState<ItemFormMode>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -93,10 +86,7 @@ export function StockPage() {
     try {
       const [sum, catalog, optsData] = await Promise.all([
         fetchStockSummary(),
-        fetchStockItems({
-          search: search.trim() || undefined,
-          category,
-        }),
+        fetchStockItems(),
         fetchStockOptions(),
       ])
       setSummary(sum)
@@ -107,7 +97,7 @@ export function StockPage() {
     } finally {
       if (!opts?.silent) setLoading(false)
     }
-  }, [search, category])
+  }, [])
 
   useEffect(() => {
     if (!canView) return
@@ -117,6 +107,53 @@ export function StockPage() {
   const categories = options?.categories ?? []
   const units = options?.units ?? []
   const locations = options?.locations ?? []
+  const q = search.trim().toLocaleLowerCase('tr-TR')
+
+  const itemMatches = useCallback(
+    (row: StockItemRow) => {
+      const places = row.locations ?? []
+      if (locationId && !places.some((p) => p.locationId === locationId)) return false
+      if (!q) return true
+      const hay = [
+        row.name,
+        row.code,
+        row.brand,
+        row.model,
+        row.categoryLabel,
+        ...places.map((p) => p.locationName),
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLocaleLowerCase('tr-TR')
+      return hay.includes(q)
+    },
+    [locationId, q],
+  )
+
+  const filteredItems = useMemo(
+    () =>
+      items.filter((row) => {
+        if (category !== '' && row.category !== category) return false
+        return itemMatches(row)
+      }),
+    [items, category, itemMatches],
+  )
+
+  const visiblePlacesFor = (row: StockItemRow) => {
+    const places = row.locations ?? []
+    if (locationId) return places.filter((p) => p.locationId === locationId)
+    return places
+  }
+
+  const qtyFor = (row: StockItemRow) => {
+    const places = visiblePlacesFor(row)
+    if (locationId) return places.reduce((sum, p) => sum + p.quantity, 0)
+    return row.totalQuantity
+  }
+
+  const selectedCategoryLabel = categories.find((c) => c.value === category)?.label
+  const selectedLocationName = locations.find((l) => l.id === locationId)?.name
+  const lookingAt = [selectedCategoryLabel, selectedLocationName].filter(Boolean).join(' · ')
 
   const openCreateItem = () => {
     setItemForm(emptyItem())
@@ -235,24 +272,25 @@ export function StockPage() {
   }
 
   const places = summary?.locations ?? []
-  const q = search.trim().toLocaleLowerCase('tr-TR')
   const stockedPlaces = useMemo(
     () =>
       places.filter((p) => {
         if (!(p.itemCount > 0 || p.lowCount > 0)) return false
+        if (locationId && p.id !== locationId) return false
         if (!q) return true
         return p.name.toLocaleLowerCase('tr-TR').includes(q)
       }),
-    [places, q],
+    [places, q, locationId],
   )
   const emptyPlaces = useMemo(
     () =>
       places.filter((p) => {
         if (!(p.itemCount === 0 && p.lowCount === 0)) return false
+        if (locationId && p.id !== locationId) return false
         if (!q) return true
         return p.name.toLocaleLowerCase('tr-TR').includes(q)
       }),
-    [places, q],
+    [places, q, locationId],
   )
 
   if (!canView) {
@@ -270,33 +308,30 @@ export function StockPage() {
           <div className="employees-toolbar-title">
             <div className="employees-toolbar-title-row">
               <h2>Stok takip</h2>
-              <div className="stat-chip mobile-inline-chip">
-                {loading ? '…' : `${summary?.catalogCount ?? 0} malzeme`}
-              </div>
             </div>
-            <p className="muted small employees-toolbar-lead">
-              {canManage
-                ? 'Tesislerdeki malzeme. Giriş, çıkış, transfer ve sayımı buradan işleyin.'
-                : 'Tesislerdeki malzeme özeti. Giriş, çıkış ve sayımı amirler yapar.'}
+            <p className="stock-meta">
+              {loading ? (
+                'Yükleniyor…'
+              ) : (
+                <>
+                  <span>
+                    <strong>{fmtQty(filteredItems.length)}</strong> malzeme
+                  </span>
+                  <span>
+                    <strong>{fmtQty(summary?.locationsWithStock ?? 0)}</strong> stoklu yer
+                  </span>
+                  {(summary?.lowCount ?? 0) > 0 ? (
+                    <span className="is-warn">
+                      <strong>{fmtQty(summary?.lowCount ?? 0)}</strong> kritik
+                    </span>
+                  ) : (
+                    <span>Kritik yok</span>
+                  )}
+                </>
+              )}
             </p>
           </div>
           <div className="employees-toolbar-actions">
-            <div className="stock-filters stock-toolbar-search">
-              <input
-                type="search"
-                placeholder="Malzeme, kod, marka veya yer"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-              <select value={category} onChange={(e) => setCategory(e.target.value ? Number(e.target.value) : '')}>
-                <option value="">Tüm gruplar</option>
-                {categories.map((c) => (
-                  <option key={c.value} value={c.value}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
-            </div>
             {canManage ? (
               <>
                 <button type="button" className="btn-secondary" onClick={() => openMove()}>
@@ -312,39 +347,6 @@ export function StockPage() {
 
         {error ? <p className="form-error">{error}</p> : null}
 
-        <div className="staff-dash-cards stock-kpis">
-          <div className="staff-dash-card is-people">
-            <span>
-              <Icon d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
-              Katalog
-            </span>
-            <strong className={loading ? 'is-skeleton' : undefined}>
-              {loading ? '—' : fmtQty(summary?.catalogCount ?? 0)}
-            </strong>
-            <small>Tanımlı malzeme çeşidi</small>
-          </div>
-          <div className="staff-dash-card is-facilities">
-            <span>
-              <Icon d="M3 21h18M5 21V8h14v13M8 11h3v3H8v-3Z" />
-              Stoklu yer
-            </span>
-            <strong className={loading ? 'is-skeleton' : undefined}>
-              {loading ? '—' : fmtQty(summary?.locationsWithStock ?? 0)}
-            </strong>
-            <small>{fmtQty(summary?.locationCount ?? 0)} tesis</small>
-          </div>
-          <div className="staff-dash-card is-stock-low">
-            <span>
-              <Icon d="M12 9v4M12 17h.01M10.3 4.3 2.8 17a2 2 0 0 0 1.7 3h15a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0Z" />
-              Kritik stok
-            </span>
-            <strong className={loading ? 'is-skeleton' : undefined}>
-              {loading ? '—' : fmtQty(summary?.lowCount ?? 0)}
-            </strong>
-            <small>Asgari miktarın altında</small>
-          </div>
-        </div>
-
         <div className="stock-tabs" role="tablist">
           <button type="button" className={tab === 'places' ? 'is-on' : ''} onClick={() => setTab('places')}>
             Yerler
@@ -356,6 +358,61 @@ export function StockPage() {
             Hareketler
           </button>
         </div>
+
+        {tab !== 'moves' ? (
+          <div
+            className={[
+              'stock-bar',
+              tab === 'places' ? 'is-places' : '',
+              locations.length > 1 ? '' : 'is-solo',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+          >
+            <label className="iam-search">
+              <span className="sr-only">Ara</span>
+              <svg className="search-icon" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
+                <path d="m20 20-3.5-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={tab === 'places' ? 'Tesis ara…' : 'Malzeme veya kod ara…'}
+                autoComplete="off"
+              />
+            </label>
+            {tab === 'items' ? (
+              <select
+                aria-label="Grup"
+                value={category}
+                onChange={(e) => setCategory(e.target.value ? Number(e.target.value) : '')}
+              >
+                <option value="">Tüm gruplar</option>
+                {categories.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            ) : null}
+            {locations.length > 1 ? (
+              <select
+                aria-label="Tesis"
+                value={locationId}
+                onChange={(e) => setLocationId(e.target.value)}
+              >
+                <option value="">Tüm tesisler</option>
+                {locations.map((loc) => (
+                  <option key={loc.id} value={loc.id}>
+                    {loc.name}
+                  </option>
+                ))}
+              </select>
+            ) : null}
+          </div>
+        ) : null}
 
         {tab === 'places' ? (
           <div className="stock-places">
@@ -438,7 +495,7 @@ export function StockPage() {
                     <th>Malzeme</th>
                     <th>Grup</th>
                     <th>Toplam</th>
-                    <th>Yer</th>
+                    <th>Nerede</th>
                     {canManage ? <th></th> : null}
                   </tr>
                 </thead>
@@ -447,12 +504,21 @@ export function StockPage() {
                     <tr>
                       <td colSpan={canManage ? 5 : 4}>Yükleniyor…</td>
                     </tr>
-                  ) : items.length === 0 ? (
+                  ) : filteredItems.length === 0 ? (
                     <tr>
-                      <td colSpan={canManage ? 5 : 4}>Malzeme bulunamadı.</td>
+                      <td colSpan={canManage ? 5 : 4}>
+                        {selectedLocationName && selectedCategoryLabel
+                          ? `${selectedLocationName} tesisinde ${selectedCategoryLabel.toLocaleLowerCase('tr-TR')} stoğu yok.`
+                          : lookingAt || search.trim()
+                            ? 'Bu arama ve grupta malzeme yok.'
+                            : 'Malzeme bulunamadı.'}
+                      </td>
                     </tr>
                   ) : (
-                    items.map((row) => (
+                    filteredItems.map((row) => {
+                      const placesHere = visiblePlacesFor(row)
+                      const qty = qtyFor(row)
+                      return (
                       <tr key={row.id} className={row.isLow ? 'row-error' : undefined}>
                         <td>
                           <strong>{row.name}</strong>
@@ -462,12 +528,31 @@ export function StockPage() {
                             {row.model ? ` ${row.model}` : ''}
                           </div>
                         </td>
-                        <td>{row.categoryLabel}</td>
                         <td>
-                          {fmtQty(row.totalQuantity)} {row.unitLabel}
+                          <span className="stock-group-tag">{row.categoryLabel}</span>
+                        </td>
+                        <td>
+                          {fmtQty(qty)} {row.unitLabel}
                           {row.isLow ? <span className="stock-pill is-low">Kritik</span> : null}
                         </td>
-                        <td>{row.locationCount}</td>
+                        <td>
+                          {placesHere.length === 0 ? (
+                            <span className="muted small">Stokta yok</span>
+                          ) : (
+                            <ul className="stock-where">
+                              {placesHere.map((place) => (
+                                <li key={place.locationId}>
+                                  <Link to={`/stock/locations/${place.locationId}`} className="stock-where-chip">
+                                    <strong>{place.locationName}</strong>
+                                    <span>
+                                      {fmtQty(place.quantity)} {row.unitLabel}
+                                    </span>
+                                  </Link>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </td>
                         {canManage ? (
                           <td className="stock-row-actions">
                             <button type="button" className="skills-link-btn" onClick={() => void openEditItem(row)}>
@@ -486,7 +571,8 @@ export function StockPage() {
                           </td>
                         ) : null}
                       </tr>
-                    ))
+                      )
+                    })
                   )}
                 </tbody>
               </table>

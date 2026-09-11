@@ -170,6 +170,7 @@ export async function apiRequest<T>(
 
   const response = await fetch(path, {
     ...options,
+    cache: options.cache ?? 'no-store',
     headers,
     credentials: 'include',
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
