@@ -8,7 +8,7 @@ type Props = {
   onSelect: (id: string) => void
 }
 
-type FitMode = 'width' | 'all' | 'custom'
+type FitMode = 'reading' | 'width' | 'all' | 'custom'
 type Point = { x: number; y: number }
 
 export function OrgSchemeChart({ tree, selectedId, onSelect }: Props) {
@@ -74,7 +74,8 @@ function OrgSchemeViewport({ children }: { children: ReactNode }) {
     const boxH = Math.max(220, view.clientHeight - padTop - padBottom)
     const allFit = Math.min(1, boxW / size.width, boxH / size.height)
     allFitRef.current = allFit
-    const nextScale = mode === 'all' ? allFit : Math.min(1, boxW / size.width)
+    const widthFit = Math.min(1, boxW / size.width)
+    const nextScale = mode === 'all' ? allFit : mode === 'reading' ? Math.min(1, Math.max(widthFit, 0.68)) : widthFit
     const scaledHeight = size.height * nextScale
     const x = (view.clientWidth - size.width * nextScale) / 2
     const y = mode === 'all' && scaledHeight < boxH
@@ -129,8 +130,9 @@ function OrgSchemeViewport({ children }: { children: ReactNode }) {
   }, [applyFit, boundedPosition, zoomTo])
 
   useLayoutEffect(() => {
-    applyFit('width')
-    const frame = window.requestAnimationFrame(() => applyFit('width'))
+    const mode = fullscreen ? 'reading' : 'width'
+    applyFit(mode)
+    const frame = window.requestAnimationFrame(() => applyFit(mode))
     return () => window.cancelAnimationFrame(frame)
   }, [applyFit, fullscreen])
 
@@ -150,7 +152,7 @@ function OrgSchemeViewport({ children }: { children: ReactNode }) {
     if (event.button !== 0) return
     dragged.current = false
     const target = event.target as HTMLElement
-    if (target.closest('.org-scheme-zoom, input, select, textarea')) return
+    if (target.closest('.org-scheme-zoom, .org-scheme-minimap, input, select, textarea')) return
     drag.current = { x: event.clientX, y: event.clientY, tx: txRef.current, ty: tyRef.current }
     if (!target.closest('button, a, [role="button"]')) event.currentTarget.setPointerCapture(event.pointerId)
   }
@@ -169,6 +171,14 @@ function OrgSchemeViewport({ children }: { children: ReactNode }) {
   function onPointerUp() {
     drag.current = null
   }
+
+  const view = viewRef.current
+  const size = contentSize()
+  const clamp01 = (value: number) => Math.max(0, Math.min(1, value))
+  const miniLeft = view && size ? clamp01(-tx / (size.width * scale)) : 0
+  const miniTop = view && size ? clamp01(-ty / (size.height * scale)) : 0
+  const miniRight = view && size ? clamp01((view.clientWidth - tx) / (size.width * scale)) : 1
+  const miniBottom = view && size ? clamp01((view.clientHeight - ty) / (size.height * scale)) : 1
 
   return (
     <div
@@ -202,6 +212,7 @@ function OrgSchemeViewport({ children }: { children: ReactNode }) {
         <span className="org-scheme-zoom-label" aria-live="polite">%{Math.round(scale * 100)}</span>
         <button type="button" onClick={() => zoomTo(scaleRef.current / 1.2)} title="Uzaklaştır" aria-label="Uzaklaştır">−</button>
         <button type="button" onClick={() => zoomTo(scaleRef.current * 1.2)} title="Yakınlaştır" aria-label="Yakınlaştır">+</button>
+        <button type="button" className={fitMode === 'reading' ? 'is-fit-active' : undefined} onClick={() => applyFit('reading')} title="Okunabilir yakınlığa getir">Okuma</button>
         <button type="button" className={fitMode === 'width' ? 'is-fit-active' : undefined} onClick={() => applyFit('width')} title="Sayfa genişliğine sığdır">Genişlik</button>
         <button type="button" className={fitMode === 'all' ? 'is-fit-active' : undefined} onClick={() => applyFit('all')} title="Şemanın tamamını göster">Tümü</button>
         <button type="button" className="is-fs-btn" onClick={() => setFullscreen((value) => !value)} title={fullscreen ? 'Tam ekrandan çık (Esc)' : 'Tam ekran'}>
@@ -209,6 +220,36 @@ function OrgSchemeViewport({ children }: { children: ReactNode }) {
         </button>
       </div>
       <div className="org-scheme-hint">Sürükleyerek gez · Tekerlekle yakınlaştır · Çift tıkla büyüt</div>
+      {fullscreen && size && view ? (
+        <button
+          type="button"
+          className="org-scheme-minimap"
+          aria-label="Şema genel görünümünde gezin"
+          title="Genel görünüm: gitmek istediğiniz bölgeye tıklayın"
+          style={{ aspectRatio: `${size.width} / ${size.height}` }}
+          onClick={(event) => {
+            const rect = event.currentTarget.getBoundingClientRect()
+            const x = (event.clientX - rect.left) / rect.width
+            const y = (event.clientY - rect.top) / rect.height
+            const pos = boundedPosition(scaleRef.current,
+              view.clientWidth / 2 - x * size.width * scaleRef.current,
+              view.clientHeight / 2 - y * size.height * scaleRef.current)
+            modeRef.current = 'custom'
+            setFitMode('custom')
+            update(scaleRef.current, pos.x, pos.y)
+          }}
+        >
+          <span className="org-scheme-mini-title" />
+          <span className="org-scheme-mini-leaders" />
+          <span className="org-scheme-mini-units" />
+          <span className="org-scheme-mini-youth" />
+          <span className="org-scheme-mini-footer" />
+          <span
+            className="org-scheme-mini-window"
+            style={{ left: `${miniLeft * 100}%`, top: `${miniTop * 100}%`, width: `${(miniRight - miniLeft) * 100}%`, height: `${(miniBottom - miniTop) * 100}%` }}
+          />
+        </button>
+      ) : null}
     </div>
   )
 }

@@ -4166,6 +4166,10 @@ body.org-scheme-fs-lock {
   display: none;
 }
 
+.org-scheme-viewport.is-exporting .org-scheme-minimap {
+  display: none;
+}
+
 .org-scheme-zoom {
   position: absolute;
   top: 0.75rem;
@@ -4230,11 +4234,42 @@ body.org-scheme-fs-lock {
   pointer-events: none;
 }
 
+.org-scheme-minimap {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  z-index: 5;
+  display: block;
+  width: 172px;
+  max-height: 160px;
+  padding: 0;
+  overflow: hidden;
+  border: 2px solid #fff;
+  border-radius: 6px;
+  background: #fffcf8;
+  box-shadow: 0 0 0 1px #bdc8d3, 0 8px 24px #12283c33;
+  cursor: crosshair;
+}
+
+.org-scheme-mini-title,
+.org-scheme-mini-leaders,
+.org-scheme-mini-units,
+.org-scheme-mini-youth,
+.org-scheme-mini-footer,
+.org-scheme-mini-window { position: absolute; display: block; }
+.org-scheme-mini-title { top: 5%; left: 33%; width: 34%; height: 3%; background: #4e285c; }
+.org-scheme-mini-leaders { top: 10%; left: 43%; width: 14%; height: 12%; background: repeating-linear-gradient(to bottom, #f0dfc5 0 28%, #fff 28% 35%); }
+.org-scheme-mini-units { top: 25%; left: 4%; width: 92%; height: 31%; background: repeating-linear-gradient(to right, #e8ddeb 0 23%, #fff 23% 25%); border-top: 4px solid #664071; }
+.org-scheme-mini-youth { top: 59%; left: 4%; width: 92%; height: 29%; background: repeating-linear-gradient(to right, #e7f1f5 0 23%, #fff 23% 25%); border-top: 4px solid #664071; }
+.org-scheme-mini-footer { top: 91%; left: 4%; width: 92%; height: 5%; background: #e5dbe9; }
+.org-scheme-mini-window { box-sizing: border-box; z-index: 1; border: 2px solid #0c83b5; background: #0c83b526; box-shadow: 0 0 0 1px #fff; pointer-events: none; }
+
 @media (max-width: 700px) {
   .org-scheme-zoom { left: 0.5rem; right: 0.5rem; top: 0.5rem; justify-content: center; }
   .org-scheme-zoom button { min-width: 2rem; height: 2.1rem; }
   .org-scheme-zoom button.is-fs-btn { padding: 0 0.45rem; }
   .org-scheme-hint { font-size: 0.65rem; }
+  .org-scheme-minimap { width: 120px; right: 0.5rem; bottom: 0.5rem; }
 }
 
 .org-scheme-zoom button:hover {
@@ -17950,4 +17985,3 @@ button:hover > .dq-row-arrow {
     grid-template-columns: 1fr;
   }
 }
-
