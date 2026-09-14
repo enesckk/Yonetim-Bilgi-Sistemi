@@ -290,6 +290,8 @@ Open `http://localhost:5173`, sign in with the seed admin, and start configuring
 
 ## 🗄️ Database & Migrations
 
+Ücretsiz Render ve Supabase yayını için [RENDER_FREE.md](RENDER_FREE.md) dosyasına bakın.
+
 ```bash
 cd backend/src/PersonelYonetim.Api
 dotnet ef database update --project ../PersonelYonetim.Infrastructure

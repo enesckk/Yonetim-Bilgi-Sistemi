@@ -10,6 +10,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
+using Npgsql;
 using PersonelYonetim.Application.Common.Behaviors;
 using PersonelYonetim.Application.Common.Interfaces;
 using PersonelYonetim.Application.Features.Employees;
@@ -32,16 +33,44 @@ public static class DependencyInjection
     {
         var connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' bulunamadı.");
+        var usePostgres = string.Equals(configuration["Database:Provider"], "Postgres", StringComparison.OrdinalIgnoreCase);
+        NpgsqlDataSource? postgresDataSource = null;
+        if (usePostgres)
+        {
+            var pgConnection = new NpgsqlConnectionStringBuilder(connectionString);
+            var encodedDatabaseCa = configuration["Supabase:DatabaseCaCertificateBase64"];
+            if (!environment.IsDevelopment() &&
+                (pgConnection.Host?.EndsWith(".pooler.supabase.com", StringComparison.OrdinalIgnoreCase) == true ||
+                 pgConnection.Host?.EndsWith(".supabase.co", StringComparison.OrdinalIgnoreCase) == true))
+            {
+                if (pgConnection.SslMode != SslMode.VerifyFull || string.IsNullOrWhiteSpace(encodedDatabaseCa))
+                    throw new InvalidOperationException("Supabase PostgreSQL için SSL Mode=VerifyFull ve kök sertifika zorunludur.");
+            }
+            var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
+            if (!string.IsNullOrWhiteSpace(encodedDatabaseCa))
+                dataSourceBuilder.UseRootCertificate(X509CertificateLoader.LoadCertificate(
+                    Convert.FromBase64String(encodedDatabaseCa)));
+            postgresDataSource = dataSourceBuilder.Build();
+            services.AddSingleton(postgresDataSource);
+        }
 
         services.AddScoped<AuditingSaveChangesInterceptor>();
         services.AddDbContext<AppDbContext>((sp, options) =>
         {
-            options.UseSqlServer(connectionString, sql =>
-            {
-                sql.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName);
-                sql.EnableRetryOnFailure(maxRetryCount: 3);
-                sql.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
-            });
+            if (usePostgres)
+                options.UseNpgsql(postgresDataSource!, pg =>
+                {
+                    pg.MigrationsAssembly("PersonelYonetim.PostgresMigrations");
+                    pg.EnableRetryOnFailure(maxRetryCount: 3);
+                    pg.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
+                });
+            else
+                options.UseSqlServer(connectionString, sql =>
+                {
+                    sql.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName);
+                    sql.EnableRetryOnFailure(maxRetryCount: 3);
+                    sql.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
+                });
             options.AddInterceptors(sp.GetRequiredService<AuditingSaveChangesInterceptor>());
         });
 
@@ -54,20 +83,24 @@ public static class DependencyInjection
         services.AddMemoryCache();
         services.AddHttpContextAccessor();
 
-        // Data Protection anahtarları diskte — restart’ta TCKN’ler okunabilir kalsın.
-        // Production (Windows): DPAPI ile anahtar dosyaları şifrelenir.
+        // PostgreSQL'de key ring veritabanında; SQL Server'da kalıcı diskte tutulur.
         var configuredKeysPath = configuration["Security:DataProtectionKeysPath"];
-        if (!environment.IsDevelopment() && OperatingSystem.IsLinux() &&
+        if (!usePostgres && !environment.IsDevelopment() && OperatingSystem.IsLinux() &&
             (string.IsNullOrWhiteSpace(configuredKeysPath) || !Path.IsPathFullyQualified(configuredKeysPath)))
             throw new InvalidOperationException("Security:DataProtectionKeysPath Production Linux ortamında mutlak ve kalıcı bir yol olmalıdır.");
 
         var dpKeys = string.IsNullOrWhiteSpace(configuredKeysPath)
             ? Path.Combine(environment.ContentRootPath, "App_Data", "dp-keys")
             : Path.GetFullPath(configuredKeysPath);
-        Directory.CreateDirectory(dpKeys);
         var dpBuilder = services.AddDataProtection()
-            .PersistKeysToFileSystem(new DirectoryInfo(dpKeys))
             .SetApplicationName("PersonelYonetim");
+        if (usePostgres)
+            dpBuilder.PersistKeysToDbContext<AppDbContext>();
+        else
+        {
+            Directory.CreateDirectory(dpKeys);
+            dpBuilder.PersistKeysToFileSystem(new DirectoryInfo(dpKeys));
+        }
 
         var protectKeys = configuration.GetValue("Security:ProtectDataProtectionKeys", !environment.IsDevelopment());
         if (!environment.IsDevelopment() && OperatingSystem.IsLinux() && !protectKeys)
@@ -83,7 +116,7 @@ public static class DependencyInjection
             var certificate = X509CertificateLoader.LoadPkcs12(
                 Convert.FromBase64String(encodedCertificate),
                 certificatePassword,
-                X509KeyStorageFlags.EphemeralKeySet);
+                OperatingSystem.IsMacOS() ? X509KeyStorageFlags.DefaultKeySet : X509KeyStorageFlags.EphemeralKeySet);
             if (!certificate.HasPrivateKey)
                 throw new InvalidOperationException("Data Protection sertifikasının özel anahtarı yok.");
             dpBuilder.ProtectKeysWithCertificate(certificate);
@@ -122,13 +155,27 @@ public static class DependencyInjection
         });
 
         var uploadsPath = configuration["FileStorage:RootPath"];
-        if (!environment.IsDevelopment() && OperatingSystem.IsLinux() &&
+        if (!usePostgres && !environment.IsDevelopment() && OperatingSystem.IsLinux() &&
             (string.IsNullOrWhiteSpace(uploadsPath) || !Path.IsPathFullyQualified(uploadsPath)))
             throw new InvalidOperationException("FileStorage:RootPath Production Linux ortamında mutlak ve kalıcı bir yol olmalıdır.");
 
         services.Configure<Files.FileStorageOptions>(
             configuration.GetSection(Files.FileStorageOptions.SectionName));
-        services.AddScoped<IFileStorageService, Files.LocalFileStorageService>();
+        if (usePostgres)
+        {
+            services.AddOptions<Files.SupabaseStorageOptions>()
+                .Bind(configuration.GetSection(Files.SupabaseStorageOptions.SectionName))
+                .Validate(options => Uri.TryCreate(options.Url, UriKind.Absolute, out var url) &&
+                    url.Scheme == Uri.UriSchemeHttps &&
+                    url.Host.EndsWith(".supabase.co", StringComparison.OrdinalIgnoreCase) &&
+                    options.SecretKey?.StartsWith("sb_secret_", StringComparison.Ordinal) == true &&
+                    !string.IsNullOrWhiteSpace(options.Bucket),
+                    "PostgreSQL için Supabase URL, yeni biçimde gizli anahtar ve özel bucket zorunludur.")
+                .ValidateOnStart();
+            services.AddHttpClient<IFileStorageService, Files.SupabaseFileStorageService>();
+        }
+        else
+            services.AddScoped<IFileStorageService, Files.LocalFileStorageService>();
 
         services.AddHttpClient("Nominatim", client =>
         {

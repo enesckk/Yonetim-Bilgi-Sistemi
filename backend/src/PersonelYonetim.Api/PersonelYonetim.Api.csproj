@@ -18,6 +18,7 @@
     <ItemGroup>
     <ProjectReference Include="..\PersonelYonetim.Application\PersonelYonetim.Application.csproj" />
     <ProjectReference Include="..\PersonelYonetim.Infrastructure\PersonelYonetim.Infrastructure.csproj" />
+    <ProjectReference Include="..\PersonelYonetim.PostgresMigrations\PersonelYonetim.PostgresMigrations.csproj" />
   </ItemGroup>
 
     <ItemGroup>

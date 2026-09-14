@@ -1,9 +1,10 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using PersonelYonetim.Domain.Entities;
 
 namespace PersonelYonetim.Infrastructure.Persistence;
 
-public class AppDbContext : DbContext
+public class AppDbContext : DbContext, IDataProtectionKeyContext
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {
@@ -48,10 +49,26 @@ public class AppDbContext : DbContext
     public DbSet<WorkTask> WorkTasks => Set<WorkTask>();
     public DbSet<WorkTaskAttachment> WorkTaskAttachments => Set<WorkTaskAttachment>();
     public DbSet<WorkTaskActivity> WorkTaskActivities => Set<WorkTaskActivity>();
+    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+        if (Database.IsNpgsql())
+        {
+            // Supabase Data API exposes public by default; keep personnel tables outside it.
+            modelBuilder.HasDefaultSchema("personel_app");
+            foreach (var index in modelBuilder.Model.GetEntityTypes().SelectMany(entity => entity.GetIndexes()))
+            {
+                var filter = index.GetFilter();
+                if (filter is null)
+                    continue;
+                index.SetFilter(filter.Replace('[', '"').Replace(']', '"')
+                    .Replace("\"IsDeleted\" = 0", "\"IsDeleted\" = FALSE", StringComparison.Ordinal));
+            }
+        }
+        else
+            modelBuilder.Ignore<DataProtectionKey>();
         base.OnModelCreating(modelBuilder);
     }
 

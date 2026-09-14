@@ -5,21 +5,20 @@ using PersonelYonetim.Application.Common.Models;
 namespace PersonelYonetim.Api.Controllers;
 
 /// <summary>
-/// Kök adres (/) — tarayıcıda açılınca 404 yerine bilgilendirici cevap döner.
-/// Asıl arayüz React SPA'dır (http://localhost:5173).
+/// API bilgisi. Kök adresi üretimde React SPA karşılar.
 /// </summary>
 [ApiController]
 [AllowAnonymous]
 public sealed class RootController : ControllerBase
 {
-    [HttpGet("/")]
+    [HttpGet("/api")]
     public ActionResult<ApiResponse<object>> Get()
     {
         var data = new
         {
             service = "PersonelYonetim.Api",
-            message = "Bu adres yalnızca API'dir. Arayüz için React SPA'yı açın.",
-            ui = "http://localhost:5173",
+            message = "API çalışıyor.",
+            ui = "/",
             health = "/api/health",
             login = "POST /api/auth/login"
         };

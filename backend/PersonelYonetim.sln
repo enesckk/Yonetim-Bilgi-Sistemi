@@ -17,6 +17,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{77A0A08C
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PersonelYonetim.Tests", "tests\PersonelYonetim.Tests\PersonelYonetim.Tests.csproj", "{E3C98145-72CF-476D-9A00-5546CA54FC2F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PersonelYonetim.PostgresMigrations", "src\PersonelYonetim.PostgresMigrations\PersonelYonetim.PostgresMigrations.csproj", "{3AC6BC7E-95FE-43E1-B1CD-2BA4818A679F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -87,6 +89,18 @@ Global
 		{E3C98145-72CF-476D-9A00-5546CA54FC2F}.Release|x64.Build.0 = Release|Any CPU
 		{E3C98145-72CF-476D-9A00-5546CA54FC2F}.Release|x86.ActiveCfg = Release|Any CPU
 		{E3C98145-72CF-476D-9A00-5546CA54FC2F}.Release|x86.Build.0 = Release|Any CPU
+		{3AC6BC7E-95FE-43E1-B1CD-2BA4818A679F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3AC6BC7E-95FE-43E1-B1CD-2BA4818A679F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3AC6BC7E-95FE-43E1-B1CD-2BA4818A679F}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{3AC6BC7E-95FE-43E1-B1CD-2BA4818A679F}.Debug|x64.Build.0 = Debug|Any CPU
+		{3AC6BC7E-95FE-43E1-B1CD-2BA4818A679F}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{3AC6BC7E-95FE-43E1-B1CD-2BA4818A679F}.Debug|x86.Build.0 = Debug|Any CPU
+		{3AC6BC7E-95FE-43E1-B1CD-2BA4818A679F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3AC6BC7E-95FE-43E1-B1CD-2BA4818A679F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3AC6BC7E-95FE-43E1-B1CD-2BA4818A679F}.Release|x64.ActiveCfg = Release|Any CPU
+		{3AC6BC7E-95FE-43E1-B1CD-2BA4818A679F}.Release|x64.Build.0 = Release|Any CPU
+		{3AC6BC7E-95FE-43E1-B1CD-2BA4818A679F}.Release|x86.ActiveCfg = Release|Any CPU
+		{3AC6BC7E-95FE-43E1-B1CD-2BA4818A679F}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -97,5 +111,6 @@ Global
 		{A66A9FAA-F787-4E11-BE71-21FEF32E8EF4} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{45C28CE7-5B1D-493D-BED0-B5AEAB714FBE} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{E3C98145-72CF-476D-9A00-5546CA54FC2F} = {77A0A08C-4380-4424-B349-33D43F6BF687}
+		{3AC6BC7E-95FE-43E1-B1CD-2BA4818A679F} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal

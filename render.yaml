@@ -2,22 +2,16 @@ services:
   - type: web
     name: yonetim-bilgi-api
     runtime: docker
-    plan: starter
+    plan: free
     dockerfilePath: ./Dockerfile
     healthCheckPath: /api/health
-    disk:
-      name: yonetim-bilgi-data
-      mountPath: /var/data
-      sizeGB: 1
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
       - key: ASPNETCORE_URLS
         value: http://0.0.0.0:10000
-      - key: Security__DataProtectionKeysPath
-        value: /var/data/dp-keys
-      - key: FileStorage__RootPath
-        value: /var/data/uploads
+      - key: Database__Provider
+        value: Postgres
       - key: ConnectionStrings__DefaultConnection
         sync: false
       - key: Jwt__SigningKey
@@ -30,5 +24,11 @@ services:
         sync: false
       - key: Security__DataProtectionCertificatePassword
         sync: false
-      - key: Cors__AllowedOrigins__0
+      - key: Supabase__Url
+        sync: false
+      - key: Supabase__SecretKey
+        sync: false
+      - key: Supabase__Bucket
+        sync: false
+      - key: Supabase__DatabaseCaCertificateBase64
         sync: false
