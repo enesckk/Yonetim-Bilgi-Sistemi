@@ -49,7 +49,8 @@ internal static class DirectorateOrgChartSeeder
                 {
                     Code = code, Name = name, Type = type, ParentId = parent.Id, Status = status,
                     FacilityCategoryId = categoryCode is null ? null : categories[categoryCode],
-                    Latitude = latitude, Longitude = longitude, Capacity = capacity,
+                    // The roster does not contain verified coordinates.
+                    Capacity = capacity,
                     CreatedBy = HistoricalImport
                 };
                 db.OrganizationUnits.Add(unit);
@@ -66,10 +67,18 @@ internal static class DirectorateOrgChartSeeder
                     unit.Type = type;
                     unit.ParentId = parent.Id;
                     unit.FacilityCategoryId ??= categoryCode is null ? null : categories[categoryCode];
-                    unit.Latitude ??= latitude;
-                    unit.Longitude ??= longitude;
                     unit.Capacity ??= capacity;
                     unit.UpdatedBy = HistoricalImport;
+                }
+                // Remove only approximate coordinates introduced by the first
+                // production import. Preserve any location subsequently edited by a user.
+                if (latitude is not null && longitude is not null &&
+                    ((unit.CreatedBy == HistoricalImport && unit.UpdatedBy is null or HistoricalImport) ||
+                     (unit.CreatedBy == "seed" && unit.UpdatedBy == HistoricalImport)) &&
+                    unit.Latitude == latitude && unit.Longitude == longitude)
+                {
+                    unit.Latitude = null;
+                    unit.Longitude = null;
                 }
             }
             return unit;
