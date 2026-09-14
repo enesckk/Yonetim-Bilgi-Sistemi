@@ -146,6 +146,8 @@ export function EventFormPage() {
   const [initialStatus, setInitialStatus] = useState<EventStatus>(1)
   const [tree, setTree] = useState<OrgNode[]>([])
   const [people, setPeople] = useState<LookupItem[]>([])
+  const [peopleLoading, setPeopleLoading] = useState(false)
+  const [peopleError, setPeopleError] = useState(false)
   const [personSearch, setPersonSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -178,18 +180,22 @@ export function EventFormPage() {
       return
     }
     let cancelled = false
+    setPeopleLoading(true)
+    setPeopleError(false)
+    void fetchEmployeeFormOptions()
+      .then((opts) => { if (!cancelled) setPeople(opts.managers ?? []) })
+      .catch(() => { if (!cancelled) setPeopleError(true) })
+      .finally(() => { if (!cancelled) setPeopleLoading(false) })
     ;(async () => {
       setLoading(true)
       setError(null)
       try {
-        const [org, opts, settlementList] = await Promise.all([
+        const [org, settlementList] = await Promise.all([
           fetchOrganizationTree(),
-          fetchEmployeeFormOptions().catch(() => ({ managers: [] as LookupItem[] })),
           directorateWide ? fetchSettlements() : Promise.resolve([] as SettlementLookup[]),
         ])
         if (cancelled) return
         setTree(org)
-        setPeople(opts.managers ?? [])
         setSettlements(settlementList.sort((a, b) => a.name.localeCompare(b.name, 'tr')))
         if (isEdit && id) {
           const ev = await fetchEventById(id)
@@ -685,6 +691,7 @@ export function EventFormPage() {
                     onChange={(e) => setField('responsibleEmployeeId', e.target.value)}
                   >
                     <option value="">Seçiniz (opsiyonel)</option>
+                    {peopleLoading ? <option disabled>Personel listesi yükleniyor…</option> : null}
                     {matchingPeople.map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.name}
@@ -692,7 +699,10 @@ export function EventFormPage() {
                     ))}
                   </select>
                 </label>
-                {personSearch && matchingPeople.length === 0 ? <small>Eşleşen personel yok.</small> : null}
+                {peopleError ? <small>Personel listesi yüklenemedi. Sayfayı yenileyin.</small> : null}
+                {personSearch && !peopleLoading && !peopleError && matchingPeople.length === 0
+                  ? <small>Eşleşen personel yok.</small>
+                  : null}
               </div>
               {!isEdit ? (
                 <>
