@@ -4199,16 +4199,6 @@ body.org-scheme-fs-lock {
   cursor: pointer;
 }
 
-.org-scheme-zoom-label {
-  min-width: 3rem;
-  padding: 0 0.3rem;
-  color: #24374a;
-  font-size: 0.8rem;
-  font-weight: 800;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-}
-
 .org-scheme-zoom button.is-fit-active {
   background: #1f6b4a;
   color: #fff;
@@ -4276,21 +4266,11 @@ body.org-scheme-fs-lock {
   background: #e3ebf3;
 }
 
-.org-scheme-zoom button.is-reset,
 .org-scheme-zoom button.is-fs-btn {
   min-width: auto;
   padding: 0 0.75rem;
   font-size: 0.78rem;
   font-weight: 700;
-}
-
-.org-scheme-zoom button.is-reset {
-  background: #1f6b4a;
-  color: #fff;
-}
-
-.org-scheme-zoom button.is-reset:hover {
-  background: #18573c;
 }
 
 .org-scheme-zoom button.is-fs-btn {

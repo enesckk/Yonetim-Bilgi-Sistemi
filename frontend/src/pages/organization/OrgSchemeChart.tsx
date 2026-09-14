@@ -8,7 +8,7 @@ type Props = {
   onSelect: (id: string) => void
 }
 
-type FitMode = 'reading' | 'width' | 'all' | 'custom'
+type FitMode = 'width' | 'all' | 'custom'
 type Point = { x: number; y: number }
 
 export function OrgSchemeChart({ tree, selectedId, onSelect }: Props) {
@@ -76,7 +76,7 @@ function OrgSchemeViewport({ children }: { children: ReactNode }) {
     const allFit = Math.min(1, boxW / size.width, boxH / size.height)
     allFitRef.current = allFit
     const widthFit = Math.min(1, boxW / size.width)
-    const nextScale = mode === 'all' ? allFit : mode === 'reading' ? Math.min(1, Math.max(widthFit, 0.68)) : widthFit
+    const nextScale = mode === 'all' ? allFit : widthFit
     const scaledHeight = size.height * nextScale
     const x = (view.clientWidth - size.width * nextScale) / 2
     const y = mode === 'all' && scaledHeight < boxH
@@ -118,8 +118,14 @@ function OrgSchemeViewport({ children }: { children: ReactNode }) {
     observer.observe(inner)
     const onWheel = (event: WheelEvent) => {
       event.preventDefault()
+      const delta = event.deltaMode === 1 ? event.deltaY * 16 : event.deltaMode === 2 ? event.deltaY * view.clientHeight : event.deltaY
+      if (modeRef.current === 'width') {
+        const horizontal = event.deltaMode === 1 ? event.deltaX * 16 : event.deltaMode === 2 ? event.deltaX * view.clientWidth : event.deltaX
+        const pos = boundedPosition(scaleRef.current, txRef.current - horizontal, tyRef.current - delta)
+        update(scaleRef.current, pos.x, pos.y)
+        return
+      }
       const rect = view.getBoundingClientRect()
-      const delta = event.deltaMode === 1 ? event.deltaY * 16 : event.deltaY
       const factor = Math.exp(-Math.max(-180, Math.min(180, delta)) * 0.0015)
       zoomTo(scaleRef.current * factor, { x: event.clientX - rect.left, y: event.clientY - rect.top })
     }
@@ -131,9 +137,8 @@ function OrgSchemeViewport({ children }: { children: ReactNode }) {
   }, [applyFit, boundedPosition, zoomTo])
 
   useLayoutEffect(() => {
-    const mode = fullscreen ? 'reading' : 'width'
-    applyFit(mode)
-    const frame = window.requestAnimationFrame(() => applyFit(mode))
+    applyFit('width')
+    const frame = window.requestAnimationFrame(() => applyFit('width'))
     return () => window.cancelAnimationFrame(frame)
   }, [applyFit, fullscreen])
 
@@ -197,6 +202,7 @@ function OrgSchemeViewport({ children }: { children: ReactNode }) {
         }
       }}
       onDoubleClick={(event) => {
+        if (modeRef.current === 'width') return
         if ((event.target as HTMLElement).closest('button, a')) return
         const rect = event.currentTarget.getBoundingClientRect()
         zoomTo(scaleRef.current * 1.3, { x: event.clientX - rect.left, y: event.clientY - rect.top })
@@ -210,17 +216,13 @@ function OrgSchemeViewport({ children }: { children: ReactNode }) {
         {children}
       </div>
       <div className="org-scheme-zoom" role="group" aria-label="Şema gezinme ve yakınlaştırma">
-        <span className="org-scheme-zoom-label" aria-live="polite">%{Math.round(scale * 100)}</span>
-        <button type="button" onClick={() => zoomTo(scaleRef.current / 1.2)} title="Uzaklaştır" aria-label="Uzaklaştır">−</button>
-        <button type="button" onClick={() => zoomTo(scaleRef.current * 1.2)} title="Yakınlaştır" aria-label="Yakınlaştır">+</button>
-        <button type="button" className={fitMode === 'reading' ? 'is-fit-active' : undefined} onClick={() => applyFit('reading')} title="Okunabilir yakınlığa getir">Okuma</button>
         <button type="button" className={fitMode === 'width' ? 'is-fit-active' : undefined} onClick={() => applyFit('width')} title="Sayfa genişliğine sığdır">Genişlik</button>
         <button type="button" className={fitMode === 'all' ? 'is-fit-active' : undefined} onClick={() => applyFit('all')} title="Şemanın tamamını göster">Tümü</button>
         <button type="button" className="is-fs-btn" onClick={() => setFullscreen((value) => !value)} title={fullscreen ? 'Tam ekrandan çık (Esc)' : 'Tam ekran'}>
           {fullscreen ? 'Çık' : 'Tam ekran'}
         </button>
       </div>
-      <div className="org-scheme-hint">Sürükleyerek gez · Tekerlekle yakınlaştır · Çift tıkla büyüt</div>
+      <div className="org-scheme-hint">{fitMode === 'width' ? 'Sürükleyerek veya tekerlekle aşağı-yukarı gez' : 'Sürükleyerek gez · Tekerlekle yakınlaştır · Çift tıkla büyüt'}</div>
       {fullscreen && size && view ? (
         <button
           type="button"
@@ -235,8 +237,10 @@ function OrgSchemeViewport({ children }: { children: ReactNode }) {
             const pos = boundedPosition(scaleRef.current,
               view.clientWidth / 2 - x * size.width * scaleRef.current,
               view.clientHeight / 2 - y * size.height * scaleRef.current)
-            modeRef.current = 'custom'
-            setFitMode('custom')
+            if (modeRef.current !== 'width') {
+              modeRef.current = 'custom'
+              setFitMode('custom')
+            }
             update(scaleRef.current, pos.x, pos.y)
           }}
         >
