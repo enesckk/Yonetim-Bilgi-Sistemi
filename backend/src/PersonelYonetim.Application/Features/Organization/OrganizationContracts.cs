@@ -35,6 +35,7 @@ public sealed class OrganizationUnitNodeDto
     public string? ManagerName { get; init; }
     /// <summary>Birim sorumlusunun aktif ana (fiili) görev adı.</summary>
     public string? ManagerDutyName { get; init; }
+    public DutyCategory? ManagerDutyCategory { get; init; }
     public int? IdealStaffCount { get; init; }
     public int ActiveEmployeeCount { get; init; }
     public int MissingStaffCount { get; init; }

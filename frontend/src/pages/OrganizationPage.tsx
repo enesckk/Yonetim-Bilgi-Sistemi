@@ -436,7 +436,7 @@ export function OrganizationPage({ section = 'chart' }: { section?: Organization
       const pdf = new jsPDF({
         orientation: 'landscape',
         unit: 'mm',
-        format: 'a3',
+        format: 'a2',
         compress: true,
       })
       const pageWidth = pdf.internal.pageSize.getWidth()

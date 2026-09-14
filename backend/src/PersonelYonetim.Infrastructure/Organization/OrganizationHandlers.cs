@@ -68,9 +68,8 @@ public sealed class GetOrganizationTreeHandler
             .ToListAsync(ct);
 
         var dutyByEmployeeId = activeEmployees
-            .Where(e => !string.IsNullOrWhiteSpace(e.DutyName))
             .GroupBy(e => e.Id)
-            .ToDictionary(g => g.Key, g => g.First().DutyName!);
+            .ToDictionary(g => g.Key, g => (g.First().DutyName, g.First().DutyCategory));
 
         var byParent = units
             .GroupBy(x => x.ParentId)
@@ -101,8 +100,15 @@ public sealed class GetOrganizationTreeHandler
                         (e.Id, e.UnitId, e.FacilityId, e.DutyName)), parentById);
 
                     string? managerDuty = null;
+                    DutyCategory? managerDutyCategory = null;
                     if (OrgActiveManager.IsShown(x.ManagerEmployee) && x.ManagerEmployeeId is Guid managerId)
-                        dutyByEmployeeId.TryGetValue(managerId, out managerDuty);
+                    {
+                        if (dutyByEmployeeId.TryGetValue(managerId, out var managerAssignment))
+                        {
+                            managerDuty = managerAssignment.DutyName;
+                            managerDutyCategory = managerAssignment.DutyCategory;
+                        }
+                    }
 
                     var chartPeople = matched
                         .Where(e => x.ManagerEmployeeId == null || e.Id != x.ManagerEmployeeId.Value)
@@ -149,6 +155,7 @@ public sealed class GetOrganizationTreeHandler
                         ManagerEmployeeId = OrgActiveManager.Id(x.ManagerEmployeeId, x.ManagerEmployee),
                         ManagerName = OrgActiveManager.Name(x.ManagerEmployee),
                         ManagerDutyName = managerDuty,
+                        ManagerDutyCategory = managerDutyCategory,
                         IdealStaffCount = x.IdealStaffCount,
                         ActiveEmployeeCount = staffing.ActiveCount,
                         MissingStaffCount = staffing.MissingCount,
@@ -210,6 +217,7 @@ public sealed class GetOrganizationTreeHandler
             ManagerEmployeeId = src.ManagerEmployeeId,
             ManagerName = src.ManagerName,
             ManagerDutyName = src.ManagerDutyName,
+            ManagerDutyCategory = src.ManagerDutyCategory,
             IdealStaffCount = src.IdealStaffCount,
             ActiveEmployeeCount = src.ActiveEmployeeCount,
             MissingStaffCount = src.MissingStaffCount,

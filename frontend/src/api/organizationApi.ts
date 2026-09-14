@@ -29,6 +29,7 @@ export interface OrgNode {
   managerEmployeeId?: string | null
   managerName?: string | null
   managerDutyName?: string | null
+  managerDutyCategory?: number | null
   idealStaffCount?: number | null
   activeEmployeeCount?: number
   /** Eski API yanıtlarıyla geçici geriye uyumluluk. */
