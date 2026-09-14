@@ -7,7 +7,6 @@ import 'leaflet/dist/leaflet.css'
 import {
   eventPhase,
   eventPhaseLabel,
-  eventsLookbackFromUtc,
   fetchEvents,
   type EventListItem,
 } from '@/api/eventsApi'
@@ -113,7 +112,6 @@ function SettlementDetailPageInner() {
       setFeature(match)
       const ev = await fetchEvents({
         settlementId: row.settlementId,
-        fromUtc: eventsLookbackFromUtc(),
       })
       setEvents(ev.items)
     } catch (err) {

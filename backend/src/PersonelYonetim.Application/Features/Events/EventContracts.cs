@@ -216,8 +216,8 @@ public sealed class CreateEventCommandValidator : AbstractValidator<CreateEventC
         RuleFor(x => x).Must(x =>
                 (x.Latitude.HasValue && x.Longitude.HasValue)
                 || x.FacilityId.HasValue
-                || x.Status == EventStatus.Draft)
-            .WithMessage("Yayınlanan etkinlik için tesis veya koordinat gerekir.")
+                || x.Settlements.Any(s => s.SettlementId != Guid.Empty))
+            .WithMessage("Planlanan veya yapılan etkinlik için mahalle, tesis veya koordinat gerekir.")
             .When(x => x.Status is EventStatus.Published or EventStatus.Completed);
     }
 }
@@ -248,8 +248,8 @@ public sealed class UpdateEventCommandValidator : AbstractValidator<UpdateEventC
         RuleFor(x => x).Must(x =>
                 (x.Latitude.HasValue && x.Longitude.HasValue)
                 || x.FacilityId.HasValue
-                || x.Status == EventStatus.Draft)
-            .WithMessage("Yayınlanan etkinlik için tesis veya koordinat gerekir.")
+                || x.Settlements.Any(s => s.SettlementId != Guid.Empty))
+            .WithMessage("Planlanan veya yapılan etkinlik için mahalle, tesis veya koordinat gerekir.")
             .When(x => x.Status is EventStatus.Published or EventStatus.Completed);
     }
 }

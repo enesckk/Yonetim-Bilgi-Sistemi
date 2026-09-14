@@ -249,12 +249,6 @@ public sealed class GetEventsHandler : IRequestHandler<GetEventsQuery, EventList
             q = q.Where(e => e.FacilityId != null && allowed.Contains(e.FacilityId.Value));
         }
 
-        if (request.FromUtc is null)
-        {
-            var lookback = DateTime.UtcNow.AddMonths(-18);
-            q = q.Where(e => (e.EndAtUtc ?? e.StartAtUtc) >= lookback);
-        }
-
         var items = await q
             .OrderByDescending(e => e.StartAtUtc)
             .Take(2000)

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { fetchOrganizationTree, type OrgNode } from '@/api/organizationApi'
 import { eventVenueCatalog } from '@/lib/eventVenues'
@@ -62,6 +62,12 @@ function timePart(value: string, fallback = '10:00') {
 function combineLocal(date: string, time: string) {
   if (!date) return ''
   return `${date}T${time || '10:00'}`
+}
+
+function formErrorMessage(err: unknown, fallback: string) {
+  if (!(err instanceof ApiClientError)) return fallback
+  const details = Object.values(err.validationErrors ?? {}).flat().filter(Boolean)
+  return details.length ? [...new Set(details)].join(' ') : err.message
 }
 
 function formatWhen(iso: string) {
@@ -135,6 +141,7 @@ export function EventFormPage() {
   const directorateWide = canSeeAllUnits(user)
 
   const [form, setForm] = useState<FormState>(emptyForm)
+  const statusTouched = useRef(false)
   const [initialStatus, setInitialStatus] = useState<EventStatus>(1)
   const [tree, setTree] = useState<OrgNode[]>([])
   const [people, setPeople] = useState<LookupItem[]>([])
@@ -223,9 +230,11 @@ export function EventFormPage() {
           }
           const datePreset = searchParams.get('date')
           if (datePreset && /^\d{4}-\d{2}-\d{2}$/.test(datePreset)) {
+            const startAtLocal = combineLocal(datePreset, '10:00')
             setForm((prev) => ({
               ...prev,
-              startAtLocal: combineLocal(datePreset, '10:00'),
+              startAtLocal,
+              status: new Date(startAtLocal).getTime() < Date.now() ? 4 : 2,
             }))
           }
         }
@@ -279,6 +288,16 @@ export function EventFormPage() {
 
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
+  }
+
+  function setStartAtLocal(value: string) {
+    setForm((prev) => ({
+      ...prev,
+      startAtLocal: value,
+      status: !isEdit && !statusTouched.current && value
+        ? (new Date(value).getTime() < Date.now() ? 4 : 2)
+        : prev.status,
+    }))
   }
 
   function onFacilityChange(facilityId: string) {
@@ -364,11 +383,11 @@ export function EventFormPage() {
             await save(true)
             return
           } catch (retryErr) {
-            setError(retryErr instanceof ApiClientError ? retryErr.message : 'Kayıt kaydedilemedi.')
+            setError(formErrorMessage(retryErr, 'Kayıt kaydedilemedi.'))
           }
         }
       } else {
-        setError(err instanceof ApiClientError ? err.message : 'Kayıt kaydedilemedi.')
+        setError(formErrorMessage(err, 'Kayıt kaydedilemedi.'))
       }
     } finally {
       setSaving(false)
@@ -451,7 +470,7 @@ export function EventFormPage() {
             <input
               type="date"
               value={datePart(form.startAtLocal)}
-              onChange={(e) => setField('startAtLocal', combineLocal(e.target.value, timePart(form.startAtLocal)))}
+              onChange={(e) => setStartAtLocal(combineLocal(e.target.value, timePart(form.startAtLocal)))}
               required
             />
           </label>
@@ -461,7 +480,7 @@ export function EventFormPage() {
               type="time"
               value={timePart(form.startAtLocal)}
               onChange={(e) =>
-                setField('startAtLocal', combineLocal(datePart(form.startAtLocal), e.target.value))
+                setStartAtLocal(combineLocal(datePart(form.startAtLocal), e.target.value))
               }
               required
             />
@@ -511,33 +530,32 @@ export function EventFormPage() {
               placeholder="Örn. 120"
             />
           </label>
-          {isEdit ? (
-            <>
-              <label>
-                Durum
-                <select
-                  value={form.status}
-                  onChange={(e) => setField('status', Number(e.target.value) as EventStatus)}
-                >
-                  {statusOptions.map((s) => (
-                    <option key={s.value} value={s.value}>
-                      {s.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Gelen kişi
-                <input
-                  type="number"
-                  min={0}
-                  max={100000}
-                  value={form.actualAttendees}
-                  onChange={(e) => setField('actualAttendees', e.target.value)}
-                />
-              </label>
-            </>
-          ) : null}
+          <label>
+            Durum
+            <select
+              value={form.status}
+              onChange={(e) => {
+                statusTouched.current = true
+                setField('status', Number(e.target.value) as EventStatus)
+              }}
+            >
+              {statusOptions.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Gelen kişi
+            <input
+              type="number"
+              min={0}
+              max={100000}
+              value={form.actualAttendees}
+              onChange={(e) => setField('actualAttendees', e.target.value)}
+            />
+          </label>
           <label className="span-2">
             Açıklama
             <textarea
