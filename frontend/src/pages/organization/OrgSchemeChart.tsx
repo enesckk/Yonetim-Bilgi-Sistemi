@@ -117,16 +117,17 @@ function OrgSchemeViewport({ children }: { children: ReactNode }) {
     observer.observe(view)
     observer.observe(inner)
     const onWheel = (event: WheelEvent) => {
-      event.preventDefault()
       const delta = event.deltaMode === 1 ? event.deltaY * 16 : event.deltaMode === 2 ? event.deltaY * view.clientHeight : event.deltaY
       if (modeRef.current === 'width') {
+        const size = contentSize()
+        if (size && size.height * scaleRef.current <= view.clientHeight) return
+        event.preventDefault()
         const horizontal = event.deltaMode === 1 ? event.deltaX * 16 : event.deltaMode === 2 ? event.deltaX * view.clientWidth : event.deltaX
         const pos = boundedPosition(scaleRef.current, txRef.current - horizontal, tyRef.current - delta)
-        const size = contentSize()
-        if (size && size.height * scaleRef.current <= view.clientHeight) pos.y = tyRef.current
         update(scaleRef.current, pos.x, pos.y)
         return
       }
+      event.preventDefault()
       const rect = view.getBoundingClientRect()
       const factor = Math.exp(-Math.max(-180, Math.min(180, delta)) * 0.0015)
       zoomTo(scaleRef.current * factor, { x: event.clientX - rect.left, y: event.clientY - rect.top })
