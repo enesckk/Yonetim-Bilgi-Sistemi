@@ -311,7 +311,7 @@ public sealed class CreateWorkTaskHandler : IRequestHandler<CreateWorkTaskComman
                 UploadedByUserId = userId,
                 RelativePath = saved.RelativePath,
                 FileName = Path.GetFileName(upload.FileName),
-                ContentType = upload.ContentType,
+                ContentType = string.IsNullOrWhiteSpace(upload.ContentType) ? "application/octet-stream" : upload.ContentType,
                 CreatedBy = userName
             });
         }

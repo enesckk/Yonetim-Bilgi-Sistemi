@@ -99,12 +99,12 @@ internal static class SettlementSeeder
         }
 
         await SeedOfficialPopulationsAsync(db, environment, logger, ct);
-        await SeedHeadmenAsync(db, logger, ct);
-        await SeedSchoolsAsync(db, logger, ct);
-        await SeedAreasAsync(db, logger, ct);
-
         if (environment.IsDevelopment())
         {
+            // İsim, telefon, okul ve alan kayıtları kurgusaldır; canlı veriye yazılmaz.
+            await SeedHeadmenAsync(db, logger, ct);
+            await SeedSchoolsAsync(db, logger, ct);
+            await SeedAreasAsync(db, logger, ct);
             var hasOfficial = await db.SettlementPopulations.AnyAsync(x => x.IsOfficial, ct);
             if (!hasOfficial)
                 await SeedSamplePopulationsAsync(db, logger, ct);

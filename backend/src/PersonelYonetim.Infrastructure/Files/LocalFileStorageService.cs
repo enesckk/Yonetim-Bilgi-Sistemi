@@ -18,6 +18,9 @@ public sealed class LocalFileStorageService : IFileStorageService
     public LocalFileStorageService(IOptions<FileStorageOptions> options, IHostEnvironment env)
     {
         _options = options.Value;
+        if (!env.IsDevelopment() && OperatingSystem.IsLinux() &&
+            (string.IsNullOrWhiteSpace(_options.RootPath) || !Path.IsPathFullyQualified(_options.RootPath)))
+            throw new InvalidOperationException("FileStorage:RootPath Production Linux ortamında mutlak ve kalıcı bir yol olmalıdır.");
         _root = string.IsNullOrWhiteSpace(_options.RootPath)
             ? Path.GetFullPath(Path.Combine(env.ContentRootPath, "App_Data", "uploads"))
             : Path.GetFullPath(_options.RootPath);

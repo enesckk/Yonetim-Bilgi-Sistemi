@@ -1,0 +1,10 @@
+**/bin/
+**/obj/
+frontend/node_modules/
+frontend/dist/
+**/App_Data/
+.git/
+.env*
+*.pfx
+*.key
+**/appsettings.Development.json

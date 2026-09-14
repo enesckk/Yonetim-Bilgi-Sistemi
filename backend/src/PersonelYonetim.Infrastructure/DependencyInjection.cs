@@ -1,4 +1,5 @@
 using System.Net;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -55,18 +56,42 @@ public static class DependencyInjection
 
         // Data Protection anahtarları diskte — restart’ta TCKN’ler okunabilir kalsın.
         // Production (Windows): DPAPI ile anahtar dosyaları şifrelenir.
-        var dpKeys = Path.Combine(Directory.GetCurrentDirectory(), "App_Data", "dp-keys");
+        var configuredKeysPath = configuration["Security:DataProtectionKeysPath"];
+        if (!environment.IsDevelopment() && OperatingSystem.IsLinux() &&
+            (string.IsNullOrWhiteSpace(configuredKeysPath) || !Path.IsPathFullyQualified(configuredKeysPath)))
+            throw new InvalidOperationException("Security:DataProtectionKeysPath Production Linux ortamında mutlak ve kalıcı bir yol olmalıdır.");
+
+        var dpKeys = string.IsNullOrWhiteSpace(configuredKeysPath)
+            ? Path.Combine(environment.ContentRootPath, "App_Data", "dp-keys")
+            : Path.GetFullPath(configuredKeysPath);
         Directory.CreateDirectory(dpKeys);
         var dpBuilder = services.AddDataProtection()
             .PersistKeysToFileSystem(new DirectoryInfo(dpKeys))
             .SetApplicationName("PersonelYonetim");
 
         var protectKeys = configuration.GetValue("Security:ProtectDataProtectionKeys", !environment.IsDevelopment());
+        if (!environment.IsDevelopment() && OperatingSystem.IsLinux() && !protectKeys)
+            throw new InvalidOperationException("Production Linux ortamında Data Protection anahtar koruması kapatılamaz.");
         if (protectKeys && OperatingSystem.IsWindows())
         {
             // IIS app pool hesabı için LocalMachine önerilir; aksi halde CurrentUser.
             var useMachineKey = configuration.GetValue("Security:ProtectKeysWithMachineKey", true);
             dpBuilder.ProtectKeysWithDpapi(protectToLocalMachine: useMachineKey);
+        }
+        else if (protectKeys && !environment.IsDevelopment())
+        {
+            var encodedCertificate = configuration["Security:DataProtectionCertificateBase64"];
+            var certificatePassword = configuration["Security:DataProtectionCertificatePassword"];
+            if (string.IsNullOrWhiteSpace(encodedCertificate) || string.IsNullOrWhiteSpace(certificatePassword))
+                throw new InvalidOperationException("Production Linux ortamında Data Protection sertifikası ve parolası zorunludur.");
+
+            var certificate = X509CertificateLoader.LoadPkcs12(
+                Convert.FromBase64String(encodedCertificate),
+                certificatePassword,
+                X509KeyStorageFlags.EphemeralKeySet);
+            if (!certificate.HasPrivateKey)
+                throw new InvalidOperationException("Data Protection sertifikasının özel anahtarı yok.");
+            dpBuilder.ProtectKeysWithCertificate(certificate);
         }
 
         services.AddSingleton<INationalIdProtector, Security.NationalIdProtector>();
@@ -89,6 +114,11 @@ public static class DependencyInjection
             cfg.RegisterServicesFromAssembly(typeof(DependencyInjection).Assembly);
             cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
         });
+
+        var uploadsPath = configuration["FileStorage:RootPath"];
+        if (!environment.IsDevelopment() && OperatingSystem.IsLinux() &&
+            (string.IsNullOrWhiteSpace(uploadsPath) || !Path.IsPathFullyQualified(uploadsPath)))
+            throw new InvalidOperationException("FileStorage:RootPath Production Linux ortamında mutlak ve kalıcı bir yol olmalıdır.");
 
         services.Configure<Files.FileStorageOptions>(
             configuration.GetSection(Files.FileStorageOptions.SectionName));

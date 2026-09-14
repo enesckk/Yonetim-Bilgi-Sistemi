@@ -32,10 +32,12 @@ public static class DbSeeder
 
         await SeedPermissionsAsync(db, logger, cancellationToken);
         await SeedRolesAsync(db, logger, cancellationToken);
-        await SeedRolePermissionsAsync(db, logger, cancellationToken);
+        // Canlı ortamda yönetim ekranından düzenlenen yetki matrisi yeniden seed edilmez.
+        if (environment.IsDevelopment() || !await db.RolePermissions.AnyAsync(cancellationToken))
+            await SeedRolePermissionsAsync(db, logger, cancellationToken);
         await SeedEmploymentTypesAsync(db, logger, cancellationToken);
         await SeedFacilityCategoriesAsync(db, logger, cancellationToken);
-        await SeedOrganizationAsync(db, logger, cancellationToken);
+        await SeedOrganizationAsync(db, environment, logger, cancellationToken);
         await SeedSkillsAsync(db, logger, cancellationToken);
         await SeedCertificateDefinitionsAsync(db, logger, cancellationToken);
         await SettlementSeeder.SeedAsync(db, environment, logger, cancellationToken);
@@ -55,13 +57,14 @@ public static class DbSeeder
         }
 
         await SeedAdminUserAsync(db, configuration, environment, logger, cancellationToken);
-        await SeedDirectorUserAsync(db, configuration, environment, logger, cancellationToken);
-        await SeedIdariAmirUserAsync(db, configuration, environment, logger, cancellationToken);
         if (environment.IsDevelopment())
+        {
+            await SeedDirectorUserAsync(db, configuration, environment, logger, cancellationToken);
+            await SeedIdariAmirUserAsync(db, configuration, environment, logger, cancellationToken);
             await SeedUnitHeadsAsync(db, logger, cancellationToken);
-        await DirectorateOrgChartSeeder.SeedAsync(db, logger, cancellationToken);
-        if (environment.IsDevelopment())
+            await DirectorateOrgChartSeeder.SeedAsync(db, logger, cancellationToken);
             await SeedFacilityOfficerUsersAsync(db, configuration, environment, logger, cancellationToken);
+        }
         await SeedAppSettingsAsync(db, logger, cancellationToken);
 
         // Düz metin TCKN kaldıysa şifrele (eski seed / ilk kurulum)
@@ -264,7 +267,7 @@ public static class DbSeeder
         logger.LogInformation("Seed: {Count} tesis türü eklendi.", toAdd.Length);
     }
 
-    private static async Task SeedOrganizationAsync(AppDbContext db, ILogger logger, CancellationToken ct)
+    private static async Task SeedOrganizationAsync(AppDbContext db, IHostEnvironment environment, ILogger logger, CancellationToken ct)
     {
         if (await db.OrganizationUnits.AnyAsync(ct))
             return;
@@ -304,6 +307,10 @@ public static class DbSeeder
 
         db.OrganizationUnits.AddRange(mainUnitEntities);
         await db.SaveChangesAsync(ct);
+
+        // Aşağıdaki atölye/tesisler örnek veri; Production'a eklenmez.
+        if (!environment.IsDevelopment())
+            return;
 
         var bilim = mainUnitEntities.Single(x => x.Code == "BILIM");
         var techWorkshop = NewUnit(
