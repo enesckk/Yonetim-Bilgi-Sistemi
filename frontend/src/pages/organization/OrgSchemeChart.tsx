@@ -8,6 +8,9 @@ type Props = {
   onSelect: (id: string) => void
 }
 
+type FitMode = 'width' | 'all' | 'custom'
+type Point = { x: number; y: number }
+
 export function OrgSchemeChart({ tree, selectedId, onSelect }: Props) {
   return (
     <OrgSchemeViewport>
@@ -23,117 +26,117 @@ function OrgSchemeViewport({ children }: { children: ReactNode }) {
   const [tx, setTx] = useState(0)
   const [ty, setTy] = useState(0)
   const [fullscreen, setFullscreen] = useState(false)
+  const [fitMode, setFitMode] = useState<FitMode>('width')
   const scaleRef = useRef(1)
   const txRef = useRef(0)
   const tyRef = useRef(0)
-  const fitRef = useRef(1)
-  const userZoom = useRef(false)
+  const modeRef = useRef<FitMode>('width')
+  const allFitRef = useRef(1)
   const drag = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null)
+  const dragged = useRef(false)
 
-  scaleRef.current = scale
-  txRef.current = tx
-  tyRef.current = ty
-
-  const applyFit = useCallback((force = false) => {
-    const view = viewRef.current
-    const inner = innerRef.current
-    if (!view || !inner) return
-    const padX = fullscreen ? 40 : 20
-    const padTop = fullscreen ? 72 : 20
-    const padBottom = fullscreen ? 28 : 20
-    const boxW = Math.max(220, view.clientWidth - padX * 2)
-    const boxH = Math.max(220, view.clientHeight - padTop - padBottom)
-    const prev = inner.style.transform
-    inner.style.transform = 'none'
-    const cw = Math.max(inner.scrollWidth, inner.offsetWidth)
-    const ch = Math.max(inner.scrollHeight, inner.offsetHeight)
-    inner.style.transform = prev
-    if (cw < 32 || ch < 32) return
-    const next = Math.min(1.05, boxW / cw, boxH / ch)
-    fitRef.current = next
-    if (!force && userZoom.current) return
-    userZoom.current = false
-    const scaledW = cw * next
-    const scaledH = ch * next
-    const nextTx = (view.clientWidth - scaledW) / 2
-    const nextTy =
-      fullscreen && scaledH <= boxH
-        ? padTop + (boxH - scaledH) / 2
-        : padTop
-    scaleRef.current = next
+  function update(nextScale: number, nextTx: number, nextTy: number) {
+    scaleRef.current = nextScale
     txRef.current = nextTx
     tyRef.current = nextTy
-    setScale(next)
+    setScale(nextScale)
     setTx(nextTx)
     setTy(nextTy)
-  }, [fullscreen])
+  }
 
-  const zoomTo = useCallback((nextRaw: number, origin?: { x: number; y: number }) => {
+  const contentSize = useCallback(() => {
+    const inner = innerRef.current
+    if (!inner) return null
+    return { width: inner.scrollWidth, height: inner.scrollHeight }
+  }, [])
+
+  const boundedPosition = useCallback((nextScale: number, x: number, y: number): Point => {
+    const view = viewRef.current
+    const size = contentSize()
+    if (!view || !size) return { x, y }
+    const margin = Math.min(110, view.clientWidth * 0.12)
+    const bound = (pos: number, visible: number, extent: number) =>
+      extent <= visible ? (visible - extent) / 2 : Math.max(visible - extent - margin, Math.min(margin, pos))
+    return {
+      x: bound(x, view.clientWidth, size.width * nextScale),
+      y: bound(y, view.clientHeight, size.height * nextScale),
+    }
+  }, [contentSize])
+
+  const applyFit = useCallback((mode: Exclude<FitMode, 'custom'>) => {
+    const view = viewRef.current
+    const size = contentSize()
+    if (!view || !size || size.width < 32 || size.height < 32) return
+    const padX = fullscreen ? 36 : 16
+    const padTop = fullscreen ? 76 : 54
+    const padBottom = fullscreen ? 24 : 16
+    const boxW = Math.max(220, view.clientWidth - padX * 2)
+    const boxH = Math.max(220, view.clientHeight - padTop - padBottom)
+    const allFit = Math.min(1, boxW / size.width, boxH / size.height)
+    allFitRef.current = allFit
+    const nextScale = mode === 'all' ? allFit : Math.min(1, boxW / size.width)
+    const scaledHeight = size.height * nextScale
+    const x = (view.clientWidth - size.width * nextScale) / 2
+    const y = mode === 'all' && scaledHeight < boxH
+      ? padTop + (boxH - scaledHeight) / 2
+      : padTop
+    modeRef.current = mode
+    setFitMode(mode)
+    update(nextScale, x, y)
+  }, [contentSize, fullscreen])
+
+  const zoomTo = useCallback((nextRaw: number, origin?: Point) => {
     const view = viewRef.current
     if (!view) return
-    const min = fitRef.current
-    const max = Math.max(2.8, fitRef.current * 4)
     const prev = scaleRef.current
-    const next = Math.min(max, Math.max(min, nextRaw))
+    const next = Math.min(2.5, Math.max(allFitRef.current * 0.7, nextRaw))
     if (Math.abs(next - prev) < 0.0001) return
     const ox = origin?.x ?? view.clientWidth / 2
     const oy = origin?.y ?? view.clientHeight / 2
-    userZoom.current = true
-    scaleRef.current = next
-    const nextTx = ox - ((ox - txRef.current) / prev) * next
-    const nextTy = oy - ((oy - tyRef.current) / prev) * next
-    txRef.current = nextTx
-    tyRef.current = nextTy
-    setScale(next)
-    setTx(nextTx)
-    setTy(nextTy)
-  }, [])
+    const x = ox - ((ox - txRef.current) / prev) * next
+    const y = oy - ((oy - tyRef.current) / prev) * next
+    const bounded = boundedPosition(next, x, y)
+    modeRef.current = 'custom'
+    setFitMode('custom')
+    update(next, bounded.x, bounded.y)
+  }, [boundedPosition])
 
   useLayoutEffect(() => {
     const view = viewRef.current
     const inner = innerRef.current
     if (!view || !inner) return
-    const ro = new ResizeObserver(() => applyFit(false))
-    ro.observe(view)
-    ro.observe(inner)
-    const onWheelNative = (e: WheelEvent) => {
-      e.preventDefault()
+    const observer = new ResizeObserver(() => {
+      if (modeRef.current !== 'custom') applyFit(modeRef.current)
+      else {
+        const pos = boundedPosition(scaleRef.current, txRef.current, tyRef.current)
+        update(scaleRef.current, pos.x, pos.y)
+      }
+    })
+    observer.observe(view)
+    observer.observe(inner)
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault()
       const rect = view.getBoundingClientRect()
-      const step = e.deltaY < 0 ? 1.05 : 1 / 1.05
-      zoomTo(scaleRef.current * step, { x: e.clientX - rect.left, y: e.clientY - rect.top })
+      const delta = event.deltaMode === 1 ? event.deltaY * 16 : event.deltaY
+      const factor = Math.exp(-Math.max(-180, Math.min(180, delta)) * 0.0015)
+      zoomTo(scaleRef.current * factor, { x: event.clientX - rect.left, y: event.clientY - rect.top })
     }
-    view.addEventListener('wheel', onWheelNative, { passive: false })
+    view.addEventListener('wheel', onWheel, { passive: false })
     return () => {
-      ro.disconnect()
-      view.removeEventListener('wheel', onWheelNative)
+      observer.disconnect()
+      view.removeEventListener('wheel', onWheel)
     }
-  }, [applyFit, zoomTo])
+  }, [applyFit, boundedPosition, zoomTo])
 
   useLayoutEffect(() => {
-    userZoom.current = false
-    applyFit(true)
-    const fitIfIdle = () => {
-      if (!userZoom.current) applyFit(true)
-    }
-    let inner = 0
-    const outer = window.requestAnimationFrame(() => {
-      inner = window.requestAnimationFrame(fitIfIdle)
-    })
-    const t1 = window.setTimeout(fitIfIdle, 80)
-    const t2 = window.setTimeout(fitIfIdle, 280)
-    const t3 = window.setTimeout(fitIfIdle, 520)
-    return () => {
-      window.cancelAnimationFrame(outer)
-      window.cancelAnimationFrame(inner)
-      window.clearTimeout(t1)
-      window.clearTimeout(t2)
-      window.clearTimeout(t3)
-    }
+    applyFit('width')
+    const frame = window.requestAnimationFrame(() => applyFit('width'))
+    return () => window.cancelAnimationFrame(frame)
   }, [applyFit, fullscreen])
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && fullscreen) setFullscreen(false)
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && fullscreen) setFullscreen(false)
     }
     window.addEventListener('keydown', onKey)
     document.body.classList.toggle('org-scheme-fs-lock', fullscreen)
@@ -143,18 +146,24 @@ function OrgSchemeViewport({ children }: { children: ReactNode }) {
     }
   }, [fullscreen])
 
-  function onPointerDown(e: ReactPointerEvent<HTMLDivElement>) {
-    if (e.button !== 0) return
-    const el = e.target as HTMLElement
-    if (el.closest('button, a, input, select, textarea, [role="button"]')) return
-    drag.current = { x: e.clientX, y: e.clientY, tx: txRef.current, ty: tyRef.current }
-    e.currentTarget.setPointerCapture(e.pointerId)
+  function onPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.button !== 0) return
+    dragged.current = false
+    const target = event.target as HTMLElement
+    if (target.closest('.org-scheme-zoom, input, select, textarea')) return
+    drag.current = { x: event.clientX, y: event.clientY, tx: txRef.current, ty: tyRef.current }
+    if (!target.closest('button, a, [role="button"]')) event.currentTarget.setPointerCapture(event.pointerId)
   }
 
-  function onPointerMove(e: ReactPointerEvent<HTMLDivElement>) {
+  function onPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
     if (!drag.current) return
-    setTx(drag.current.tx + (e.clientX - drag.current.x))
-    setTy(drag.current.ty + (e.clientY - drag.current.y))
+    if (event.pointerType === 'mouse' && event.buttons === 0) { onPointerUp(); return }
+    if (Math.abs(event.clientX - drag.current.x) + Math.abs(event.clientY - drag.current.y) > 5) dragged.current = true
+    if (!dragged.current) return
+    const pos = boundedPosition(scaleRef.current,
+      drag.current.tx + event.clientX - drag.current.x,
+      drag.current.ty + event.clientY - drag.current.y)
+    update(scaleRef.current, pos.x, pos.y)
   }
 
   function onPointerUp() {
@@ -169,6 +178,18 @@ function OrgSchemeViewport({ children }: { children: ReactNode }) {
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
+      onClickCapture={(event) => {
+        if (dragged.current) {
+          event.preventDefault()
+          event.stopPropagation()
+          dragged.current = false
+        }
+      }}
+      onDoubleClick={(event) => {
+        if ((event.target as HTMLElement).closest('button, a')) return
+        const rect = event.currentTarget.getBoundingClientRect()
+        zoomTo(scaleRef.current * 1.3, { x: event.clientX - rect.left, y: event.clientY - rect.top })
+      }}
     >
       <div
         className="org-scheme-stage"
@@ -177,33 +198,17 @@ function OrgSchemeViewport({ children }: { children: ReactNode }) {
       >
         {children}
       </div>
-      <div className="org-scheme-zoom" role="group" aria-label="Şema yakınlaştırma">
-        <button type="button" onClick={() => zoomTo(scaleRef.current / 1.12)} title="Uzaklaştır">
-          −
-        </button>
-        <button type="button" onClick={() => zoomTo(scaleRef.current * 1.12)} title="Yakınlaştır">
-          +
-        </button>
-        <button
-          type="button"
-          className="is-reset"
-          onClick={() => {
-            userZoom.current = false
-            applyFit(true)
-          }}
-          title="Sığdır"
-        >
-          Sığdır
-        </button>
-        <button
-          type="button"
-          className="is-fs-btn"
-          onClick={() => setFullscreen((v) => !v)}
-          title={fullscreen ? 'Tam ekrandan çık (Esc)' : 'Tam ekran'}
-        >
+      <div className="org-scheme-zoom" role="group" aria-label="Şema gezinme ve yakınlaştırma">
+        <span className="org-scheme-zoom-label" aria-live="polite">%{Math.round(scale * 100)}</span>
+        <button type="button" onClick={() => zoomTo(scaleRef.current / 1.2)} title="Uzaklaştır" aria-label="Uzaklaştır">−</button>
+        <button type="button" onClick={() => zoomTo(scaleRef.current * 1.2)} title="Yakınlaştır" aria-label="Yakınlaştır">+</button>
+        <button type="button" className={fitMode === 'width' ? 'is-fit-active' : undefined} onClick={() => applyFit('width')} title="Sayfa genişliğine sığdır">Genişlik</button>
+        <button type="button" className={fitMode === 'all' ? 'is-fit-active' : undefined} onClick={() => applyFit('all')} title="Şemanın tamamını göster">Tümü</button>
+        <button type="button" className="is-fs-btn" onClick={() => setFullscreen((value) => !value)} title={fullscreen ? 'Tam ekrandan çık (Esc)' : 'Tam ekran'}>
           {fullscreen ? 'Çık' : 'Tam ekran'}
         </button>
       </div>
+      <div className="org-scheme-hint">Sürükleyerek gez · Tekerlekle yakınlaştır · Çift tıkla büyüt</div>
     </div>
   )
 }

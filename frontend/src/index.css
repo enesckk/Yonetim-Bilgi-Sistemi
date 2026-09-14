@@ -1351,6 +1351,15 @@ input {
   width: min(560px, 100%);
 }
 
+.account-modal .form-grid label {
+  align-content: start;
+  grid-auto-rows: max-content;
+}
+
+.account-modal .form-grid label small {
+  line-height: 1.35;
+}
+
 .account-tabs {
   margin-bottom: 0.9rem;
 }
@@ -4153,6 +4162,10 @@ body.org-scheme-fs-lock {
   display: none;
 }
 
+.org-scheme-viewport.is-exporting .org-scheme-hint {
+  display: none;
+}
+
 .org-scheme-zoom {
   position: absolute;
   top: 0.75rem;
@@ -4161,8 +4174,8 @@ body.org-scheme-fs-lock {
   z-index: 5;
   display: flex;
   align-items: center;
-  gap: 0.2rem;
-  padding: 0.28rem;
+  gap: 0.3rem;
+  padding: 0.35rem;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.96);
   border: 1px solid #d7deea;
@@ -4171,8 +4184,8 @@ body.org-scheme-fs-lock {
 }
 
 .org-scheme-zoom button {
-  min-width: 2.05rem;
-  height: 2.05rem;
+  min-width: 2.35rem;
+  height: 2.35rem;
   border: 0;
   border-radius: 10px;
   background: #eef3f8;
@@ -4180,6 +4193,48 @@ body.org-scheme-fs-lock {
   font: inherit;
   font-weight: 750;
   cursor: pointer;
+}
+
+.org-scheme-zoom-label {
+  min-width: 3rem;
+  padding: 0 0.3rem;
+  color: #24374a;
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.org-scheme-zoom button.is-fit-active {
+  background: #1f6b4a;
+  color: #fff;
+}
+
+.org-scheme-zoom button.is-fit-active:hover {
+  background: #18573c;
+}
+
+.org-scheme-hint {
+  position: absolute;
+  left: 0.75rem;
+  bottom: 0.75rem;
+  z-index: 5;
+  max-width: calc(100% - 1.5rem);
+  padding: 0.45rem 0.7rem;
+  border: 1px solid #d7deea;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #43566a;
+  box-shadow: 0 4px 16px rgba(16, 42, 67, 0.08);
+  font-size: 0.72rem;
+  pointer-events: none;
+}
+
+@media (max-width: 700px) {
+  .org-scheme-zoom { left: 0.5rem; right: 0.5rem; top: 0.5rem; justify-content: center; }
+  .org-scheme-zoom button { min-width: 2rem; height: 2.1rem; }
+  .org-scheme-zoom button.is-fs-btn { padding: 0 0.45rem; }
+  .org-scheme-hint { font-size: 0.65rem; }
 }
 
 .org-scheme-zoom button:hover {
@@ -4769,7 +4824,7 @@ body.org-scheme-fs-lock {
 /* Single-sheet hierarchy: leadership, peer units, youth libraries, print summary. */
 .org-sheet {
   box-sizing: border-box;
-  width: 2300px;
+  width: 2700px;
   padding: 24px 32px 26px;
   background: #fffcf8;
   color: #243047;
@@ -4782,7 +4837,7 @@ body.org-scheme-fs-lock {
 }
 
 .org-sheet-title {
-  width: 920px;
+  width: 1020px;
   margin: 0 auto;
   border-radius: 5px;
   background: #4e285c;
@@ -4797,7 +4852,7 @@ body.org-scheme-fs-lock {
   border: 0;
   background: transparent;
   color: #fff;
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 800;
   letter-spacing: 0.035em;
   text-align: center;
@@ -4846,7 +4901,7 @@ body.org-scheme-fs-lock {
 
 .org-sheet-leader.is-assistant { background: #e5f1de; border-color: #b8d4ac; }
 .org-sheet-leader small { color: #685868; font-size: 10px; font-weight: 700; }
-.org-sheet-leader strong { font-size: 15px; line-height: 1.08; }
+.org-sheet-leader strong { font-size: 16px; line-height: 1.08; }
 
 .org-sheet-branch {
   display: flex;
@@ -4900,7 +4955,7 @@ body.org-scheme-fs-lock {
   background: #664071;
   color: #fff;
   text-align: left;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 800;
   line-height: 1.15;
 }
@@ -4924,7 +4979,7 @@ body.org-scheme-fs-lock {
   display: grid;
   align-content: center;
   min-width: 0;
-  min-height: 32px;
+  min-height: 34px;
   padding: 3px 6px 3px 9px;
   border: 1px solid #d8dce3;
   border-left: 5px solid #767b80;
@@ -4936,8 +4991,8 @@ body.org-scheme-fs-lock {
 }
 
 .org-sheet-person:hover { filter: brightness(0.97); outline: 1px solid currentColor; }
-.org-sheet-person strong { overflow-wrap: anywhere; color: #243047; font-size: 13px; line-height: 1.05; }
-.org-sheet-person span { overflow-wrap: anywhere; font-size: 10.5px; font-weight: 750; }
+.org-sheet-person strong { overflow-wrap: anywhere; color: #243047; font-size: 15px; line-height: 1.05; }
+.org-sheet-person span { overflow-wrap: anywhere; font-size: 11.5px; font-weight: 750; }
 .org-sheet-person em {
   position: absolute;
   top: 3px;
@@ -4949,7 +5004,7 @@ body.org-scheme-fs-lock {
   border-radius: 3px;
   background: #fff0c7;
   color: #8d6200;
-  font-size: 11px;
+  font-size: 12px;
   font-style: normal;
   font-weight: 800;
 }
@@ -17895,6 +17950,4 @@ button:hover > .dq-row-arrow {
     grid-template-columns: 1fr;
   }
 }
-
-
 
