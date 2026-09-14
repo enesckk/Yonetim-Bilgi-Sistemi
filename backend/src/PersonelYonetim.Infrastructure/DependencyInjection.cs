@@ -39,15 +39,22 @@ public static class DependencyInjection
         {
             var pgConnection = new NpgsqlConnectionStringBuilder(connectionString);
             var encodedDatabaseCa = configuration["Supabase:DatabaseCaCertificateBase64"];
-            if (!environment.IsDevelopment() &&
-                (pgConnection.Host?.EndsWith(".pooler.supabase.com", StringComparison.OrdinalIgnoreCase) == true ||
-                 pgConnection.Host?.EndsWith(".supabase.co", StringComparison.OrdinalIgnoreCase) == true))
-            {
-                if (pgConnection.SslMode != SslMode.VerifyFull || string.IsNullOrWhiteSpace(encodedDatabaseCa))
-                    throw new InvalidOperationException("Supabase PostgreSQL için SSL Mode=VerifyFull ve kök sertifika zorunludur.");
-            }
+            var isSupabaseHost = pgConnection.Host?.EndsWith(".pooler.supabase.com", StringComparison.OrdinalIgnoreCase) == true ||
+                                 pgConnection.Host?.EndsWith(".supabase.co", StringComparison.OrdinalIgnoreCase) == true;
             var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
-            if (!string.IsNullOrWhiteSpace(encodedDatabaseCa))
+            if (isSupabaseHost)
+            {
+                if (pgConnection.SslMode != SslMode.Require || string.IsNullOrWhiteSpace(encodedDatabaseCa))
+                    throw new InvalidOperationException("Supabase PostgreSQL için SSL Mode=Require ve kök sertifika zorunludur; uygulama sertifika zincirini ve sunucu adını ayrıca doğrular.");
+
+                var rootCertificate = X509CertificateLoader.LoadCertificate(Convert.FromBase64String(encodedDatabaseCa));
+                dataSourceBuilder.UseSslClientAuthenticationOptionsCallback(options =>
+                {
+                    options.RemoteCertificateValidationCallback = (_, certificate, presentedChain, _) =>
+                        ValidateSupabaseServerCertificate(certificate, presentedChain, rootCertificate, pgConnection.Host!);
+                });
+            }
+            else if (!string.IsNullOrWhiteSpace(encodedDatabaseCa))
                 dataSourceBuilder.UseRootCertificate(X509CertificateLoader.LoadCertificate(
                     Convert.FromBase64String(encodedDatabaseCa)));
             postgresDataSource = dataSourceBuilder.Build();
@@ -227,6 +234,29 @@ public static class DependencyInjection
         });
 
         return services;
+    }
+
+    private static bool ValidateSupabaseServerCertificate(
+        X509Certificate? certificate,
+        X509Chain? presentedChain,
+        X509Certificate2 rootCertificate,
+        string host)
+    {
+        if (certificate is null)
+            return false;
+
+        using var serverCertificate = new X509Certificate2(certificate);
+        using var verificationChain = new X509Chain();
+        verificationChain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
+        verificationChain.ChainPolicy.CustomTrustStore.Add(rootCertificate);
+        verificationChain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
+        if (presentedChain is not null)
+        {
+            foreach (var element in presentedChain.ChainElements.Cast<X509ChainElement>().Skip(1))
+                verificationChain.ChainPolicy.ExtraStore.Add(element.Certificate);
+        }
+
+        return verificationChain.Build(serverCertificate) && serverCertificate.MatchesHostname(host);
     }
 
     private static void ValidateJwtSigningKey(string? signingKey, IHostEnvironment environment)
