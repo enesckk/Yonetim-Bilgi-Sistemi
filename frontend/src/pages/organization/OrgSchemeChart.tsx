@@ -122,6 +122,8 @@ function OrgSchemeViewport({ children }: { children: ReactNode }) {
       if (modeRef.current === 'width') {
         const horizontal = event.deltaMode === 1 ? event.deltaX * 16 : event.deltaMode === 2 ? event.deltaX * view.clientWidth : event.deltaX
         const pos = boundedPosition(scaleRef.current, txRef.current - horizontal, tyRef.current - delta)
+        const size = contentSize()
+        if (size && size.height * scaleRef.current <= view.clientHeight) pos.y = tyRef.current
         update(scaleRef.current, pos.x, pos.y)
         return
       }
@@ -134,7 +136,7 @@ function OrgSchemeViewport({ children }: { children: ReactNode }) {
       observer.disconnect()
       view.removeEventListener('wheel', onWheel)
     }
-  }, [applyFit, boundedPosition, zoomTo])
+  }, [applyFit, boundedPosition, contentSize, zoomTo])
 
   useLayoutEffect(() => {
     applyFit('width')
