@@ -9,6 +9,7 @@ public static class EventCategories
     public const string Health = "health";
     public const string SocialSupport = "social_support";
     public const string Culture = "culture";
+    public const string Trip = "trip";
     public const string Sports = "sports";
     public const string Youth = "youth";
     public const string Women = "women";
@@ -21,6 +22,7 @@ public static class EventCategories
         (Health, "Sağlık"),
         (SocialSupport, "Sosyal Destek"),
         (Culture, "Kültür / Sanat"),
+        (Trip, "Gezi"),
         (Sports, "Spor"),
         (Youth, "Çocuk / Gençlik"),
         (Women, "Kadın"),

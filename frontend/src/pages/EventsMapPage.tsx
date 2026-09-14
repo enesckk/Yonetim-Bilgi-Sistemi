@@ -33,6 +33,7 @@ const EVENT_CATEGORIES = [
   { value: 'health', label: 'Sağlık' },
   { value: 'social_support', label: 'Sosyal Destek' },
   { value: 'culture', label: 'Kültür / Sanat' },
+  { value: 'trip', label: 'Gezi' },
   { value: 'sports', label: 'Spor' },
   { value: 'youth', label: 'Çocuk / Gençlik' },
   { value: 'women', label: 'Kadın' },

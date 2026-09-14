@@ -104,6 +104,7 @@ const EVENT_CATEGORY_OPTIONS = [
   { value: 'health', label: 'Sağlık' },
   { value: 'social_support', label: 'Sosyal Destek' },
   { value: 'culture', label: 'Kültür / Sanat' },
+  { value: 'trip', label: 'Gezi' },
   { value: 'sports', label: 'Spor' },
   { value: 'youth', label: 'Çocuk / Gençlik' },
   { value: 'women', label: 'Kadın' },
@@ -145,6 +146,7 @@ export function EventFormPage() {
   const [initialStatus, setInitialStatus] = useState<EventStatus>(1)
   const [tree, setTree] = useState<OrgNode[]>([])
   const [people, setPeople] = useState<LookupItem[]>([])
+  const [personSearch, setPersonSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -157,6 +159,13 @@ export function EventFormPage() {
   const venueCatalog = useMemo(() => eventVenueCatalog(tree), [tree])
   const facilities = venueCatalog.flat
   const units = useMemo(() => flattenUnits(tree).sort((a, b) => a.name.localeCompare(b.name, 'tr')), [tree])
+  const matchingPeople = useMemo(() => {
+    const query = personSearch.trim().toLocaleLowerCase('tr-TR')
+    if (!query) return people
+    return people.filter((p) =>
+      p.id === form.responsibleEmployeeId || p.name.toLocaleLowerCase('tr-TR').includes(query),
+    )
+  }, [form.responsibleEmployeeId, people, personSearch])
 
   const statusOptions = useMemo(() => {
     if (!isEdit) return EVENT_WORK_STATUSES
@@ -413,7 +422,7 @@ export function EventFormPage() {
               <h2>{isEdit ? 'Etkinlik düzenle' : 'Etkinlik ekle'}</h2>
             </div>
             <p className="muted small employees-toolbar-lead">
-              Tesis veya salonu seçin, tarihi yazın, kaydedin.
+              Etkinliğin yerini, tarihini ve türünü seçerek kaydedin.
             </p>
           </div>
           <div className="employees-toolbar-actions">
@@ -658,20 +667,33 @@ export function EventFormPage() {
                   ))}
                 </select>
               </label>
-              <label>
-                Sorumlu personel
-                <select
-                  value={form.responsibleEmployeeId}
-                  onChange={(e) => setField('responsibleEmployeeId', e.target.value)}
-                >
-                  <option value="">Seçiniz (opsiyonel)</option>
-                  {people.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <div className="events-person-picker">
+                <label>
+                  Personel ara
+                  <input
+                    type="search"
+                    value={personSearch}
+                    onChange={(e) => setPersonSearch(e.target.value)}
+                    placeholder="Ad veya soyad yazın…"
+                    autoComplete="off"
+                  />
+                </label>
+                <label>
+                  Sorumlu personel
+                  <select
+                    value={form.responsibleEmployeeId}
+                    onChange={(e) => setField('responsibleEmployeeId', e.target.value)}
+                  >
+                    <option value="">Seçiniz (opsiyonel)</option>
+                    {matchingPeople.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {personSearch && matchingPeople.length === 0 ? <small>Eşleşen personel yok.</small> : null}
+              </div>
               {!isEdit ? (
                 <>
                   <label>

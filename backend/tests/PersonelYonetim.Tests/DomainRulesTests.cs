@@ -23,6 +23,16 @@ public class EventAttendanceTests
     }
 }
 
+public class EventCategoryTests
+{
+    [Fact]
+    public void Trip_is_a_recognized_event_category()
+    {
+        Assert.Equal("trip", EventCategories.Normalize(EventCategories.Trip));
+        Assert.Equal("Gezi", EventCategories.Label(EventCategories.Trip));
+    }
+}
+
 public class WorkTaskLifecycleTests
 {
     [Theory]

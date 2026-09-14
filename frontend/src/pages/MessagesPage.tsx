@@ -111,6 +111,7 @@ export function MessagesPage() {
   const [file, setFile] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [directoryLoading, setDirectoryLoading] = useState(false)
   const [sending, setSending] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const threadEndRef = useRef<HTMLDivElement>(null)
@@ -120,25 +121,41 @@ export function MessagesPage() {
     if (!silent) setLoading(true)
     setError(null)
     try {
-      const [conv, dir] = await Promise.all([
-        fetchConversations(),
-        search.trim().length >= 2
-          ? fetchMessageDirectory(search.trim())
-          : Promise.resolve([] as MessageUser[]),
-      ])
-      setConversations(conv)
-      setDirectory(dir)
+      setConversations(await fetchConversations())
     } catch (err) {
       setError(err instanceof ApiClientError ? err.message : 'Mesajlar yüklenemedi.')
     } finally {
       if (!silent) setLoading(false)
     }
-  }, [canUse, search])
+  }, [canUse])
 
   useEffect(() => {
-    const t = window.setTimeout(() => void loadLists(), 200)
-    return () => window.clearTimeout(t)
+    void loadLists()
   }, [loadLists])
+
+  useEffect(() => {
+    const query = search.trim()
+    setDirectory([])
+    if (!canUse || !query) {
+      setDirectoryLoading(false)
+      return
+    }
+    let cancelled = false
+    setError(null)
+    setDirectoryLoading(true)
+    const timer = window.setTimeout(() => {
+      void fetchMessageDirectory(query)
+        .then((rows) => { if (!cancelled) setDirectory(rows) })
+        .catch((err) => {
+          if (!cancelled) setError(err instanceof ApiClientError ? err.message : 'Kişiler aranamadı.')
+        })
+        .finally(() => { if (!cancelled) setDirectoryLoading(false) })
+    }, 150)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [canUse, search])
 
   useEffect(() => {
     if (!activeId || !canUse) {
@@ -202,6 +219,10 @@ export function MessagesPage() {
   const directoryHits = directory.filter(
     (u) => u.id !== user?.id && !conversations.some((c) => c.otherUserId === u.id),
   )
+  const searchTerm = search.trim().toLocaleLowerCase('tr-TR')
+  const visibleConversations = searchTerm
+    ? conversations.filter((c) => c.otherDisplayName.toLocaleLowerCase('tr-TR').includes(searchTerm))
+    : conversations
 
   const activeConv = conversations.find((c) => c.otherUserId === activeId)
   const activeDir = directory.find((d) => d.id === activeId)
@@ -235,11 +256,11 @@ export function MessagesPage() {
         {error ? <p className="form-error msg-status">{error}</p> : null}
 
         <div className="msg-list-scroll">
-          {conversations.length === 0 && !loading ? (
+          {conversations.length === 0 && !loading && !searchTerm ? (
             <p className="muted small msg-status">Henüz konuşma yok. İsim yazarak başlatın.</p>
           ) : null}
           <ul className="msg-conv-list">
-            {conversations.map((c) => (
+            {visibleConversations.map((c) => (
               <li key={c.otherUserId}>
                 <button
                   type="button"
@@ -280,7 +301,7 @@ export function MessagesPage() {
                 ))}
               </ul>
             </div>
-          ) : search.trim().length >= 2 && !loading ? (
+          ) : searchTerm && !directoryLoading && !loading && visibleConversations.length === 0 ? (
             <p className="muted small msg-status">Eşleşen kişi yok.</p>
           ) : null}
         </div>

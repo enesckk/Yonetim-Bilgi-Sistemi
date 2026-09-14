@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { eventsLookbackFromUtc, fetchEvents, type EventListItem } from '@/api/eventsApi'
+import { fetchEvents, type EventListItem } from '@/api/eventsApi'
 import { fetchOrganizationTree } from '@/api/organizationApi'
 import { ApiClientError } from '@/api/client'
 import { useAuth } from '@/auth/AuthContext'
@@ -109,7 +109,7 @@ export function EventsFacilitiesPage() {
     try {
       const [tree, list] = await Promise.all([
         fetchOrganizationTree(),
-        fetchEvents({ fromUtc: eventsLookbackFromUtc() }),
+        fetchEvents(),
       ])
       setCards(venueCards(eventVenueCatalog(tree)))
       setEvents(list.items.filter((e) => e.status !== 3))
@@ -183,8 +183,12 @@ export function EventsFacilitiesPage() {
     <div className="events-page events-venue-page">
       <section className="panel">
         <header className="events-venue-page-head">
-          <h2>Tesis programı</h2>
-          <p>{loading ? '…' : `${visible.length} tesis`}</p>
+          <div>
+            <span className="events-venue-kicker">Etkinlik yönetimi / Tesisler</span>
+            <h2>Tesis programı</h2>
+            <p>Tesislerin yaklaşan etkinliklerini ve geçmiş kayıtlarını tek yerden izleyin.</p>
+          </div>
+          <span className="events-venue-count">{loading ? '…' : visible.length} tesis</span>
         </header>
 
         {error ? <p className="form-error">{error}</p> : null}
@@ -198,6 +202,10 @@ export function EventsFacilitiesPage() {
         ) : (
           <div className="events-venue-layout">
             <aside className="events-venue-rail">
+              <div className="events-venue-rail-head">
+                <strong>Tesis seçin</strong>
+                <span>{visible.length} sonuç</span>
+              </div>
               <form className="events-venue-search" role="search" onSubmit={(e) => e.preventDefault()}>
                 <input
                   type="search"
@@ -227,14 +235,18 @@ export function EventsFacilitiesPage() {
                             })
                           }
                         >
-                          <strong>{item.name}</strong>
-                          <em>
-                            {row?.upcoming
-                              ? `${row.upcoming} yaklaşan`
-                              : row?.total
-                                ? `${row.total} kayıt`
-                                : 'Kayıt yok'}
-                          </em>
+                          <span className="events-venue-card-icon" aria-hidden="true">{item.name.slice(0, 1)}</span>
+                          <span className="events-venue-card-copy">
+                            <strong>{item.name}</strong>
+                            <em>
+                              {row?.upcoming
+                                ? `${row.upcoming} yaklaşan · ${row.total} toplam`
+                                : row?.total
+                                  ? `${row.total} kayıt`
+                                  : 'Henüz etkinlik yok'}
+                            </em>
+                          </span>
+                          <span className="events-venue-card-arrow" aria-hidden="true">›</span>
                         </button>
                       </li>
                     )
@@ -247,6 +259,7 @@ export function EventsFacilitiesPage() {
               <div className="events-venue-detail">
                 <header className="events-venue-detail-head">
                   <div>
+                    <span className="events-venue-kicker">Tesis detayı</span>
                     <h3>{selected.name}</h3>
                     {selected.subtitle ? (
                       <p className="events-venue-halls">
@@ -255,14 +268,6 @@ export function EventsFacilitiesPage() {
                         ))}
                       </p>
                     ) : null}
-                    <p className="events-venue-stats">
-                      <span>
-                        <strong>{grouped.upcoming.length}</strong> yaklaşan
-                      </span>
-                      <span>
-                        <strong>{grouped.past.length}</strong> yapılan
-                      </span>
-                    </p>
                   </div>
                   <div className="events-venue-detail-actions">
                     <Link
@@ -282,24 +287,32 @@ export function EventsFacilitiesPage() {
                   </div>
                 </header>
 
-                <section>
-                  <h4>Yaklaşan</h4>
-                  <VenueAgenda
-                    items={grouped.upcoming}
-                    empty="Yaklaşan etkinlik yok."
-                    selectedName={selected.name}
-                    markNext
-                  />
-                </section>
+                <div className="events-venue-stats" aria-label="Tesis etkinlik özeti">
+                  <div><span>Toplam kayıt</span><strong>{grouped.upcoming.length + grouped.past.length}</strong></div>
+                  <div><span>Yaklaşan</span><strong>{grouped.upcoming.length}</strong></div>
+                  <div><span>Yapılan</span><strong>{grouped.past.length}</strong></div>
+                </div>
 
-                <section>
-                  <h4>Yapılan</h4>
-                  <VenueAgenda
-                    items={grouped.past}
-                    empty="Yapılmış etkinlik yok."
-                    selectedName={selected.name}
-                  />
-                </section>
+                <div className="events-venue-agenda-grid">
+                  <section className="events-venue-section">
+                    <div className="events-venue-section-head"><h4>Yaklaşan</h4><span>{grouped.upcoming.length}</span></div>
+                    <VenueAgenda
+                      items={grouped.upcoming}
+                      empty="Yaklaşan etkinlik yok."
+                      selectedName={selected.name}
+                      markNext
+                    />
+                  </section>
+
+                  <section className="events-venue-section">
+                    <div className="events-venue-section-head"><h4>Yapılan</h4><span>{grouped.past.length}</span></div>
+                    <VenueAgenda
+                      items={grouped.past}
+                      empty="Yapılmış etkinlik yok."
+                      selectedName={selected.name}
+                    />
+                  </section>
+                </div>
               </div>
             ) : null}
           </div>

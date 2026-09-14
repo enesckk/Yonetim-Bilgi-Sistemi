@@ -28,14 +28,15 @@ public sealed class GetMessageDirectoryHandler
         EnsureCanMessage();
         var me = RequireUserId();
         var q = _db.Users.AsNoTracking().Where(u => u.IsActive && u.Id != me);
-        if (!string.IsNullOrWhiteSpace(request.Search))
+        var term = request.Search?.Trim().ToLowerInvariant() ?? string.Empty;
+        if (term.Length > 0)
         {
-            var term = request.Search.Trim();
-            q = q.Where(u => u.UserName.Contains(term) || u.DisplayName.Contains(term));
+            q = q.Where(u => u.UserName.ToLower().Contains(term) || u.DisplayName.ToLower().Contains(term));
         }
 
         return await q
-            .OrderBy(u => u.DisplayName)
+            .OrderByDescending(u => term.Length > 0 && u.DisplayName.ToLower().StartsWith(term))
+            .ThenBy(u => u.DisplayName)
             .Take(40)
             .Select(u => new MessageUserDto
             {
