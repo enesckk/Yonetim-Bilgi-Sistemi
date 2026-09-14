@@ -872,6 +872,9 @@ export function EventDetailPage() {
 
   const transitions = item.allowedTransitions ?? []
   const hasMap = item.latitude != null && item.longitude != null
+  const mapPath = item.settlements?.[0]?.settlementName
+    ? `/events/map?q=${encodeURIComponent(item.settlements[0].settlementName)}`
+    : '/events/map'
 
   return (
     <div className="events-page employees-page">
@@ -892,7 +895,7 @@ export function EventDetailPage() {
               <Link to="/events/list" className="events-action-btn">
                 Liste
               </Link>
-              <Link to="/events/map" className="events-action-btn">
+              <Link to={mapPath} className="events-action-btn">
                 Harita
               </Link>
               {canManage ? (
@@ -948,6 +951,10 @@ export function EventDetailPage() {
             <article>
               <span>Tesis</span>
               <p>{item.facilityName || '—'}</p>
+            </article>
+            <article>
+              <span>Mahalle</span>
+              <p>{item.settlements?.map((row) => row.settlementName).join(', ') || '—'}</p>
             </article>
             <article>
               <span>Sorumlu personel</span>

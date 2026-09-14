@@ -89,6 +89,18 @@ function DistrictFit({ geo, resetToken }: { geo: BoundaryGeo | null; resetToken:
   return null
 }
 
+function FocusSettlement({ feature }: { feature: MahalleFeature | null }) {
+  const map = useMap()
+
+  useEffect(() => {
+    if (!feature) return
+    const bounds = L.geoJSON(feature as GeoJSON.Feature).getBounds()
+    if (bounds.isValid()) map.flyToBounds(bounds.pad(0.42), { duration: 0.45, maxZoom: 14.5 })
+  }, [feature, map])
+
+  return null
+}
+
 function boxesOverlap(a: DOMRect, b: DOMRect, pad: number) {
   return !(a.right + pad <= b.left || b.right + pad <= a.left || a.bottom + pad <= b.top || b.bottom + pad <= a.top)
 }
@@ -296,7 +308,8 @@ function EventsMapPageInner() {
   const [mahalleler, setMahalleler] = useState<MahalleCollection | null>(null)
   const [summaries, setSummaries] = useState<SettlementSummary[]>([])
   const [search, setSearch] = useState(searchParams.get('q') ?? '')
-  const [preset, setPreset] = useState<DatePreset>('year')
+  const [preset, setPreset] = useState<DatePreset>('all')
+  const [selectedCode, setSelectedCode] = useState<string | null>(null)
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
   const [category, setCategory] = useState('')
@@ -392,6 +405,16 @@ function EventsMapPageInner() {
       .slice(0, 12)
   }, [search, summaries])
 
+  const focusedSummary = useMemo(() => {
+    if (selectedCode) return byCode.get(selectedCode) ?? null
+    return searchHits.length === 1 ? searchHits[0] : null
+  }, [byCode, searchHits, selectedCode])
+
+  const focusedFeature = useMemo(() => {
+    if (!focusedSummary) return null
+    return mahalleler?.features.find((f) => String(f.properties.id) === focusedSummary.officialCode) ?? null
+  }, [focusedSummary, mahalleler])
+
   const visibleCards = useMemo(() => {
     const q = search.trim().toLocaleLowerCase('tr-TR')
     const rows = summaries.filter((s) => {
@@ -430,17 +453,18 @@ function EventsMapPageInner() {
       const id = String(feature?.properties?.id ?? '')
       const summary = byCode.get(id)
       const level = levelFromCoverage(summary?.activityCount, summary?.coverageRate)
-      const dimmed = coverageFilter != null && level !== coverageFilter
+      const selected = focusedSummary?.officialCode === id
+      const dimmed = !selected && coverageFilter != null && level !== coverageFilter
       const isLow = !dimmed && level === 'low'
       return {
-        color: dimmed ? '#2a2a2a' : isLow ? '#9B1C1C' : '#ffffff',
-        weight: dimmed ? 0.8 : isLow ? 2 : 1.15,
+        color: selected ? '#173F8A' : dimmed ? '#2a2a2a' : isLow ? '#9B1C1C' : '#ffffff',
+        weight: selected ? 4 : dimmed ? 0.8 : isLow ? 2 : 1.15,
         opacity: dimmed ? 0.55 : 0.95,
-        fillColor: dimmed ? '#0d0d0d' : coverageFill(level),
-        fillOpacity: dimmed ? 0.78 : level === 'none' ? 0.88 : 0.82,
+        fillColor: selected ? '#F9D266' : dimmed ? '#0d0d0d' : coverageFill(level),
+        fillOpacity: selected ? 0.94 : dimmed ? 0.78 : level === 'none' ? 0.88 : 0.82,
       }
     },
-    [byCode, coverageFilter],
+    [byCode, coverageFilter, focusedSummary],
   )
 
   const onEachMahalle = useCallback(
@@ -449,13 +473,14 @@ function EventsMapPageInner() {
       if (!props?.name) return
       const summary = byCode.get(String(props.id))
       const level = levelFromCoverage(summary?.activityCount, summary?.coverageRate)
-      const dimmed = coverageFilter != null && level !== coverageFilter
+      const selected = focusedSummary?.officialCode === String(props.id)
+      const dimmed = !selected && coverageFilter != null && level !== coverageFilter
       layer.bindTooltip(
         `<span class="settlement-label-name">${escapeHtml(props.name)}</span>`,
         {
           permanent: true,
           direction: 'center',
-          className: ['settlement-label', `is-${level}`, dimmed ? 'is-dimmed' : '']
+          className: ['settlement-label', `is-${level}`, dimmed ? 'is-dimmed' : '', selected ? 'is-selected' : '']
             .filter(Boolean)
             .join(' '),
           opacity: 1,
@@ -479,9 +504,10 @@ function EventsMapPageInner() {
           const path = e.target as Path
           const isLow = !dimmed && level === 'low'
           path.setStyle({
-            color: dimmed ? '#2a2a2a' : isLow ? '#9B1C1C' : '#ffffff',
-            weight: dimmed ? 0.8 : isLow ? 2 : 1.15,
-            fillOpacity: dimmed ? 0.78 : level === 'none' ? 0.88 : 0.82,
+            color: selected ? '#173F8A' : dimmed ? '#2a2a2a' : isLow ? '#9B1C1C' : '#ffffff',
+            weight: selected ? 4 : dimmed ? 0.8 : isLow ? 2 : 1.15,
+            fillColor: selected ? '#F9D266' : dimmed ? '#0d0d0d' : coverageFill(level),
+            fillOpacity: selected ? 0.94 : dimmed ? 0.78 : level === 'none' ? 0.88 : 0.82,
           })
           const tip = (path as Layer).getTooltip()?.getElement()
           if (tip) tip.classList.remove('is-force-show')
@@ -489,7 +515,7 @@ function EventsMapPageInner() {
         click: () => openSettlement(String(props.id)),
       })
     },
-    [byCode, coverageFilter, openSettlement],
+    [byCode, coverageFilter, focusedSummary, openSettlement],
   )
 
   if (!canView) {
@@ -644,16 +670,25 @@ function EventsMapPageInner() {
               </svg>
               <input
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => {
+                  setSearch(e.target.value)
+                  setSelectedCode(null)
+                }}
                 placeholder="Mahalle ara veya seç…"
                 aria-label="Mahalle ara"
               />
             </label>
-            {searchHits.length > 0 && search.trim() ? (
+            {searchHits.length > 1 && search.trim() && !selectedCode ? (
               <ul className="map-search-results" role="listbox">
                 {searchHits.map((s) => (
                   <li key={s.settlementId}>
-                    <button type="button" onClick={() => openSettlement(s.officialCode)}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearch(s.name)
+                        setSelectedCode(s.officialCode)
+                      }}
+                    >
                       <strong>{s.name}</strong>
                       <span>
                         {s.activityCount === 0
@@ -664,6 +699,28 @@ function EventsMapPageInner() {
                   </li>
                 ))}
               </ul>
+            ) : null}
+            {focusedSummary ? (
+              <div className="ops-map-search-selection" role="status">
+                <span className="ops-map-search-selection-kicker">Haritada seçili mahalle</span>
+                <strong>{focusedSummary.name}</strong>
+                <span>{coverageCaption(focusedSummary)}</span>
+                <div className="ops-map-search-selection-actions">
+                  <button type="button" onClick={() => openSettlement(focusedSummary.officialCode)}>
+                    Mahalleye git
+                  </button>
+                  {hasPermission(PermissionCodes.EventsManage) ? (
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/events/new?settlement=${encodeURIComponent(focusedSummary.settlementId)}`)}
+                    >
+                      Etkinlik ekle
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            ) : search.trim() && !loading && searchHits.length === 0 ? (
+              <p className="ops-map-search-no-result">Mahalle bulunamadı.</p>
             ) : null}
           </div>
 
@@ -725,7 +782,7 @@ function EventsMapPageInner() {
                 type="button"
                 className="ops-filter-reset"
                 onClick={() => {
-                  setPreset('year')
+                  setPreset('all')
                   setCategory('')
                   setCustomFrom('')
                   setCustomTo('')
@@ -756,8 +813,9 @@ function EventsMapPageInner() {
             preferCanvas
           >
             <DistrictFit geo={boundary} resetToken={resetToken} />
+            <FocusSettlement feature={focusedFeature} />
             <MapLabelController
-              nonce={`${preset}-${category}-${summaries.length}-${coverageFilter ?? 'all'}`}
+              nonce={`${preset}-${category}-${summaries.length}-${coverageFilter ?? 'all'}-${focusedSummary?.officialCode ?? ''}`}
             />
             {mask ? (
               <GeoJSON
@@ -779,7 +837,7 @@ function EventsMapPageInner() {
             ) : null}
             {mahalleler ? (
               <GeoJSON
-                key={`cov-${preset}-${category}-${summaries.length}-${coverageFilter ?? 'all'}`}
+                key={`cov-${preset}-${category}-${summaries.length}-${coverageFilter ?? 'all'}-${focusedSummary?.officialCode ?? ''}`}
                 data={mahalleler as GeoJSON.GeoJsonObject}
                 style={mahalleStyle}
                 onEachFeature={onEachMahalle}
