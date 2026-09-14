@@ -118,12 +118,17 @@ export default defineConfig({
         clientsClaim: true,
         skipWaiting: true,
         cleanupOutdatedCaches: true,
-        navigateFallback: 'index.html',
-        navigateFallbackDenylist: [/^\/api\//, /^\/geo\//],
+        navigateFallback: '',
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest,woff,woff2,json}'],
         globIgnores: ['**/pwa-source.svg', '**/.htaccess', '**/pdf-*.js', '**/purify.es-*.js'],
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
         runtimeCaching: [
+          {
+            // The server handles SPA routes. A cached HTML shell can reference
+            // hashed assets removed by the next deployment and show a blank page.
+            urlPattern: ({ request }) => request.mode === 'navigate',
+            handler: 'NetworkOnly',
+          },
           {
             urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
             handler: 'NetworkOnly',
