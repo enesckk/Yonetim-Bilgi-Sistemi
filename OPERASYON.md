@@ -115,6 +115,22 @@ Kullanıcı oluşturma / şifre sıfırlama: en az 8 karakter; büyük harf, kü
 
 GitHub Actions: `.github/workflows/ci.yml` — `dotnet build` + `npm run build`.
 
+## Ücretsiz, tek adresli Azure deneme yayını
+
+Sunucu veya kalıcı disk olmadan Render Free üzerinde **canlı personel verisi yayınlamayın**. Render Free yerel dosyaları yeniden başlatmada siler; yüklenen belgeler ve Data Protection anahtarları kaybolur. [Render'ın resmi sınırları](https://render.com/docs/free). Vercel Hobby de yalnızca kişisel/ticari olmayan kullanım içindir; belediye iş akışı için uygunluğunu ayrıca değerlendirin. [Vercel Hobby koşulları](https://vercel.com/docs/plans/hobby).
+
+Ücretsiz deneme için API ve arayüz tek bir **Azure App Service Windows F1** uygulamasında, veriler ayrı bir **Azure SQL Database free offer** veritabanında çalışabilir. Azure hesabı ve aboneliği gerekir; aylık ücretsiz sınırlar aşılırsa ücret çıkmaması için SQL veritabanını **"Auto-pause the database until next month"** seçeneğiyle oluşturun. Azure SQL ücretsiz teklifinde ayda 100.000 vCore-saniye, 32 GB veri ve 32 GB yedek alanı bulunur. [Azure SQL ücretsiz teklif](https://learn.microsoft.com/en-us/azure/azure-sql/database/free-offer). F1 kaynak ve CPU kotaları nedeniyle bu kurulum yüksek kullanılabilirlik sunmaz; gerçek kurumsal kullanım için kapasite, yedekleme, veri işleme şartları ve kurum onayı ayrıca değerlendirilmelidir.
+
+1. Azure'da SQL Database'i **Start free** ile oluşturun. Sunucu oturumunu ve veritabanı adını not edin. SQL ağ güvenlik duvarına yalnızca App Service'in gerekli çıkış IP'lerini ekleyin; bağlantı dizesinde `Encrypt=True;TrustServerCertificate=False` kullanın. Veritabanı için otomatik aylık durdurmayı seçin.
+2. Windows **F1** App Service oluşturun. Ücretli plana yükselten `Always On`, özel alan adı veya başka bir eklentiyi etkinleştirmeyin. Varsayılan `azurewebsites.net` HTTPS adresini kullanın. App Service'in kalıcı `%HOME%` alanı dosyaları yeniden başlatmalarda korur; F1 depolama kotasını takip edin. [Azure App Service kalıcı alan](https://learn.microsoft.com/en-us/azure/app-service/operating-system-functionality).
+3. App Service ortam değişkenlerini ayarlayın: `ASPNETCORE_ENVIRONMENT=Production`, `ConnectionStrings__DefaultConnection`, `Jwt__SigningKey` (en az 32 rastgele karakter), `Security__NationalIdHashPepper` (sabit rastgele değer), `Seed__AdminPassword` (güçlü ilk parola), `Security__DataProtectionKeysPath=D:\home\data\dp-keys`, `FileStorage__RootPath=D:\home\data\uploads`, `Security__DataProtectionCertificateBase64` ve `Security__DataProtectionCertificatePassword`. PFX sertifikasını özel anahtarıyla ve parolasıyla güvenli yedekleyin. Azure'da sertifika verilirse uygulama DPAPI yerine bunu kullanır; böylece uygulama farklı makineye taşınsa da mevcut kayıtlar okunabilir.
+4. Mac/Linux'ta güncel .NET 9 SDK ile `scripts/package-azure-free.sh /mutlak/yol/yonetim-bilgi-azure.zip` komutu Vite arayüzünü ve Windows için kendi .NET çalışma zamanını içeren API'yi tek ZIP olarak hazırlar. Betik, .NET 9.0.20'den eski güvenlik yamalı çalışma zamanını reddeder; ayrı SDK kurduysanız `DOTNET_BIN=/yol/dotnet` verin. Azure CLI'da `az webapp deploy --resource-group <grup> --name <uygulama> --src-path <zip>` ile yayınlayın. ZIP'in kökünde `PersonelYonetim.Api.exe`, `web.config` ve `wwwroot/index.html` olmalıdır.
+5. `https://<uygulama>.azurewebsites.net/api/health` SQL bağlantısını doğrulamalı. Ardından aynı adreste giriş, sayfa yenileme, oturum yenileme, doğrudan alt sayfa, dosya yükleme/indirme ve yeniden başlatmadan sonra veri/oturum korunmasını test edin. `/api/olmayan` gibi bilinmeyen API yolu `404` dönmelidir.
+
+Yerel makinedeki mevcut SQL Server veritabanını otomatik olarak canlıya taşımayın. Test veritabanında göç ve veri doğrulaması tamamlanmadan gerçek personel kayıtlarını yüklemeyin.
+
+.NET 9 desteği [10 Kasım 2026'da sona eriyor](https://dotnet.microsoft.com/en-us/platform/support/policy); bu tarihten önce .NET 10 LTS'ye geçiş ve yeniden test planlanmalıdır.
+
 ## Vercel arayüz + Render API yayını
 
 Bu yol Windows/Plesk yayınından bağımsızdır. İlk canlı dağıtımdan önce **ayrı bir SQL Server test veritabanında** migration, ilk giriş, yenileme çerezi, yükleme/indirme ve yeniden başlatma testi yapın. Canlı veritabanında ilk dağıtımdan önce yedek alın.

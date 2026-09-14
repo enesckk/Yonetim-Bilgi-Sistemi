@@ -70,9 +70,15 @@ app.Use(async (context, next) =>
     context.Response.Headers.TryAdd("X-Frame-Options", "DENY");
     context.Response.Headers.TryAdd("Referrer-Policy", "no-referrer");
     context.Response.Headers.TryAdd("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
-    context.Response.Headers.TryAdd("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'");
+    var isApi = context.Request.Path.StartsWithSegments("/api");
+    context.Response.Headers.TryAdd("Content-Security-Policy", isApi
+        ? "default-src 'none'; frame-ancestors 'none'"
+        : "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.tile.openstreetmap.org https://tile.openstreetmap.org; connect-src 'self'; worker-src 'self' blob:; manifest-src 'self'");
     await next();
 });
+
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
 app.UseCors("Frontend");
 app.UseAuthentication();
@@ -82,5 +88,7 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi().RequireAuthorization();
 
 app.MapControllers();
+app.MapFallback("/api/{**path}", () => Results.NotFound()).AllowAnonymous();
+app.MapFallbackToFile("index.html").AllowAnonymous();
 
 app.Run();

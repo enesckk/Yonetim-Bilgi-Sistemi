@@ -1,12 +1,12 @@
-const rawOrigin = process.env.RENDER_API_ORIGIN
+const rawOrigin = process.env.API_ORIGIN ?? process.env.RENDER_API_ORIGIN
 if (!rawOrigin) {
-  throw new Error('RENDER_API_ORIGIN must be set to the HTTPS Render API origin')
+  throw new Error('API_ORIGIN must be set to the HTTPS API origin')
 }
 
 const apiOrigin = new URL(rawOrigin)
 if (apiOrigin.protocol !== 'https:' || apiOrigin.username || apiOrigin.password ||
     apiOrigin.pathname !== '/' || apiOrigin.search || apiOrigin.hash) {
-  throw new Error('RENDER_API_ORIGIN must be an HTTPS origin without a path')
+  throw new Error('API_ORIGIN must be an HTTPS origin without a path')
 }
 
 const csp = [

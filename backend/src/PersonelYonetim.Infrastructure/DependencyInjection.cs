@@ -72,18 +72,13 @@ public static class DependencyInjection
         var protectKeys = configuration.GetValue("Security:ProtectDataProtectionKeys", !environment.IsDevelopment());
         if (!environment.IsDevelopment() && OperatingSystem.IsLinux() && !protectKeys)
             throw new InvalidOperationException("Production Linux ortamında Data Protection anahtar koruması kapatılamaz.");
-        if (protectKeys && OperatingSystem.IsWindows())
+        var encodedCertificate = configuration["Security:DataProtectionCertificateBase64"];
+        var certificatePassword = configuration["Security:DataProtectionCertificatePassword"];
+        if (protectKeys && !environment.IsDevelopment() &&
+            (!string.IsNullOrWhiteSpace(encodedCertificate) || !string.IsNullOrWhiteSpace(certificatePassword)))
         {
-            // IIS app pool hesabı için LocalMachine önerilir; aksi halde CurrentUser.
-            var useMachineKey = configuration.GetValue("Security:ProtectKeysWithMachineKey", true);
-            dpBuilder.ProtectKeysWithDpapi(protectToLocalMachine: useMachineKey);
-        }
-        else if (protectKeys && !environment.IsDevelopment())
-        {
-            var encodedCertificate = configuration["Security:DataProtectionCertificateBase64"];
-            var certificatePassword = configuration["Security:DataProtectionCertificatePassword"];
             if (string.IsNullOrWhiteSpace(encodedCertificate) || string.IsNullOrWhiteSpace(certificatePassword))
-                throw new InvalidOperationException("Production Linux ortamında Data Protection sertifikası ve parolası zorunludur.");
+                throw new InvalidOperationException("Data Protection sertifikası ve parolası birlikte verilmelidir.");
 
             var certificate = X509CertificateLoader.LoadPkcs12(
                 Convert.FromBase64String(encodedCertificate),
@@ -92,6 +87,17 @@ public static class DependencyInjection
             if (!certificate.HasPrivateKey)
                 throw new InvalidOperationException("Data Protection sertifikasının özel anahtarı yok.");
             dpBuilder.ProtectKeysWithCertificate(certificate);
+        }
+        else if (protectKeys && OperatingSystem.IsWindows())
+        {
+            // IIS app pool hesabı için LocalMachine önerilir; aksi halde CurrentUser.
+            var useMachineKey = configuration.GetValue("Security:ProtectKeysWithMachineKey", true);
+            dpBuilder.ProtectKeysWithDpapi(protectToLocalMachine: useMachineKey);
+        }
+        else if (protectKeys && !environment.IsDevelopment())
+        {
+            if (string.IsNullOrWhiteSpace(encodedCertificate) || string.IsNullOrWhiteSpace(certificatePassword))
+                throw new InvalidOperationException("Production Linux ortamında Data Protection sertifikası ve parolası zorunludur.");
         }
 
         services.AddSingleton<INationalIdProtector, Security.NationalIdProtector>();
