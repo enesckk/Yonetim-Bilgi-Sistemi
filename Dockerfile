@@ -16,6 +16,7 @@ FROM mcr.microsoft.com/dotnet/aspnet:9.0
 WORKDIR /app
 COPY --from=build /publish/ ./
 COPY --from=frontend-build /frontend/dist/ ./wwwroot/
+COPY frontend/public/geo/ ./wwwroot/geo/
 ENV ASPNETCORE_URLS=http://0.0.0.0:10000
 EXPOSE 10000
 ENTRYPOINT ["dotnet", "PersonelYonetim.Api.dll"]

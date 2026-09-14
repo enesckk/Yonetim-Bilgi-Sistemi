@@ -91,6 +91,12 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi().RequireAuthorization();
 
 app.MapControllers();
+app.MapGet("/geo/sehitkamil-boundary.geojson", () =>
+    Results.File(Path.Combine(app.Environment.WebRootPath, "geo", "sehitkamil-boundary.geojson"), "application/geo+json"))
+    .AllowAnonymous();
+app.MapGet("/geo/sehitkamil-mahalleler.geojson", () =>
+    Results.File(Path.Combine(app.Environment.WebRootPath, "geo", "sehitkamil-mahalleler.geojson"), "application/geo+json"))
+    .AllowAnonymous();
 app.MapFallback("/api/{**path}", () => Results.NotFound()).AllowAnonymous();
 app.MapFallbackToFile("index.html").AllowAnonymous();
 
