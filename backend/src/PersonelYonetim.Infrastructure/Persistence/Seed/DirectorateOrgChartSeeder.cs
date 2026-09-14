@@ -13,6 +13,199 @@ namespace PersonelYonetim.Infrastructure.Persistence.Seed;
 internal static class DirectorateOrgChartSeeder
 {
     private static readonly CultureInfo Tr = CultureInfo.GetCultureInfo("tr-TR");
+    private const string HistoricalImport = "historical-roster-2026";
+
+    // The development seed also rewrites existing records and creates demo events.
+    // Production import is deliberately insert-only for people and conservative for units.
+    public static async Task ImportHistoricalRosterAsync(AppDbContext db, ILogger logger, CancellationToken ct)
+    {
+        var strategy = db.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () => await ImportHistoricalRosterCoreAsync(db, logger, ct));
+    }
+
+    private static async Task ImportHistoricalRosterCoreAsync(AppDbContext db, ILogger logger, CancellationToken ct)
+    {
+        var roster = Roster();
+        if (roster.Length != 172 || roster.Select(p => PersonKey(p.First, p.Last)).Distinct().Count() != roster.Length)
+            throw new InvalidOperationException("Historical roster must contain exactly 172 unique people.");
+
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        var units = await db.OrganizationUnits.IgnoreQueryFilters()
+            .Where(x => x.Code != null).ToDictionaryAsync(x => x.Code!, ct);
+        if (!units.ContainsKey("KSSIM") || !units.ContainsKey("BY"))
+            throw new InvalidOperationException("Historical roster requires the base organization.");
+        var categories = await db.FacilityCategories.Where(x => x.Code != null)
+            .ToDictionaryAsync(x => x.Code!, x => x.Id, ct);
+
+        async Task<OrganizationUnit> EnsureUnit(string code, string name, OrganizationUnitType type,
+            string parentCode, string? categoryCode = null, OrganizationUnitStatus status = OrganizationUnitStatus.Active,
+            double? latitude = null, double? longitude = null, int? capacity = null)
+        {
+            if (!units.TryGetValue(parentCode, out var parent) || parent.IsDeleted)
+                throw new InvalidOperationException($"Missing active parent unit: {parentCode}");
+            if (!units.TryGetValue(code, out var unit))
+            {
+                unit = new OrganizationUnit
+                {
+                    Code = code, Name = name, Type = type, ParentId = parent.Id, Status = status,
+                    FacilityCategoryId = categoryCode is null ? null : categories[categoryCode],
+                    Latitude = latitude, Longitude = longitude, Capacity = capacity,
+                    CreatedBy = HistoricalImport
+                };
+                db.OrganizationUnits.Add(unit);
+                units.Add(code, unit);
+                await db.SaveChangesAsync(ct);
+            }
+            else
+            {
+                if (unit.IsDeleted)
+                    throw new InvalidOperationException($"Historical unit was previously deleted: {code}");
+                // Only enrich untouched base seed units. Never rewrite user-managed units.
+                if (unit.CreatedBy == "seed" && unit.UpdatedBy is null)
+                {
+                    unit.Type = type;
+                    unit.ParentId = parent.Id;
+                    unit.FacilityCategoryId ??= categoryCode is null ? null : categories[categoryCode];
+                    unit.Latitude ??= latitude;
+                    unit.Longitude ??= longitude;
+                    unit.Capacity ??= capacity;
+                    unit.UpdatedBy = HistoricalImport;
+                }
+            }
+            return unit;
+        }
+
+        await EnsureUnit("KKM", "Şehitkamil Kültür ve Kongre Merkezi", OrganizationUnitType.Facility,
+            "KSSIM", "KULTUR_MERKEZI", latitude: 37.0785, longitude: 37.3720);
+        foreach (var hall in new (string Code, string Name, int Capacity)[]
+        {
+            ("KKM_MEHMET_AKIF", "Mehmet Akif Salonu", 1070),
+            ("KKM_OAS", "Ömer Asım Aksoy Salonu", 300),
+            ("KKM_MUNIF", "Münif Paşa Salonu", 300),
+            ("KKM_NURI", "Nuri Paşa Salonu", 300),
+            ("KKM_MUTERIM", "Mütercim Asım Salonu", 70),
+            ("KKM_SERGI", "Sergi Salonu", 0)
+        })
+            await EnsureUnit(hall.Code, hall.Name, OrganizationUnitType.Facility, "KKM",
+                "KULTUR_MERKEZI", latitude: 37.0785, longitude: 37.3720,
+                capacity: hall.Capacity == 0 ? null : hall.Capacity);
+
+        foreach (var site in new (string Code, string Name, string Category, double Lat, double Lng)[]
+        {
+            ("SANAT", "Şehitkamil Sanat Merkezi", "KULTUR_MERKEZI", 37.0912, 37.3515),
+            ("NIKAH", "Şehitkamil Nikah Salonu", "SOSYAL_TESIS", 37.0850, 37.3650),
+            ("DTSS", "Devlet Tiyatroları Şehitkamil Sahnesi", "KULTUR_MERKEZI", 37.0740, 37.3810),
+            ("SAMI", "M. Sami Benli Kütüphanesi", "KUTUPHANE", 37.0890, 37.3600),
+            ("BILIM", "Bilim Şehitkamil", "GENCLIK_MERKEZI", 37.0955, 37.3400),
+            ("AGROPARK", "Agropark", "SOSYAL_TESIS", 37.1860, 37.2860)
+        })
+            await EnsureUnit(site.Code, site.Name, OrganizationUnitType.Facility, "KSSIM",
+                site.Category, latitude: site.Lat, longitude: site.Lng);
+
+        await EnsureUnit("GENCLIK_KUT", "Gençlik Kütüphaneleri", OrganizationUnitType.SubUnit,
+            "KSSIM", "KUTUPHANE");
+        await EnsureUnit("GEZI", "Kültürel Geziler", OrganizationUnitType.MainUnit, "KSSIM");
+        await EnsureUnit("SAMI_COCUK", "M. Sami Benli Kütüphanesi Çocuk Kütüphanesi",
+            OrganizationUnitType.SubUnit, "SAMI", "KUTUPHANE");
+        await EnsureUnit("IDARI", "İdari Büro", OrganizationUnitType.SubUnit, "DTSS", "IDARI_BINA");
+
+        foreach (var library in new (string Code, string Name, OrganizationUnitStatus Status, double Lat, double Lng)[]
+        {
+            ("GK_AKTOPRAK", "Aktoprak Gençlik Kütüphanesi", OrganizationUnitStatus.Active, 37.1865, 37.2870),
+            ("GK_ALINACAR", "Ali Nacar Gençlik Kütüphanesi", OrganizationUnitStatus.Active, 37.1200, 37.3400),
+            ("GK_BASAK", "Başak Gençlik Kütüphanesi", OrganizationUnitStatus.Active, 37.1300, 37.3500),
+            ("GK_BELKIS", "Belkıs Gençlik Kütüphanesi", OrganizationUnitStatus.Active, 37.1400, 37.3000),
+            ("GK_EYUPSULTAN", "Eyüpsultan Gençlik Kütüphanesi", OrganizationUnitStatus.Active, 37.1100, 37.3700),
+            ("GK_KUZEYSEHIR", "Kuzeyşehir Gençlik Kütüphanesi", OrganizationUnitStatus.Active, 37.1500, 37.3300),
+            ("GK_MAE", "Mehmet Akif Ersoy Gençlik Kütüphanesi", OrganizationUnitStatus.Active, 37.1000, 37.3450),
+            ("GK_MERVE", "Merveşehir Gençlik Kütüphanesi", OrganizationUnitStatus.Active, 37.1250, 37.3550),
+            ("GK_MUTERIM", "Mütercim Asım Gençlik Kütüphanesi", OrganizationUnitStatus.Active, 37.1050, 37.3650),
+            ("GK_NURTEPE", "Nurtepe Gençlik Kütüphanesi", OrganizationUnitStatus.Active, 37.1150, 37.3250),
+            ("GK_OKTAY", "Oktay Yalçın Gençlik Kütüphanesi", OrganizationUnitStatus.Active, 37.1350, 37.3350),
+            ("GK_PIRSULTAN", "Pirsultan Gençlik Kütüphanesi", OrganizationUnitStatus.Active, 37.1450, 37.3150),
+            ("GK_ZEYTINLI", "Zeytinli ŞESEM", OrganizationUnitStatus.Active, 37.1600, 37.3200),
+            ("GK_AKSU", "Abdulkadir Aksu Gençlik Kütüphanesi", OrganizationUnitStatus.Closed, 37.1180, 37.3480),
+            ("GK_NFK", "Necip Fazıl Kısakürek Gençlik Kütüphanesi", OrganizationUnitStatus.Closed, 37.1220, 37.3380),
+            ("GK_YESILOVA", "Yeşilova Gençlik Kütüphanesi", OrganizationUnitStatus.Closed, 37.1280, 37.3280),
+            ("GK_KARACAGOLAN", "Karacaoğlan Gençlik Kütüphanesi", OrganizationUnitStatus.Closed, 37.1320, 37.3180),
+            ("GK_KOCATEPE", "Kocatepe Gençlik Kütüphanesi", OrganizationUnitStatus.Closed, 37.1360, 37.3080),
+            ("GK_SIRINEVLER", "Şirinevler Gençlik Kütüphanesi", OrganizationUnitStatus.Closed, 37.1400, 37.2980),
+            ("GK_SEYRANTEPE", "Seyrantepe Gençlik Kütüphanesi", OrganizationUnitStatus.UnderRenovation, 37.1480, 37.3420),
+            ("GK_ERBAKAN", "Necmettin Erbakan Gençlik Kütüphanesi", OrganizationUnitStatus.UnderRenovation, 37.1520, 37.3520)
+        })
+            await EnsureUnit(library.Code, library.Name, OrganizationUnitType.Facility,
+                "GENCLIK_KUT", "KUTUPHANE", library.Status, library.Lat, library.Lng);
+
+        var titles = await EnsureTitlesAsync(db, ct);
+        var duties = await EnsureDutiesAsync(db, ct, preserveExisting: true);
+        var employmentTypes = await db.EmploymentTypes.Where(x => x.Code != null)
+            .ToDictionaryAsync(x => x.Code!, x => x.Id, ct);
+        var existing = await db.Employees.IgnoreQueryFilters().ToListAsync(ct);
+        var byName = existing.Select(e => PersonKey(e.FirstName, e.LastName))
+            .ToHashSet(StringComparer.Ordinal);
+        var byNumber = existing.Where(e => e.EmployeeNumber != null)
+            .Select(e => e.EmployeeNumber!).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var added = new Dictionary<string, Employee>(StringComparer.Ordinal);
+        var skipped = 0;
+        for (var i = 0; i < roster.Length; i++)
+        {
+            var row = roster[i];
+            var key = PersonKey(row.First, row.Last);
+            if (byName.Contains(key)) { skipped++; continue; }
+            var number = $"HR-2026-{i + 1:000}";
+            if (byNumber.Contains(number))
+                throw new InvalidOperationException($"Historical employee number collision: {number}");
+            if (!units.TryGetValue(row.Unit, out var unit) || unit.IsDeleted ||
+                (row.Fac is not null && (!units.TryGetValue(row.Fac, out var fac) || fac.IsDeleted)))
+                throw new InvalidOperationException($"Historical roster has an unavailable unit/facility: {row.Unit}/{row.Fac}");
+            var employee = new Employee
+            {
+                FirstName = row.First, LastName = row.Last, EmployeeNumber = number,
+                UnitId = unit.Id, FacilityId = row.Fac is null ? null : units[row.Fac].Id,
+                EmploymentTypeId = employmentTypes[row.Memur ? "MEMUR" : "SEKABEL"],
+                JobTitleId = titles[row.Title].Id,
+                Status = EmployeeStatus.Active, Gender = Gender.Unspecified,
+                CreatedBy = HistoricalImport
+            };
+            db.Employees.Add(employee);
+            added.Add(key, employee);
+        }
+        await db.SaveChangesAsync(ct);
+        foreach (var row in roster)
+        {
+            if (!added.TryGetValue(PersonKey(row.First, row.Last), out var employee)) continue;
+            db.EmployeeAssignments.Add(new EmployeeAssignment
+            {
+                EmployeeId = employee.Id, JobDutyId = duties[row.Duty].Id, IsPrimary = true,
+                StartDate = DateOnly.FromDateTime(DateTime.UtcNow),
+                Description = "Aktarım tarihi; gerçek görev başlangıç tarihi kaynakta yok.",
+                CreatedBy = HistoricalImport
+            });
+        }
+        await db.SaveChangesAsync(ct);
+        foreach (var (code, first, last) in new (string Code, string First, string Last)[]
+        {
+            ("BY", "Hakan", "Aslansoy"), ("KSSIM", "Zeynep", "Özbahçivan"),
+            ("KKM", "Ahmet", "Oral"), ("SANAT", "Erhan Bozo", "Sarıkaya"),
+            ("NIKAH", "Tutku", "Yapıcı"), ("DTSS", "Tarık", "Öndül"),
+            ("GENCLIK_KUT", "Seydi Vakkas", "Cengiz"),
+            ("GK_AKTOPRAK", "Harun", "Terlemez"), ("GK_ALINACAR", "Turgut", "Bozgeyik"),
+            ("GK_BASAK", "Mahmut", "Orhan"), ("GK_BELKIS", "Sara", "Akkaya"),
+            ("GK_EYUPSULTAN", "Erol", "Aras"), ("GK_KUZEYSEHIR", "Nuriye", "Beyaz"),
+            ("GK_MAE", "Hasan", "Yılmaz"), ("GK_MERVE", "Mehmet Emin", "Arslan"),
+            ("GK_MUTERIM", "Kemal", "Kartal"), ("GK_NURTEPE", "Fatma", "Ekici"),
+            ("GK_OKTAY", "Murat", "Kartal"), ("GK_PIRSULTAN", "Arzu", "Doğru"),
+            ("GK_ZEYTINLI", "Tuğba", "Çabar"), ("BILIM", "Eyüp", "Yenikomşu"),
+            ("AGROPARK", "İrem", "Ölmez")
+        })
+        {
+            if (units[code].ManagerEmployeeId is null && added.TryGetValue(PersonKey(first, last), out var manager))
+                units[code].ManagerEmployeeId = manager.Id;
+        }
+        await db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+        logger.LogInformation("Historical roster imported: added={Added}, skipped existing={Skipped}.", added.Count, skipped);
+    }
 
     public static async Task SeedAsync(AppDbContext db, ILogger logger, CancellationToken ct)
     {
@@ -429,7 +622,7 @@ internal static class DirectorateOrgChartSeeder
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
     }
 
-    private static async Task<Dictionary<string, JobDuty>> EnsureDutiesAsync(AppDbContext db, CancellationToken ct)
+    private static async Task<Dictionary<string, JobDuty>> EnsureDutiesAsync(AppDbContext db, CancellationToken ct, bool preserveExisting = false)
     {
         var items = new (string Name, DutyCategory Cat)[]
         {
@@ -494,7 +687,7 @@ internal static class DirectorateOrgChartSeeder
                 db.JobDuties.Add(found);
                 existing.Add(found);
             }
-            else
+            else if (!preserveExisting)
             {
                 found.Category = cat;
             }

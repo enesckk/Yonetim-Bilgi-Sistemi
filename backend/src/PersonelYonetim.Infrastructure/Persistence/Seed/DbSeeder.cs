@@ -65,6 +65,10 @@ public static class DbSeeder
             await DirectorateOrgChartSeeder.SeedAsync(db, logger, cancellationToken);
             await SeedFacilityOfficerUsersAsync(db, configuration, environment, logger, cancellationToken);
         }
+        else
+        {
+            await DirectorateOrgChartSeeder.ImportHistoricalRosterAsync(db, logger, cancellationToken);
+        }
         await SeedAppSettingsAsync(db, logger, cancellationToken);
 
         // Düz metin TCKN kaldıysa şifrele (eski seed / ilk kurulum)

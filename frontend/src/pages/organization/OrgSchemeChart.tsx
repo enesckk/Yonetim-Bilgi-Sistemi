@@ -362,10 +362,8 @@ function OrgSchemeViewport({ children }: { children: ReactNode }) {
     const ch = Math.max(inner.scrollHeight, inner.offsetHeight)
     inner.style.transform = prev
     if (cw < 32 || ch < 32) return
-    const cover = Math.min(boxW / cw, boxH / ch)
-    const floor = Math.max(0.18, Math.min(1.05, cover))
-    fitRef.current = floor
-    const next = floor
+    const next = Math.min(1.05, boxW / cw, boxH / ch)
+    fitRef.current = next
     if (!force && userZoom.current) return
     userZoom.current = false
     const scaledW = cw * next
