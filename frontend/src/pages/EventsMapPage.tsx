@@ -89,14 +89,14 @@ function DistrictFit({ geo, resetToken }: { geo: BoundaryGeo | null; resetToken:
   return null
 }
 
-function FocusSettlement({ feature }: { feature: MahalleFeature | null }) {
+function FocusSettlement({ feature, boundary }: { feature: MahalleFeature | null; boundary: BoundaryGeo | null }) {
   const map = useMap()
 
   useEffect(() => {
     if (!feature) return
     const bounds = L.geoJSON(feature as GeoJSON.Feature).getBounds()
     if (bounds.isValid()) map.flyToBounds(bounds.pad(0.42), { duration: 0.45, maxZoom: 14.5 })
-  }, [feature, map])
+  }, [boundary, feature, map])
 
   return null
 }
@@ -813,7 +813,7 @@ function EventsMapPageInner() {
             preferCanvas
           >
             <DistrictFit geo={boundary} resetToken={resetToken} />
-            <FocusSettlement feature={focusedFeature} />
+            <FocusSettlement feature={focusedFeature} boundary={boundary} />
             <MapLabelController
               nonce={`${preset}-${category}-${summaries.length}-${coverageFilter ?? 'all'}-${focusedSummary?.officialCode ?? ''}`}
             />
