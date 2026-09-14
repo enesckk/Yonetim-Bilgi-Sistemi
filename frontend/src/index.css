@@ -4265,7 +4265,7 @@ body.org-scheme-fs-lock {
 .org-scheme-mini-window { box-sizing: border-box; z-index: 1; border: 2px solid #0c83b5; background: #0c83b526; box-shadow: 0 0 0 1px #fff; pointer-events: none; }
 
 @media (max-width: 700px) {
-  .org-scheme-zoom { left: 0.5rem; right: 0.5rem; top: 0.5rem; justify-content: center; }
+  .org-scheme-zoom { left: 0.5rem; right: 0.5rem; top: 0.5rem; justify-content: center; flex-wrap: wrap; }
   .org-scheme-zoom button { min-width: 2rem; height: 2.1rem; }
   .org-scheme-zoom button.is-fs-btn { padding: 0 0.45rem; }
   .org-scheme-hint { font-size: 0.65rem; }

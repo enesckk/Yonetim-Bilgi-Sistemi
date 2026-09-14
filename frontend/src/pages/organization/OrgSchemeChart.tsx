@@ -68,7 +68,8 @@ function OrgSchemeViewport({ children }: { children: ReactNode }) {
     const size = contentSize()
     if (!view || !size || size.width < 32 || size.height < 32) return
     const padX = fullscreen ? 36 : 16
-    const padTop = fullscreen ? 76 : 54
+    const compact = view.clientWidth < 700
+    const padTop = compact ? (fullscreen ? 112 : 106) : (fullscreen ? 76 : 54)
     const padBottom = fullscreen ? 24 : 16
     const boxW = Math.max(220, view.clientWidth - padX * 2)
     const boxH = Math.max(220, view.clientHeight - padTop - padBottom)
