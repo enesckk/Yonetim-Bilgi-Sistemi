@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.AspNetCore.StaticFiles;
 using PersonelYonetim.Application;
 using PersonelYonetim.Infrastructure;
 using PersonelYonetim.Infrastructure.Persistence.Seed;
@@ -78,7 +79,9 @@ app.Use(async (context, next) =>
 });
 
 app.UseDefaultFiles();
-app.UseStaticFiles();
+var staticContentTypes = new FileExtensionContentTypeProvider();
+staticContentTypes.Mappings[".geojson"] = "application/geo+json";
+app.UseStaticFiles(new StaticFileOptions { ContentTypeProvider = staticContentTypes });
 
 app.UseCors("Frontend");
 app.UseAuthentication();
