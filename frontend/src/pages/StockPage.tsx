@@ -21,10 +21,10 @@ import {
 import { useAuth } from '@/auth/AuthContext'
 import { PermissionCodes } from '@/auth/permissionCodes'
 import { useAlert, useConfirm } from '@/components/ConfirmDialog'
+import { StockIcon } from '@/components/StockIcon'
 
 type Tab = 'places' | 'items' | 'moves'
 type ItemFormMode = 'create' | 'edit' | null
-
 const emptyItem = (): UpsertStockItemPayload => ({
   name: '',
   code: '',
@@ -334,11 +334,13 @@ export function StockPage() {
           <div className="employees-toolbar-actions">
             {canManage ? (
               <>
-                <button type="button" className="btn-secondary" onClick={() => openMove()}>
-                  Hareket
+                <button type="button" className="btn-secondary stock-toolbar-btn" onClick={() => openMove()}>
+                  <StockIcon name="movement" />
+                  Stok hareketi
                 </button>
-                <button type="button" className="btn-primary" onClick={openCreateItem}>
-                  Malzeme ekle
+                <button type="button" className="btn-primary stock-toolbar-btn" onClick={openCreateItem}>
+                  <StockIcon name="plus" />
+                  Yeni malzeme
                 </button>
               </>
             ) : null}
@@ -555,17 +557,20 @@ export function StockPage() {
                         </td>
                         {canManage ? (
                           <td className="stock-row-actions">
-                            <button type="button" className="skills-link-btn" onClick={() => void openEditItem(row)}>
+                            <button type="button" className="stock-table-action" onClick={() => void openEditItem(row)}>
+                              <StockIcon name="edit" />
                               Düzenle
                             </button>
                             <button
                               type="button"
-                              className="skills-link-btn"
+                              className="stock-table-action is-in"
                               onClick={() => openMove({ stockItemId: row.id, movementType: 1 })}
                             >
+                              <StockIcon name="in" />
                               Giriş
                             </button>
-                            <button type="button" className="skills-link-btn catalog-danger" onClick={() => void onArchive(row)}>
+                            <button type="button" className="stock-table-action is-danger" onClick={() => void onArchive(row)}>
+                              <StockIcon name="archive" />
                               Kaldır
                             </button>
                           </td>
@@ -604,130 +609,125 @@ export function StockPage() {
       </section>
 
       {itemMode ? (
-        <div className="org-modal-backdrop" onClick={() => setItemMode(null)}>
-          <div className="org-modal panel" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-            <div className="org-modal-head">
-              <div>
-                <p className="org-modal-eyebrow">Stok</p>
-                <h2>{itemMode === 'create' ? 'Malzeme ekle' : 'Malzeme düzenle'}</h2>
+        <div className="org-modal-backdrop stock-modal-backdrop" onClick={() => !saving && setItemMode(null)}>
+          <div
+            className="org-modal panel stock-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="stock-item-modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <header className="stock-modal-head">
+              <div className="stock-modal-heading">
+                <span className="stock-modal-symbol"><StockIcon name="box" /></span>
+                <div>
+                  <p className="org-modal-eyebrow">Malzeme kataloğu</p>
+                  <h2 id="stock-item-modal-title">{itemMode === 'create' ? 'Yeni malzeme' : 'Malzemeyi düzenle'}</h2>
+                  <p>Malzemenin temel bilgilerini ve kritik stok seviyesini tanımlayın.</p>
+                </div>
               </div>
-            </div>
-            <form className="org-form" onSubmit={(e) => void onSaveItem(e)}>
+              <button
+                type="button"
+                className="stock-modal-close"
+                onClick={() => setItemMode(null)}
+                disabled={saving}
+                aria-label="Pencereyi kapat"
+              >
+                <StockIcon name="close" />
+              </button>
+            </header>
+            <form className="org-form stock-modal-form" onSubmit={(e) => void onSaveItem(e)}>
               {itemError ? <div className="form-error">{itemError}</div> : null}
-              <label>
-                Ad
-                <input
-                  value={itemForm.name}
-                  onChange={(e) => setItemForm((f) => ({ ...f, name: e.target.value }))}
-                  required
-                  maxLength={200}
-                  autoFocus
-                />
-              </label>
-              <label>
-                Kod
-                <input
-                  value={itemForm.code ?? ''}
-                  onChange={(e) => setItemForm((f) => ({ ...f, code: e.target.value }))}
-                  maxLength={40}
-                  placeholder="SES-MIK-EL"
-                />
-              </label>
-              <label>
-                Grup
-                <select
-                  value={itemForm.category}
-                  onChange={(e) => setItemForm((f) => ({ ...f, category: Number(e.target.value) as StockItemRow['category'] }))}
-                >
-                  {categories.map((c: StockLookup) => (
-                    <option key={c.value} value={c.value}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Birim
-                <select
-                  value={itemForm.unit}
-                  onChange={(e) => setItemForm((f) => ({ ...f, unit: Number(e.target.value) as StockItemRow['unit'] }))}
-                >
-                  {units.map((u) => (
-                    <option key={u.value} value={u.value}>
-                      {u.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Marka
-                <input
-                  value={itemForm.brand ?? ''}
-                  onChange={(e) => setItemForm((f) => ({ ...f, brand: e.target.value }))}
-                  maxLength={80}
-                />
-              </label>
-              <label>
-                Model
-                <input
-                  value={itemForm.model ?? ''}
-                  onChange={(e) => setItemForm((f) => ({ ...f, model: e.target.value }))}
-                  maxLength={80}
-                />
-              </label>
-              <label>
-                Asgari miktar
-                <input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={itemForm.minQuantity}
-                  onChange={(e) => setItemForm((f) => ({ ...f, minQuantity: Number(e.target.value) }))}
-                />
-              </label>
-              <label className="span-2">
-                Açıklama
-                <textarea
-                  rows={3}
-                  value={itemForm.description ?? ''}
-                  onChange={(e) => setItemForm((f) => ({ ...f, description: e.target.value }))}
-                  maxLength={1000}
-                />
-              </label>
-              <label className="checkbox-row">
-                <input
-                  type="checkbox"
-                  checked={itemForm.isActive}
-                  onChange={(e) => setItemForm((f) => ({ ...f, isActive: e.target.checked }))}
-                />
-                Aktif
-              </label>
-              <div className="org-form-actions">
-                <button type="button" className="btn-secondary" onClick={() => setItemMode(null)}>
+              <section className="stock-form-section">
+                <div className="stock-form-section-title">
+                  <strong>Temel bilgiler</strong>
+                  <span>Malzemenin stok listesinde nasıl görüneceğini belirler.</span>
+                </div>
+                <div className="stock-form-grid">
+                  <label>
+                    <span>Malzeme adı <em>Zorunlu</em></span>
+                    <input value={itemForm.name} onChange={(e) => setItemForm((f) => ({ ...f, name: e.target.value }))} required maxLength={200} autoFocus placeholder="Örn. Kablosuz mikrofon" />
+                  </label>
+                  <label>
+                    <span>Stok kodu</span>
+                    <input value={itemForm.code ?? ''} onChange={(e) => setItemForm((f) => ({ ...f, code: e.target.value }))} maxLength={40} placeholder="Örn. SES-MIK-EL" />
+                  </label>
+                  <label>
+                    <span>Grup</span>
+                    <select value={itemForm.category} onChange={(e) => setItemForm((f) => ({ ...f, category: Number(e.target.value) as StockItemRow['category'] }))}>
+                      {categories.map((c: StockLookup) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                    </select>
+                  </label>
+                  <label>
+                    <span>Ölçü birimi</span>
+                    <select value={itemForm.unit} onChange={(e) => setItemForm((f) => ({ ...f, unit: Number(e.target.value) as StockItemRow['unit'] }))}>
+                      {units.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
+                    </select>
+                  </label>
+                </div>
+              </section>
+              <section className="stock-form-section">
+                <div className="stock-form-section-title">
+                  <strong>Ürün ve stok ayarları</strong>
+                  <span>İsteğe bağlı ürün detayları ve uyarı eşiği.</span>
+                </div>
+                <div className="stock-form-grid">
+                  <label>
+                    <span>Marka</span>
+                    <input value={itemForm.brand ?? ''} onChange={(e) => setItemForm((f) => ({ ...f, brand: e.target.value }))} maxLength={80} placeholder="Marka adı" />
+                  </label>
+                  <label>
+                    <span>Model</span>
+                    <input value={itemForm.model ?? ''} onChange={(e) => setItemForm((f) => ({ ...f, model: e.target.value }))} maxLength={80} placeholder="Model bilgisi" />
+                  </label>
+                  <label>
+                    <span>Asgari miktar</span>
+                    <input type="number" min={0} step="0.01" value={itemForm.minQuantity} onChange={(e) => setItemForm((f) => ({ ...f, minQuantity: Number(e.target.value) }))} />
+                    <small>Bu seviyenin altında kritik stok uyarısı gösterilir.</small>
+                  </label>
+                  <label className="stock-status-toggle">
+                    <input type="checkbox" checked={itemForm.isActive} onChange={(e) => setItemForm((f) => ({ ...f, isActive: e.target.checked }))} />
+                    <span><strong>Aktif malzeme</strong><small>Stok hareketlerinde seçilebilir.</small></span>
+                  </label>
+                  <label className="span-2">
+                    <span>Açıklama</span>
+                    <textarea rows={3} value={itemForm.description ?? ''} onChange={(e) => setItemForm((f) => ({ ...f, description: e.target.value }))} maxLength={1000} placeholder="Malzemeyle ilgili kısa bir not ekleyin…" />
+                  </label>
+                </div>
+              </section>
+              <footer className="org-form-actions stock-modal-actions">
+                <button type="button" className="btn-secondary" onClick={() => setItemMode(null)} disabled={saving}>
                   Vazgeç
                 </button>
-                <button type="submit" className="btn-primary" disabled={saving}>
+                <button type="submit" className="btn-primary stock-save-btn" disabled={saving}>
+                  <StockIcon name="save" />
                   {saving ? 'Kaydediliyor…' : 'Kaydet'}
                 </button>
-              </div>
+              </footer>
             </form>
           </div>
         </div>
       ) : null}
 
       {moveOpen ? (
-        <div className="org-modal-backdrop" onClick={() => setMoveOpen(false)}>
-          <div className="org-modal panel" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-            <div className="org-modal-head">
-              <div>
-                <p className="org-modal-eyebrow">Stok</p>
-                <h2>Stok hareketi</h2>
+        <div className="org-modal-backdrop stock-modal-backdrop" onClick={() => !saving && setMoveOpen(false)}>
+          <div className="org-modal panel stock-modal stock-movement-modal" role="dialog" aria-modal="true" aria-labelledby="stock-move-modal-title" onClick={(e) => e.stopPropagation()}>
+            <header className="stock-modal-head">
+              <div className="stock-modal-heading">
+                <span className="stock-modal-symbol"><StockIcon name="movement" /></span>
+                <div>
+                  <p className="org-modal-eyebrow">Stok işlemi</p>
+                  <h2 id="stock-move-modal-title">Yeni stok hareketi</h2>
+                  <p>Giriş, çıkış, transfer veya sayım işlemini kaydedin.</p>
+                </div>
               </div>
-            </div>
-            <form className="org-form" onSubmit={(e) => void onSaveMove(e)}>
+              <button type="button" className="stock-modal-close" onClick={() => setMoveOpen(false)} disabled={saving} aria-label="Pencereyi kapat"><StockIcon name="close" /></button>
+            </header>
+            <form className="org-form stock-modal-form" onSubmit={(e) => void onSaveMove(e)}>
               {moveError ? <div className="form-error">{moveError}</div> : null}
+              <div className="stock-form-grid">
               <label>
-                Tür
+                <span>İşlem türü <em>Zorunlu</em></span>
                 <select
                   value={move.movementType}
                   onChange={(e) => setMove((m) => ({ ...m, movementType: Number(e.target.value) as StockMovementType }))}
@@ -740,7 +740,7 @@ export function StockPage() {
                 </select>
               </label>
               <label>
-                Malzeme
+                <span>Malzeme <em>Zorunlu</em></span>
                 <select
                   value={move.stockItemId}
                   onChange={(e) => setMove((m) => ({ ...m, stockItemId: e.target.value }))}
@@ -756,7 +756,7 @@ export function StockPage() {
               </label>
               {move.movementType === 2 || move.movementType === 3 ? (
                 <label>
-                  Kaynak yer
+                  <span>Kaynak yer <em>Zorunlu</em></span>
                   <select
                     value={move.fromLocationId}
                     onChange={(e) => setMove((m) => ({ ...m, fromLocationId: e.target.value }))}
@@ -773,7 +773,7 @@ export function StockPage() {
               ) : null}
               {move.movementType !== 2 ? (
                 <label>
-                  {move.movementType === 4 ? 'Yer' : 'Hedef yer'}
+                  <span>{move.movementType === 4 ? 'Sayım yeri' : 'Hedef yer'} <em>Zorunlu</em></span>
                   <select
                     value={move.toLocationId}
                     onChange={(e) => setMove((m) => ({ ...m, toLocationId: e.target.value }))}
@@ -789,7 +789,7 @@ export function StockPage() {
                 </label>
               ) : null}
               <label>
-                {move.movementType === 4 ? 'Sayılan miktar' : 'Miktar'}
+                <span>{move.movementType === 4 ? 'Sayılan miktar' : 'Miktar'} <em>Zorunlu</em></span>
                 <input
                   type="number"
                   min={0.01}
@@ -800,7 +800,7 @@ export function StockPage() {
                 />
               </label>
               <label>
-                Tarih
+                <span>İşlem tarihi</span>
                 <input
                   type="date"
                   value={move.occurredOn}
@@ -808,7 +808,7 @@ export function StockPage() {
                 />
               </label>
               <label className="span-2">
-                Açıklama
+                <span>Açıklama</span>
                 <input
                   value={move.reason}
                   onChange={(e) => setMove((m) => ({ ...m, reason: e.target.value }))}
@@ -816,14 +816,16 @@ export function StockPage() {
                   placeholder="Satın alma, etkinlik çıkışı, sayım…"
                 />
               </label>
-              <div className="org-form-actions">
-                <button type="button" className="btn-secondary" onClick={() => setMoveOpen(false)}>
+              </div>
+              <footer className="org-form-actions stock-modal-actions">
+                <button type="button" className="btn-secondary" onClick={() => setMoveOpen(false)} disabled={saving}>
                   Vazgeç
                 </button>
-                <button type="submit" className="btn-primary" disabled={saving}>
+                <button type="submit" className="btn-primary stock-save-btn" disabled={saving}>
+                  <StockIcon name="save" />
                   {saving ? 'Kaydediliyor…' : 'Kaydet'}
                 </button>
-              </div>
+              </footer>
             </form>
           </div>
         </div>

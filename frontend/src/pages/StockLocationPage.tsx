@@ -17,6 +17,7 @@ import {
 import { useAuth } from '@/auth/AuthContext'
 import { PermissionCodes } from '@/auth/permissionCodes'
 import { PageBackLink } from '@/components/PageBackLink'
+import { StockIcon } from '@/components/StockIcon'
 
 function todayIso() {
   const d = new Date()
@@ -150,16 +151,20 @@ export function StockLocationPage() {
           </div>
           {canManage ? (
             <div className="employees-toolbar-actions">
-              <button type="button" className="btn-secondary" onClick={() => openMove(1)}>
+              <button type="button" className="btn-secondary stock-toolbar-btn" onClick={() => openMove(1)}>
+                <StockIcon name="in" />
                 Giriş
               </button>
-              <button type="button" className="btn-secondary" onClick={() => openMove(2)}>
+              <button type="button" className="btn-secondary stock-toolbar-btn" onClick={() => openMove(2)}>
+                <StockIcon name="out" />
                 Çıkış
               </button>
-              <button type="button" className="btn-secondary" onClick={() => openMove(3)}>
+              <button type="button" className="btn-secondary stock-toolbar-btn" onClick={() => openMove(3)}>
+                <StockIcon name="transfer" />
                 Transfer
               </button>
-              <button type="button" className="btn-primary" onClick={() => openMove(4)}>
+              <button type="button" className="btn-primary stock-toolbar-btn" onClick={() => openMove(4)}>
+                <StockIcon name="count" />
                 Sayım
               </button>
             </div>
@@ -217,10 +222,12 @@ export function StockLocationPage() {
                     <td>{fmtQty(row.minQuantity)}</td>
                     {canManage ? (
                       <td className="stock-row-actions">
-                        <button type="button" className="skills-link-btn" onClick={() => openMove(1, row.stockItemId)}>
+                        <button type="button" className="stock-table-action is-in" onClick={() => openMove(1, row.stockItemId)}>
+                          <StockIcon name="in" />
                           Giriş
                         </button>
-                        <button type="button" className="skills-link-btn" onClick={() => openMove(2, row.stockItemId)}>
+                        <button type="button" className="stock-table-action" onClick={() => openMove(2, row.stockItemId)}>
+                          <StockIcon name="out" />
                           Çıkış
                         </button>
                       </td>
@@ -256,18 +263,24 @@ export function StockLocationPage() {
       </section>
 
       {moveOpen ? (
-        <div className="org-modal-backdrop" onClick={() => setMoveOpen(false)}>
-          <div className="org-modal panel" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-            <div className="org-modal-head">
-              <div>
-                <p className="org-modal-eyebrow">{detail?.name}</p>
-                <h2>Stok hareketi</h2>
+        <div className="org-modal-backdrop stock-modal-backdrop" onClick={() => !saving && setMoveOpen(false)}>
+          <div className="org-modal panel stock-modal stock-movement-modal" role="dialog" aria-modal="true" aria-labelledby="location-stock-move-title" onClick={(e) => e.stopPropagation()}>
+            <header className="stock-modal-head">
+              <div className="stock-modal-heading">
+                <span className="stock-modal-symbol"><StockIcon name="movement" /></span>
+                <div>
+                  <p className="org-modal-eyebrow">{detail?.name}</p>
+                  <h2 id="location-stock-move-title">Yeni stok hareketi</h2>
+                  <p>Bu tesise ait stok miktarını güvenle güncelleyin.</p>
+                </div>
               </div>
-            </div>
-            <form className="org-form" onSubmit={(e) => void onSaveMove(e)}>
+              <button type="button" className="stock-modal-close" onClick={() => setMoveOpen(false)} disabled={saving} aria-label="Pencereyi kapat"><StockIcon name="close" /></button>
+            </header>
+            <form className="org-form stock-modal-form" onSubmit={(e) => void onSaveMove(e)}>
               {moveError ? <div className="form-error">{moveError}</div> : null}
+              <div className="stock-form-grid">
               <label>
-                Tür
+                <span>İşlem türü <em>Zorunlu</em></span>
                 <select
                   value={move.movementType}
                   onChange={(e) => setMove((m) => ({ ...m, movementType: Number(e.target.value) as StockMovementType }))}
@@ -280,7 +293,7 @@ export function StockLocationPage() {
                 </select>
               </label>
               <label>
-                Malzeme
+                <span>Malzeme <em>Zorunlu</em></span>
                 <select
                   value={move.stockItemId}
                   onChange={(e) => setMove((m) => ({ ...m, stockItemId: e.target.value }))}
@@ -296,7 +309,7 @@ export function StockLocationPage() {
               </label>
               {move.movementType === 2 || move.movementType === 3 ? (
                 <label>
-                  Kaynak yer
+                  <span>Kaynak yer <em>Zorunlu</em></span>
                   <select
                     value={move.fromLocationId}
                     onChange={(e) => setMove((m) => ({ ...m, fromLocationId: e.target.value }))}
@@ -312,7 +325,7 @@ export function StockLocationPage() {
               ) : null}
               {move.movementType !== 2 ? (
                 <label>
-                  {move.movementType === 4 ? 'Yer' : 'Hedef yer'}
+                  <span>{move.movementType === 4 ? 'Sayım yeri' : 'Hedef yer'} <em>Zorunlu</em></span>
                   <select
                     value={move.toLocationId}
                     onChange={(e) => setMove((m) => ({ ...m, toLocationId: e.target.value }))}
@@ -327,7 +340,7 @@ export function StockLocationPage() {
                 </label>
               ) : null}
               <label>
-                {move.movementType === 4 ? 'Sayılan miktar' : 'Miktar'}
+                <span>{move.movementType === 4 ? 'Sayılan miktar' : 'Miktar'} <em>Zorunlu</em></span>
                 <input
                   type="number"
                   min={0.01}
@@ -338,7 +351,7 @@ export function StockLocationPage() {
                 />
               </label>
               <label>
-                Tarih
+                <span>İşlem tarihi</span>
                 <input
                   type="date"
                   value={move.occurredOn}
@@ -346,21 +359,24 @@ export function StockLocationPage() {
                 />
               </label>
               <label className="span-2">
-                Açıklama
+                <span>Açıklama</span>
                 <input
                   value={move.reason}
                   onChange={(e) => setMove((m) => ({ ...m, reason: e.target.value }))}
                   maxLength={400}
+                  placeholder="İşleme ilişkin kısa bir not ekleyin…"
                 />
               </label>
-              <div className="org-form-actions">
-                <button type="button" className="btn-secondary" onClick={() => setMoveOpen(false)}>
+              </div>
+              <footer className="org-form-actions stock-modal-actions">
+                <button type="button" className="btn-secondary" onClick={() => setMoveOpen(false)} disabled={saving}>
                   Vazgeç
                 </button>
-                <button type="submit" className="btn-primary" disabled={saving}>
+                <button type="submit" className="btn-primary stock-save-btn" disabled={saving}>
+                  <StockIcon name="save" />
                   {saving ? 'Kaydediliyor…' : 'Kaydet'}
                 </button>
-              </div>
+              </footer>
             </form>
           </div>
         </div>
