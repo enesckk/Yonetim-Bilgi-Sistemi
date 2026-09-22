@@ -178,6 +178,13 @@ public sealed class AuthService : IAuthService
         if (stored.RevokedAtUtc is not null || now >= stored.ExpiresAtUtc || now >= stored.AbsoluteExpiresAtUtc)
             throw new UnauthorizedAppException(ErrorCodes.TokenInvalid, "Refresh token geçersiz veya süresi dolmuş.");
 
+        // Önceki 7 günlük politika ile açılmış ve hâlâ geçerli oturumları yeni
+        // "beni hatırla" süresine bir kez yükselt. Yeni oturumların sabit üst
+        // sınırı yenilemelerde uzatılmaya devam etmez.
+        var absoluteExpiresAtUtc = stored.AbsoluteExpiresAtUtc;
+        if (stored.AbsoluteExpiresAtUtc <= stored.CreatedAtUtc.AddDays(8))
+            absoluteExpiresAtUtc = now.AddDays(Math.Max(1, _jwtOptions.RefreshTokenAbsoluteDays));
+
         var idleMinutes = Math.Max(1, _jwtOptions.IdleTimeoutMinutes);
         if (stored.LastUsedAtUtc.AddMinutes(idleMinutes) < now)
         {
@@ -208,7 +215,7 @@ public sealed class AuthService : IAuthService
 
         var result = await IssueTokensAsync(
             user, roles, roleNames, permissions, ipAddress,
-            absoluteExpiresAtUtc: stored.AbsoluteExpiresAtUtc,
+            absoluteExpiresAtUtc,
             cancellationToken);
         stored.ReplacedByTokenHash = _tokenService.HashToken(result.RefreshToken);
         await _db.SaveChangesAsync(cancellationToken);
