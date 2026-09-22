@@ -111,6 +111,25 @@ internal static class DirectorateOrgChartSeeder
             await EnsureUnit(site.Code, site.Name, OrganizationUnitType.Facility, "KSSIM",
                 site.Category, latitude: site.Lat, longitude: site.Lng);
 
+        // DTSS konumu Biletix'in yayımladığı mekan kaydından doğrulandı. Tarihî
+        // kadro aktarımı yaklaşık koordinatları bilerek temizliyor; bu doğrulanmış
+        // konumu ise yalnızca alanlar boşsa tamamlayarak kullanıcı düzenlemelerini koru.
+        var dtss = units["DTSS"];
+        var dtssLocationChanged = false;
+        if (dtss.Latitude is null || dtss.Longitude is null)
+        {
+            dtss.Latitude = 37.074875;
+            dtss.Longitude = 37.341198;
+            dtssLocationChanged = true;
+        }
+        if (string.IsNullOrWhiteSpace(dtss.Address))
+        {
+            dtss.Address = "Batıkent, Abdulkadir Aksu Bulvarı No:48, Şehitkamil / Gaziantep";
+            dtssLocationChanged = true;
+        }
+        if (dtssLocationChanged)
+            dtss.UpdatedBy = "verified-location-seed";
+
         await EnsureUnit("GENCLIK_KUT", "Gençlik Kütüphaneleri", OrganizationUnitType.SubUnit,
             "KSSIM", "KUTUPHANE");
         await EnsureUnit("GEZI", "Kültürel Geziler", OrganizationUnitType.MainUnit, "KSSIM");
