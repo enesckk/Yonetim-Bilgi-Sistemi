@@ -4200,6 +4200,12 @@ body.org-scheme-fs-lock {
   cursor: pointer;
 }
 
+.org-scheme-zoom button.is-zoom-step {
+  min-width: 2.35rem;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
 .org-scheme-zoom button.is-fit-active {
   background: #1f6b4a;
   color: #fff;
@@ -4256,11 +4262,16 @@ body.org-scheme-fs-lock {
 .org-scheme-mini-window { box-sizing: border-box; z-index: 1; border: 2px solid #0c83b5; background: #0c83b526; box-shadow: 0 0 0 1px #fff; pointer-events: none; }
 
 @media (max-width: 700px) {
-  .org-scheme-zoom { left: 0.5rem; right: 0.5rem; top: 0.5rem; justify-content: center; flex-wrap: wrap; }
-  .org-scheme-zoom button { min-width: 2rem; height: 2.1rem; }
+  .org-scheme-zoom { left: 0.5rem; right: 0.5rem; top: max(0.5rem, env(safe-area-inset-top, 0px)); justify-content: center; flex-wrap: nowrap; overflow-x: auto; }
+  .org-scheme-zoom button { min-width: 2rem; height: 2.35rem; flex: 0 0 auto; }
+  .org-scheme-zoom button.is-zoom-step { min-width: 2.35rem; }
   .org-scheme-zoom button.is-fs-btn { padding: 0 0.45rem; }
-  .org-scheme-hint { font-size: 0.65rem; }
+  .org-scheme-hint { left: 0.5rem; right: 0.5rem; bottom: max(0.5rem, env(safe-area-inset-bottom, 0px)); max-width: none; font-size: 0.65rem; text-align: center; }
   .org-scheme-minimap { width: 120px; right: 0.5rem; bottom: 0.5rem; }
+
+  .org-scheme-viewport.is-fs .org-scheme-minimap {
+    bottom: calc(2.9rem + env(safe-area-inset-bottom, 0px));
+  }
 }
 
 .org-scheme-zoom button:hover {
@@ -18393,6 +18404,165 @@ button:hover > .dq-row-arrow {
   .stock-modal-actions button {
     flex: 1 1 50%;
     min-width: 0;
+  }
+}
+
+/* Telefon ve küçük tabletlerde üst katmanların ekrandan taşmasını önler. */
+@media (max-width: 700px) {
+  .notif-pop {
+    position: fixed;
+    top: calc(var(--topbar-h) + 0.45rem);
+    left: max(0.55rem, env(safe-area-inset-left, 0px));
+    right: max(0.55rem, env(safe-area-inset-right, 0px));
+    width: auto;
+    max-height: calc(100dvh - var(--topbar-h) - 0.9rem);
+    border-radius: 14px;
+  }
+
+  .notif-pop-list {
+    max-height: calc(100dvh - var(--topbar-h) - 7rem);
+    overscroll-behavior: contain;
+  }
+
+  .app-shell.is-map-page .events-map-page.is-ops-map {
+    height: calc(100dvh - var(--topbar-h));
+    min-height: 28rem;
+  }
+
+  .ops-map-float-search,
+  .ops-map-float-search.map-search-bar {
+    top: 0.5rem;
+    left: 0.5rem;
+    width: calc(100% - 1rem);
+    max-width: none;
+  }
+
+  .ops-map-search-field {
+    min-height: 44px;
+  }
+
+  .ops-map-float-filters,
+  .ops-map-layout.has-detail .ops-map-float-filters {
+    top: auto;
+    right: 0.5rem;
+    left: auto;
+    bottom: calc(5.15rem + env(safe-area-inset-bottom, 0px));
+    max-width: calc(100% - 5.3rem);
+  }
+
+  .ops-filter-card,
+  .ops-filter-card.is-open {
+    min-width: min(230px, calc(100vw - 5.8rem));
+    width: min(270px, calc(100vw - 5.8rem));
+    max-width: 100%;
+  }
+
+  .ops-filter-card-toggle {
+    min-height: 44px;
+    padding: 0.55rem 0.7rem;
+  }
+
+  .ops-map-reset {
+    width: 100%;
+    min-height: 40px;
+    padding-inline: 0.7rem;
+  }
+
+  .ops-colorbar {
+    left: max(0.5rem, env(safe-area-inset-left, 0px));
+    right: max(0.5rem, env(safe-area-inset-right, 0px));
+    bottom: max(0.45rem, env(safe-area-inset-bottom, 0px));
+    width: auto;
+    max-width: none;
+    gap: 0.25rem;
+    padding: 0.35rem;
+    border-radius: 12px;
+  }
+
+  .ops-colorbar-caption {
+    padding-inline: 0.1rem;
+    font-size: 0.62rem;
+  }
+
+  .ops-colorbar-meanings {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .ops-colorbar-row {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.25rem;
+  }
+
+  .ops-colorbar-btn {
+    min-width: 0;
+    min-height: 34px;
+    justify-content: center;
+    gap: 0.22rem;
+    padding: 0.2rem 0.3rem;
+    font-size: 0.68rem;
+  }
+
+  .ops-colorbar-btn em {
+    font-size: 0.64rem;
+  }
+
+  .ops-swatch {
+    width: 0.9rem;
+    height: 0.9rem;
+  }
+
+  .app-shell.is-map-page .leaflet-top.leaflet-left {
+    bottom: calc(5.25rem + env(safe-area-inset-bottom, 0px));
+    left: 0.5rem;
+  }
+}
+
+@media (max-width: 440px) {
+  .topbar {
+    flex-wrap: nowrap;
+    gap: 0.35rem;
+    padding: max(0.55rem, env(safe-area-inset-top, 0px)) max(0.55rem, env(safe-area-inset-right, 0px)) 0.55rem max(0.55rem, env(safe-area-inset-left, 0px));
+  }
+
+  .topbar-left {
+    flex-wrap: nowrap;
+    gap: 0.35rem;
+  }
+
+  .topbar-actions {
+    flex-wrap: nowrap;
+    gap: 0.25rem;
+  }
+
+  .topbar-tabs button {
+    min-height: 2rem;
+    padding: 0.35rem 0.55rem;
+    font-size: 0.74rem;
+  }
+
+  .topbar-icon-btn,
+  .btn-logout {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+
+  .account-trigger {
+    padding: 0.15rem;
+  }
+
+  .mahalle-view-switch button {
+    min-height: 2.1rem;
+    padding: 0.35rem 0.65rem;
   }
 }
 

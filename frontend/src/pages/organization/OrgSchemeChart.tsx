@@ -34,6 +34,8 @@ function OrgSchemeViewport({ children }: { children: ReactNode }) {
   const allFitRef = useRef(1)
   const drag = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null)
   const dragged = useRef(false)
+  const touchPoints = useRef(new Map<number, Point>())
+  const pinchDistance = useRef<number | null>(null)
 
   function update(nextScale: number, nextTx: number, nextTy: number) {
     scaleRef.current = nextScale
@@ -69,7 +71,7 @@ function OrgSchemeViewport({ children }: { children: ReactNode }) {
     if (!view || !size || size.width < 32 || size.height < 32) return
     const padX = fullscreen ? 36 : 16
     const compact = view.clientWidth < 700
-    const padTop = compact ? (fullscreen ? 112 : 106) : (fullscreen ? 76 : 54)
+    const padTop = compact ? (fullscreen ? 72 : 68) : (fullscreen ? 76 : 54)
     const padBottom = fullscreen ? 24 : 16
     const boxW = Math.max(220, view.clientWidth - padX * 2)
     const boxH = Math.max(220, view.clientHeight - padTop - padBottom)
@@ -124,7 +126,7 @@ function OrgSchemeViewport({ children }: { children: ReactNode }) {
         event.preventDefault()
         const horizontal = event.deltaMode === 1 ? event.deltaX * 16 : event.deltaMode === 2 ? event.deltaX * view.clientWidth : event.deltaX
         const pos = boundedPosition(scaleRef.current, txRef.current - horizontal, tyRef.current - delta)
-        const topPad = view.clientWidth < 700 ? (fullscreen ? 112 : 106) : (fullscreen ? 76 : 54)
+        const topPad = view.clientWidth < 700 ? (fullscreen ? 72 : 68) : (fullscreen ? 76 : 54)
         const bottomPad = fullscreen ? 24 : 16
         const bottom = view.clientHeight - size.height * scaleRef.current - bottomPad
         pos.y = Math.max(bottom, Math.min(topPad, pos.y))
@@ -166,13 +168,42 @@ function OrgSchemeViewport({ children }: { children: ReactNode }) {
     dragged.current = false
     const target = event.target as HTMLElement
     if (target.closest('.org-scheme-zoom, .org-scheme-minimap, input, select, textarea')) return
+    if (event.pointerType === 'touch') {
+      touchPoints.current.set(event.pointerId, { x: event.clientX, y: event.clientY })
+      event.currentTarget.setPointerCapture(event.pointerId)
+      if (touchPoints.current.size >= 2) {
+        const [a, b] = Array.from(touchPoints.current.values())
+        pinchDistance.current = Math.hypot(b.x - a.x, b.y - a.y)
+        drag.current = null
+        dragged.current = true
+        return
+      }
+    }
     drag.current = { x: event.clientX, y: event.clientY, tx: txRef.current, ty: tyRef.current }
     if (!target.closest('button, a, [role="button"]')) event.currentTarget.setPointerCapture(event.pointerId)
   }
 
   function onPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.pointerType === 'touch' && touchPoints.current.has(event.pointerId)) {
+      touchPoints.current.set(event.pointerId, { x: event.clientX, y: event.clientY })
+      if (touchPoints.current.size >= 2) {
+        const [a, b] = Array.from(touchPoints.current.values())
+        const distance = Math.hypot(b.x - a.x, b.y - a.y)
+        const previous = pinchDistance.current
+        if (previous && previous > 0 && distance > 0) {
+          const rect = event.currentTarget.getBoundingClientRect()
+          zoomTo(scaleRef.current * (distance / previous), {
+            x: (a.x + b.x) / 2 - rect.left,
+            y: (a.y + b.y) / 2 - rect.top,
+          })
+        }
+        pinchDistance.current = distance
+        dragged.current = true
+        return
+      }
+    }
     if (!drag.current) return
-    if (event.pointerType === 'mouse' && event.buttons === 0) { onPointerUp(); return }
+    if (event.pointerType === 'mouse' && event.buttons === 0) { onPointerUp(event); return }
     if (Math.abs(event.clientX - drag.current.x) + Math.abs(event.clientY - drag.current.y) > 5) dragged.current = true
     if (!dragged.current) return
     const pos = boundedPosition(scaleRef.current,
@@ -181,7 +212,9 @@ function OrgSchemeViewport({ children }: { children: ReactNode }) {
     update(scaleRef.current, pos.x, pos.y)
   }
 
-  function onPointerUp() {
+  function onPointerUp(event?: ReactPointerEvent<HTMLDivElement>) {
+    if (event) touchPoints.current.delete(event.pointerId)
+    if (touchPoints.current.size < 2) pinchDistance.current = null
     drag.current = null
   }
 
@@ -209,7 +242,6 @@ function OrgSchemeViewport({ children }: { children: ReactNode }) {
         }
       }}
       onDoubleClick={(event) => {
-        if (modeRef.current === 'width') return
         if ((event.target as HTMLElement).closest('button, a')) return
         const rect = event.currentTarget.getBoundingClientRect()
         zoomTo(scaleRef.current * 1.3, { x: event.clientX - rect.left, y: event.clientY - rect.top })
@@ -223,13 +255,15 @@ function OrgSchemeViewport({ children }: { children: ReactNode }) {
         {children}
       </div>
       <div className="org-scheme-zoom" role="group" aria-label="Şema gezinme ve yakınlaştırma">
+        <button type="button" className="is-zoom-step" onClick={() => zoomTo(scaleRef.current / 1.25)} title="Uzaklaştır" aria-label="Uzaklaştır">−</button>
+        <button type="button" className="is-zoom-step" onClick={() => zoomTo(scaleRef.current * 1.25)} title="Yakınlaştır" aria-label="Yakınlaştır">+</button>
         <button type="button" className={fitMode === 'width' ? 'is-fit-active' : undefined} onClick={() => applyFit('width')} title="Sayfa genişliğine sığdır">Genişlik</button>
         <button type="button" className={fitMode === 'all' ? 'is-fit-active' : undefined} onClick={() => applyFit('all')} title="Şemanın tamamını göster">Tümü</button>
         <button type="button" className="is-fs-btn" onClick={() => setFullscreen((value) => !value)} title={fullscreen ? 'Tam ekrandan çık (Esc)' : 'Tam ekran'}>
           {fullscreen ? 'Çık' : 'Tam ekran'}
         </button>
       </div>
-      <div className="org-scheme-hint">{fitMode === 'width' ? 'Sürükleyerek veya tekerlekle aşağı-yukarı gez' : 'Sürükleyerek gez · Tekerlekle yakınlaştır · Çift tıkla büyüt'}</div>
+      <div className="org-scheme-hint">{fitMode === 'width' ? 'Sürükleyerek gez · İki parmakla veya + ile büyüt' : 'Sürükleyerek gez · İki parmakla yakınlaştır'}</div>
       {fullscreen && size && view ? (
         <button
           type="button"
