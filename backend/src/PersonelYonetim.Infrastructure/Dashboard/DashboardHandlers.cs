@@ -41,52 +41,71 @@ public sealed class GetDashboardSummaryHandler
 
         employees = scoped;
         var today = DateOnly.FromDateTime(DateTime.Today);
-        var employeeIds = employees.Select(x => x.Id);
+        // Render ile Supabase arasındaki her sorgu ayrı ağ gecikmesi oluşturuyor.
+        // Kontrol panelinde kullanılan personel alanlarını tek seferde alıp küçük
+        // özetleri bellekte hesapla; aynı filtreli tabloyu tekrar tekrar sorgulama.
+        var employeeRows = await employees
+            .Select(e => new
+            {
+                e.Id,
+                e.Status,
+                EmploymentCode = e.EmploymentType != null ? e.EmploymentType.Code : null,
+                EmploymentName = e.EmploymentType != null ? e.EmploymentType.Name : "Belirtilmemiş",
+                Duty = e.Assignments
+                    .Where(a => a.EndDate == null || a.EndDate >= today)
+                    .OrderByDescending(a => a.IsPrimary)
+                    .Select(a => (DutyCategory?)a.JobDuty.Category)
+                    .FirstOrDefault(),
+                e.ProfileCompletionPercent,
+                HasSkills = e.Skills.Any(),
+                UnitName = e.Unit != null ? e.Unit.Name : null,
+                UnitType = e.Unit != null ? (OrganizationUnitType?)e.Unit.Type : null,
+                ParentName = e.Unit != null && e.Unit.Parent != null ? e.Unit.Parent.Name : null,
+                ParentType = e.Unit != null && e.Unit.Parent != null
+                    ? (OrganizationUnitType?)e.Unit.Parent.Type
+                    : null,
+                GrandParentName = e.Unit != null && e.Unit.Parent != null && e.Unit.Parent.Parent != null
+                    ? e.Unit.Parent.Parent.Name
+                    : null,
+                EducationLevel = e.EducationRecords.Any()
+                    ? e.EducationRecords.Max(r => r.Level)
+                    : EducationLevel.Unknown,
+                e.HireDate
+            })
+            .ToListAsync(cancellationToken);
 
-        var total = await employees.CountAsync(cancellationToken);
-        var active = await employees.CountAsync(x => x.Status == EmployeeStatus.Active, cancellationToken);
-        var passive = await employees.CountAsync(x => x.Status == EmployeeStatus.Passive, cancellationToken);
+        var employeeIds = employeeRows.Select(x => x.Id).ToArray();
+        var total = employeeRows.Count;
+        var active = employeeRows.Count(x => x.Status == EmployeeStatus.Active);
+        var passive = employeeRows.Count(x => x.Status == EmployeeStatus.Passive);
 
         var allowedUnits = await UnitScopeHelper.AllowedUnitIdsAsync(_db, _currentUser, cancellationToken);
         var unitsQuery = _db.OrganizationUnits.AsNoTracking().AsQueryable();
         if (allowedUnits is not null)
             unitsQuery = unitsQuery.Where(x => allowedUnits.Contains(x.Id));
 
-        var totalUnits = await unitsQuery
-            .CountAsync(x => x.Type == OrganizationUnitType.MainUnit, cancellationToken);
-
-        var facilities = unitsQuery.Where(x => x.Type == OrganizationUnitType.Facility);
-        var totalFacilities = await facilities.CountAsync(cancellationToken);
-        var activeFacilities = await facilities.CountAsync(
-            x => x.Status == OrganizationUnitStatus.Active, cancellationToken);
-        var closedOrRenovation = await facilities.CountAsync(
-            x => x.Status == OrganizationUnitStatus.Closed
-                 || x.Status == OrganizationUnitStatus.UnderRenovation
-                 || x.Status == OrganizationUnitStatus.TemporarilyClosed,
-            cancellationToken);
-
-        var civilServant = await employees.CountAsync(
-            x => x.EmploymentType != null && x.EmploymentType.Code == "MEMUR",
-            cancellationToken);
-        var companyStaff = await employees.CountAsync(
-            x => x.EmploymentType != null
-                 && (x.EmploymentType.Code == "SEKABEL" || x.EmploymentType.Code == "DIGER_SIRKET"),
-            cancellationToken);
-
-        var dutyRows = await employees
-            .Select(e => e.Assignments
-                .Where(a => a.EndDate == null || a.EndDate >= today)
-                .OrderByDescending(a => a.IsPrimary)
-                .Select(a => (DutyCategory?)a.JobDuty.Category)
-                .FirstOrDefault())
+        var unitRowsForCounts = await unitsQuery
+            .Select(x => new { x.Type, x.Status })
             .ToListAsync(cancellationToken);
+        var totalUnits = unitRowsForCounts.Count(x => x.Type == OrganizationUnitType.MainUnit);
+        var facilityRows = unitRowsForCounts.Where(x => x.Type == OrganizationUnitType.Facility).ToList();
+        var totalFacilities = facilityRows.Count;
+        var activeFacilities = facilityRows.Count(x => x.Status == OrganizationUnitStatus.Active);
+        var closedOrRenovation = facilityRows.Count(x =>
+            x.Status == OrganizationUnitStatus.Closed
+            || x.Status == OrganizationUnitStatus.UnderRenovation
+            || x.Status == OrganizationUnitStatus.TemporarilyClosed);
+
+        var civilServant = employeeRows.Count(x => x.EmploymentCode == "MEMUR");
+        var companyStaff = employeeRows.Count(x =>
+            x.EmploymentCode is "SEKABEL" or "DIGER_SIRKET");
+
+        var dutyRows = employeeRows.Select(x => x.Duty).ToList();
 
         int CountDuty(DutyCategory cat) => dutyRows.Count(x => x == cat);
 
-        var incomplete = await employees.CountAsync(
-            x => x.ProfileCompletionPercent < IncompleteProfileThreshold,
-            cancellationToken);
-        var missingSkills = await employees.CountAsync(x => !x.Skills.Any(), cancellationToken);
+        var incomplete = employeeRows.Count(x => x.ProfileCompletionPercent < IncompleteProfileThreshold);
+        var missingSkills = employeeRows.Count(x => !x.HasSkills);
 
         var workplaceChanged = await _db.EmployeeMovements.AsNoTracking()
             .Where(m => employeeIds.Contains(m.EmployeeId)
@@ -96,32 +115,20 @@ public sealed class GetDashboardSummaryHandler
             .Distinct()
             .CountAsync(cancellationToken);
 
-        var unitRows = await employees
-            .Where(x => x.UnitId != null)
-            .Select(x => new
-            {
-                x.Unit!.Name,
-                x.Unit.Type,
-                ParentName = x.Unit.Parent != null ? x.Unit.Parent.Name : null,
-                ParentType = x.Unit.Parent != null ? (OrganizationUnitType?)x.Unit.Parent.Type : null,
-                GrandParentName = x.Unit.Parent != null && x.Unit.Parent.Parent != null
-                    ? x.Unit.Parent.Parent.Name
-                    : null
-            })
-            .ToListAsync(cancellationToken);
-
-        var byUnit = unitRows
-            .Select(x => ResolveMainUnitName(x.Name, x.Type, x.ParentName, x.ParentType, x.GrandParentName))
+        var byUnit = employeeRows
+            .Where(x => x.UnitName is not null && x.UnitType is not null)
+            .Select(x => ResolveMainUnitName(
+                x.UnitName!, x.UnitType!.Value, x.ParentName, x.ParentType, x.GrandParentName))
             .GroupBy(x => x)
             .Select(g => new DashboardNamedCountDto { Name = g.Key, Count = g.Count() })
             .OrderByDescending(x => x.Count)
             .ToList();
 
-        var byEmployment = await employees
-            .GroupBy(x => x.EmploymentType != null ? x.EmploymentType.Name : "Belirtilmemiş")
+        var byEmployment = employeeRows
+            .GroupBy(x => x.EmploymentName)
             .Select(g => new DashboardNamedCountDto { Name = g.Key, Count = g.Count() })
             .OrderByDescending(x => x.Count)
-            .ToListAsync(cancellationToken);
+            .ToList();
 
         var byDuty = DutyCategoryLabels
             .Select(kv => new DashboardNamedCountDto
@@ -138,11 +145,7 @@ public sealed class GetDashboardSummaryHandler
             byDuty.Add(new DashboardNamedCountDto { Name = "Görev atanmamış", Count = noDuty });
         byDuty = byDuty.OrderByDescending(x => x.Count).ToList();
 
-        var educationLevels = await employees
-            .Select(e => e.EducationRecords.Any()
-                ? e.EducationRecords.Max(r => r.Level)
-                : EducationLevel.Unknown)
-            .ToListAsync(cancellationToken);
+        var educationLevels = employeeRows.Select(x => x.EducationLevel).ToList();
 
         var byEducation = EducationLabels
             .Select(kv => new DashboardNamedCountDto
@@ -161,7 +164,7 @@ public sealed class GetDashboardSummaryHandler
             byEducation.Add(eduUnknown);
         }
 
-        var hireDates = await employees.Select(x => x.HireDate).ToListAsync(cancellationToken);
+        var hireDates = employeeRows.Select(x => x.HireDate).ToList();
         var byService = BuildServiceYearBuckets(hireDates, today)
             .Where(x => x.Count > 0)
             .ToList();
@@ -201,7 +204,7 @@ public sealed class GetDashboardSummaryHandler
     }
 
     private async Task<DashboardAttentionDto> BuildAttentionAsync(
-        IQueryable<Guid> employeeIds,
+        IReadOnlyCollection<Guid> employeeIds,
         DashboardCardsDto cards,
         DateOnly today,
         CancellationToken ct)
@@ -239,12 +242,17 @@ public sealed class GetDashboardSummaryHandler
         if (canEmployees)
         {
             var soonLimit = today.AddDays(CertificateSoonDays);
-            var certs = _db.EmployeeCertificates.AsNoTracking()
-                .Where(c => employeeIds.Contains(c.EmployeeId) && c.ExpiresOn != null);
-
-            certExpired = await certs.CountAsync(c => c.ExpiresOn < today, ct);
-            certSoon = await certs.CountAsync(
-                c => c.ExpiresOn >= today && c.ExpiresOn <= soonLimit, ct);
+            var certCounts = await _db.EmployeeCertificates.AsNoTracking()
+                .Where(c => employeeIds.Contains(c.EmployeeId) && c.ExpiresOn != null)
+                .GroupBy(_ => 1)
+                .Select(g => new
+                {
+                    Expired = g.Count(c => c.ExpiresOn < today),
+                    Soon = g.Count(c => c.ExpiresOn >= today && c.ExpiresOn <= soonLimit)
+                })
+                .FirstOrDefaultAsync(ct);
+            certExpired = certCounts?.Expired ?? 0;
+            certSoon = certCounts?.Soon ?? 0;
 
             if (certExpired > 0)
             {
