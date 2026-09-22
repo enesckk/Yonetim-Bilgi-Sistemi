@@ -11,6 +11,7 @@ import { PersonnelRoute } from '@/auth/PersonnelRoute'
 import { PermissionRoute } from '@/auth/PermissionRoute'
 import { LoginPage } from '@/pages/LoginPage'
 import { PermissionCodes } from '@/auth/permissionCodes'
+import { PwaInstallPrompt } from '@/components/PwaInstallPrompt'
 
 const EmployeesPage = lazy(() => import('@/pages/EmployeesPage').then((m) => ({ default: m.EmployeesPage })))
 const EmployeeDetailPage = lazy(() =>
@@ -138,6 +139,7 @@ export default function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>
+          <PwaInstallPrompt />
         </BrowserRouter>
       </ConfirmProvider>
     </AuthProvider>
