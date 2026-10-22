@@ -33,6 +33,7 @@ export function StockCustodiesPanel({ employeeId }: { employeeId?: string }) {
   const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState<AssignCustodyPayload | null>(null)
+  const [transferOnly, setTransferOnly] = useState(false)
   const [returnRow, setReturnRow] = useState<StockCustody | null>(null)
   const [returnDate, setReturnDate] = useState(today)
   const [returnNotes, setReturnNotes] = useState('')
@@ -70,12 +71,13 @@ export function StockCustodiesPanel({ employeeId }: { employeeId?: string }) {
   const available = (balances.find(b => b.locationId === form?.locationId)?.availableQuantity ?? 0)
     + (oldRow && oldRow.stockItemId === form?.stockItemId && oldRow.locationId === form?.locationId ? oldRow.quantity : 0)
 
-  function openForm(old?: StockCustody) {
+  function openForm(old?: StockCustody, transfer = false) {
+    setTransferOnly(transfer)
     setFormError('')
     setForm({
       id: crypto.randomUUID(), stockItemId: old?.stockItemId ?? '', locationId: old?.locationId ?? '',
-      employeeId: old?.employeeId ?? employeeId ?? '', quantity: old?.quantity ?? 1,
-      assignedOn: today(), serialNumber: old?.serialNumber ?? '', notes: '', replacesId: old?.id,
+      employeeId: transfer ? '' : old?.employeeId ?? employeeId ?? '', quantity: old?.quantity ?? 1,
+      assignedOn: today(), serialNumber: old?.serialNumber ?? '', notes: transfer ? old?.notes ?? '' : '', replacesId: old?.id,
     })
   }
 
@@ -127,7 +129,8 @@ export function StockCustodiesPanel({ employeeId }: { employeeId?: string }) {
           <td>{row.locationName}</td><td>{fmtQty(row.quantity)} {row.unitLabel}</td><td>{dateLabel(row.assignedOn)}</td>
           <td>{row.returnedOn ? <>Kapandı · {dateLabel(row.returnedOn)}<div className="muted small">{row.returnNotes}</div></> : <span className="stock-pill">Aktif zimmet</span>}{row.replacesId && <div className="muted small">Önceki zimmet yerine verildi</div>}</td>
           {canManage && <td><div className="custody-actions">{!row.returnedOn && <>
-            <button type="button" className="btn-secondary" disabled={saving || loading || !!error} onClick={() => openForm(row)}>Değiştir / devret</button>
+            <button type="button" className="btn-secondary" disabled={saving || loading || !!error} onClick={() => openForm(row, true)}>Personeli değiştir</button>
+            <button type="button" className="btn-secondary" disabled={saving || loading || !!error} onClick={() => openForm(row)}>Malzemeyi değiştir</button>
             <button type="button" className="btn-secondary" disabled={saving || loading || !!error} onClick={() => { setFormError(''); setReturnRow(row); setReturnDate(today()); setReturnNotes('') }}>İade al</button>
           </>}</div></td>}
         </tr>)}</tbody>
@@ -139,21 +142,22 @@ export function StockCustodiesPanel({ employeeId }: { employeeId?: string }) {
 
     {form && <div className="org-modal-backdrop stock-modal-backdrop">
       <div className="org-modal panel stock-modal custody-modal" role="dialog" aria-modal="true" aria-labelledby="custody-title">
-        <header className="stock-modal-head"><h2 id="custody-title">{oldRow ? 'Zimmeti değiştir / devret' : 'Yeni zimmet'}</h2><button className="btn-secondary" type="button" disabled={saving} onClick={() => setForm(null)} aria-label="Kapat">Kapat</button></header>
+        <header className="stock-modal-head"><h2 id="custody-title">{transferOnly ? 'Zimmetin personelini değiştir' : oldRow ? 'Zimmetli malzemeyi değiştir' : 'Yeni zimmet'}</h2><button className="btn-secondary" type="button" disabled={saving} onClick={() => setForm(null)} aria-label="Kapat">Kapat</button></header>
+        {transferOnly && <p>Malzeme, seri numarası, kaynak yer ve miktar korunur. Yalnızca yeni personeli ve devir tarihini seçin.</p>}
         {oldRow && <p>{oldRow.employeeName} üzerindeki {fmtQty(oldRow.quantity)} {oldRow.unitLabel} {oldRow.itemName} iade alınacak, aşağıdaki yeni zimmet açılacak.</p>}
         <form className="org-form stock-modal-form" onSubmit={e => void save(e)}>
           <fieldset disabled={saving} className="custody-fieldset"><div className="stock-form-grid">
-            <label>Personel<select aria-label="Personel" required value={form.employeeId} onChange={e => setForm({ ...form, employeeId: e.target.value })}><option value="">Aktif personel seçin</option>{employees.filter(p => !employeeId || p.id === employeeId || !!oldRow).map(p => <option key={p.id} value={p.id}>{p.name}{p.employeeNumber ? ` · ${p.employeeNumber}` : ''}</option>)}</select></label>
-            <label>Demirbaş<select aria-label="Demirbaş" required value={form.stockItemId} onChange={e => setForm({ ...form, stockItemId: e.target.value, locationId: '', serialNumber: '' })}><option value="">Malzeme seçin</option>{items.filter(i => i.kind === 2).map(i => <option key={i.id} value={i.id}>{i.name}{i.code ? ` · ${i.code}` : ''}</option>)}</select></label>
-            <label>Kaynak stok yeri<select aria-label="Kaynak stok yeri" required value={form.locationId} onChange={e => setForm({ ...form, locationId: e.target.value })}><option value="">Yer seçin</option>{(options?.locations ?? []).filter(loc => balances.some(b => b.locationId === loc.id)).map(loc => <option key={loc.id} value={loc.id}>{loc.name}</option>)}</select></label>
-            <label>Miktar<input aria-label="Miktar" required type="number" min="0.01" step="0.01" max={available || undefined} value={form.quantity} onChange={e => setForm({ ...form, quantity: Number(e.target.value) })} /><span className="muted small">Kullanılabilir: {fmtQty(available)} {selectedItem?.unitLabel}</span></label>
+            <label>Personel<select aria-label="Personel" required value={form.employeeId} onChange={e => setForm({ ...form, employeeId: e.target.value })}><option value="">Aktif personel seçin</option>{employees.filter(p => (!employeeId || p.id === employeeId || !!oldRow) && (!transferOnly || p.id !== oldRow?.employeeId)).map(p => <option key={p.id} value={p.id}>{p.name}{p.employeeNumber ? ` · ${p.employeeNumber}` : ''}</option>)}</select></label>
+            <label>Demirbaş<select aria-label="Demirbaş" disabled={transferOnly} required value={form.stockItemId} onChange={e => setForm({ ...form, stockItemId: e.target.value, locationId: '', serialNumber: '' })}><option value="">Malzeme seçin</option>{items.filter(i => i.kind === 2).map(i => <option key={i.id} value={i.id}>{i.name}{i.code ? ` · ${i.code}` : ''}</option>)}</select></label>
+            <label>Kaynak stok yeri<select aria-label="Kaynak stok yeri" disabled={transferOnly} required value={form.locationId} onChange={e => setForm({ ...form, locationId: e.target.value })}><option value="">Yer seçin</option>{(options?.locations ?? []).filter(loc => balances.some(b => b.locationId === loc.id)).map(loc => <option key={loc.id} value={loc.id}>{loc.name}</option>)}</select></label>
+            <label>Miktar<input aria-label="Miktar" disabled={transferOnly} required type="number" min="0.01" step="0.01" max={available || undefined} value={form.quantity} onChange={e => setForm({ ...form, quantity: Number(e.target.value) })} /><span className="muted small">Kullanılabilir: {fmtQty(available)} {selectedItem?.unitLabel}</span></label>
             <label>Zimmet / değişim tarihi<input required type="date" min={oldRow?.assignedOn} max={today()} value={form.assignedOn} onChange={e => setForm({ ...form, assignedOn: e.target.value })} /></label>
-            <label>Seri / demirbaş numarası<input aria-label="Seri / demirbaş numarası" maxLength={100} value={form.serialNumber ?? ''} onChange={e => setForm({ ...form, serialNumber: e.target.value })} /><span className="muted small">Seri numarası girildiğinde miktar 1 olmalıdır.</span></label>
+            <label>Seri / demirbaş numarası<input aria-label="Seri / demirbaş numarası" disabled={transferOnly} maxLength={100} value={form.serialNumber ?? ''} onChange={e => setForm({ ...form, serialNumber: e.target.value })} /><span className="muted small">Seri numarası girildiğinde miktar 1 olmalıdır.</span></label>
             <label>Açıklama<textarea maxLength={400} value={form.notes ?? ''} onChange={e => setForm({ ...form, notes: e.target.value })} /></label>
           </div></fieldset>
           {!items.some(i => i.kind === 2) && <p className="form-error">Zimmetlenebilir demirbaş yok. Stok takip ekranında malzeme türünü “Demirbaş” olarak belirleyin.</p>}
           {formError && <p role="alert" className="form-error">{formError}</p>}
-          <footer className="org-form-actions"><button className="btn-secondary" type="button" disabled={saving} onClick={() => setForm(null)}>Vazgeç</button><button className="btn-primary" type="submit" disabled={saving || available < form.quantity || available <= 0}>{saving ? 'Kaydediliyor…' : oldRow ? 'İade al ve yeni zimmet aç' : 'Zimmeti kaydet'}</button></footer>
+          <footer className="org-form-actions"><button className="btn-secondary" type="button" disabled={saving} onClick={() => setForm(null)}>Vazgeç</button><button className="btn-primary" type="submit" disabled={saving || available < form.quantity || available <= 0}>{saving ? 'Kaydediliyor…' : transferOnly ? 'Personel devrini kaydet' : oldRow ? 'İade al ve yeni zimmet aç' : 'Zimmeti kaydet'}</button></footer>
         </form>
       </div>
     </div>}

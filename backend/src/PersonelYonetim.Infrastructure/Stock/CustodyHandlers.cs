@@ -118,7 +118,9 @@ public sealed class AssignStockCustodyHandler(AppDbContext db, ICurrentUserServi
                 if (request.AssignedOn < old.AssignedOn)
                     throw new ConflictException("Değişim tarihi eski zimmet tarihinden önce olamaz.");
                 old.ReturnedOn = request.AssignedOn;
-                old.ReturnNotes = "Yeni zimmet ile değiştirildi.";
+                old.ReturnNotes = old.EmployeeId != employee.Id
+                    ? "Personel devri: yeni personel için zimmet açıldı."
+                    : "Yeni zimmet ile değiştirildi.";
                 old.UpdatedAtUtc = DateTime.UtcNow;
                 old.UpdatedBy = user.UserName;
                 // Persist inside the transaction so availability and unique serial checks exclude the old custody.

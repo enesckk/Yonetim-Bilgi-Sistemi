@@ -9,6 +9,8 @@ using PersonelYonetim.Domain.Authorization;
 using PersonelYonetim.Domain.Entities;
 using PersonelYonetim.Domain.Enums;
 using PersonelYonetim.Infrastructure.Persistence;
+using PersonelYonetim.Infrastructure.Persistence.Seed;
+using Microsoft.Extensions.Logging.Abstractions;
 using PersonelYonetim.Infrastructure.Stock;
 
 namespace PersonelYonetim.Tests;
@@ -16,6 +18,27 @@ namespace PersonelYonetim.Tests;
 /// <summary>Opt-in integration tests using disposable databases on a local PostgreSQL instance.</summary>
 public class PostgresStockCustodyTests
 {
+    [LocalPostgresFact]
+    public async Task Requested_samples_are_added_once_even_when_two_instances_start_together()
+    {
+        await using var f = await Fixture.Create();
+        await using (var setup = f.Context())
+        {
+            setup.OrganizationUnits.Add(new() { Code = "KSSIM", Name = "Müdürlük", Type = OrganizationUnitType.Directorate });
+            await setup.SaveChangesAsync();
+        }
+        await Task.WhenAll(Enumerable.Range(0, 2).Select(async _ =>
+        {
+            await using var db = f.Context();
+            await RequestedCustodySamples.SeedAsync(db, NullLogger.Instance);
+        }));
+        await using var check = f.Context();
+        Assert.Equal(3, await check.StockCustodies.CountAsync());
+        Assert.Equal(5, await check.StockItems.CountAsync());
+        Assert.Equal(1, await check.AppSettings.CountAsync(x => x.Key == RequestedCustodySamples.MarkerKey));
+        Assert.Equal(1, await check.StockBalances.Where(x => x.StockItemId == f.Item.Id).Select(x => x.Quantity).SingleAsync());
+    }
+
     [LocalPostgresFact]
     public async Task Migration_preserves_existing_items_and_marks_kind_unspecified()
     {
