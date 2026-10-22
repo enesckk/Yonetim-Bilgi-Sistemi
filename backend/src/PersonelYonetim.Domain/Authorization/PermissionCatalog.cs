@@ -50,6 +50,7 @@ public static class PermissionCatalog
         new(PermissionCodes.OrganizationManage, "Birim/tesis yönetme", "Organizasyon", "Birim ve tesis CRUD"),
 
         new(PermissionCodes.StockView, "Stok takip görüntüleme", "Stok", "Tesislerdeki malzeme ve miktarları görür; giriş/çıkış yapamaz"),
+        new(PermissionCodes.StockCustodyManage, "Zimmet yönetme", "Stok", "Personele zimmet atama, personel devri, malzeme değiştirme ve iade"),
         new(PermissionCodes.StockManage, "Stok yönetme", "Stok", "Malzeme tanımı, giriş, çıkış, transfer ve sayım — amir işlemi"),
 
         new(PermissionCodes.TasksView, "İş ataması görüntüleme", "İş", "Kendisine gelen ve müdürlük işlerini görür"),

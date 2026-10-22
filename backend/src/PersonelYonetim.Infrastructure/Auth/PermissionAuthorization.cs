@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using PersonelYonetim.Domain.Authorization;
 using PersonelYonetim.Infrastructure.Auth;
 
 namespace PersonelYonetim.Infrastructure.Auth;
@@ -19,7 +20,9 @@ public sealed class PermissionAuthorizationHandler : AuthorizationHandler<Permis
         AuthorizationHandlerContext context,
         PermissionRequirement requirement)
     {
-        if (context.User.HasClaim(JwtTokenService.PermissionClaimType, requirement.Permission))
+        if (context.User.HasClaim(JwtTokenService.PermissionClaimType, requirement.Permission) ||
+            (requirement.Permission == PermissionCodes.StockCustodyManage &&
+             context.User.HasClaim(JwtTokenService.PermissionClaimType, PermissionCodes.StockManage)))
             context.Succeed(requirement);
 
         return Task.CompletedTask;

@@ -8,6 +8,7 @@ import {
 } from '@/api/stockApi'
 import { useAuth } from '@/auth/AuthContext'
 import { PermissionCodes } from '@/auth/permissionCodes'
+import { StockIcon } from '@/components/StockIcon'
 
 const today = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Istanbul' })
 const dateLabel = (value: string) => value.split('-').reverse().join('.')
@@ -19,7 +20,7 @@ function errorMessage(err: unknown) {
 export function StockCustodiesPanel({ employeeId }: { employeeId?: string }) {
   const { hasPermission } = useAuth()
   const canView = hasPermission(PermissionCodes.StockView)
-  const canManage = hasPermission(PermissionCodes.StockManage)
+  const canManage = hasPermission(PermissionCodes.StockManage) || hasPermission(PermissionCodes.StockCustodyManage)
   const loadSequence = useRef(0)
   const [rows, setRows] = useState<StockCustody[]>([])
   const [items, setItems] = useState<StockItemRow[]>([])
@@ -27,6 +28,7 @@ export function StockCustodiesPanel({ employeeId }: { employeeId?: string }) {
   const [options, setOptions] = useState<StockOptions | null>(null)
   const [includeReturned, setIncludeReturned] = useState(false)
   const [search, setSearch] = useState('')
+  const [placeFilter, setPlaceFilter] = useState('')
   const [page, setPage] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -44,7 +46,7 @@ export function StockCustodiesPanel({ employeeId }: { employeeId?: string }) {
     setError('')
     try {
       const [records, catalog, opts, people] = await Promise.all([
-        fetchCustodies({ employeeId, includeReturned }), fetchStockItems(), fetchStockOptions(),
+        fetchCustodies({ employeeId, includeReturned: true }), fetchStockItems(), fetchStockOptions(),
         canManage ? fetchCustodyEmployees() : Promise.resolve([]),
       ])
       if (sequence !== loadSequence.current) return
@@ -54,15 +56,21 @@ export function StockCustodiesPanel({ employeeId }: { employeeId?: string }) {
       setEmployees(people)
     } catch (err) { if (sequence === loadSequence.current) setError(errorMessage(err)) }
     finally { if (sequence === loadSequence.current) setLoading(false) }
-  }, [employeeId, includeReturned, canManage])
+  }, [employeeId, canManage])
 
   useEffect(() => { if (canView) void load(); return () => { loadSequence.current++ } }, [load, canView])
-  useEffect(() => { setPage(0) }, [search, includeReturned, employeeId])
+  useEffect(() => { setPage(0) }, [search, includeReturned, employeeId, placeFilter])
   const filtered = useMemo(() => {
     const term = search.trim().toLocaleLowerCase('tr-TR')
-    return rows.filter(row => [row.employeeName, row.employeeNumber, row.itemName, row.itemCode,
+    return rows.filter(row => (includeReturned || !row.returnedOn) && (!placeFilter || row.locationId === placeFilter) && [row.employeeName, row.employeeNumber, row.itemName, row.itemCode,
       row.locationName, row.serialNumber].join(' ').toLocaleLowerCase('tr-TR').includes(term))
-  }, [rows, search])
+  }, [rows, search, includeReturned, placeFilter])
+  const activeRows = rows.filter(row => !row.returnedOn)
+  const activePeople = new Set(activeRows.map(row => row.employeeId)).size
+  const activeItems = new Set(activeRows.map(row => row.stockItemId)).size
+  const places = Array.from(new Map(rows.map(row => [row.locationId, row.locationName])).entries())
+    .sort((a, b) => a[1].localeCompare(b[1], 'tr'))
+  const initials = (name: string) => name.trim().split(/\s+/).map(part => part[0]).filter(Boolean).slice(0, 2).join('')
   const pages = Math.max(1, Math.ceil(filtered.length / 25))
   const currentPage = Math.min(page, pages - 1)
   const oldRow = rows.find(row => row.id === form?.replacesId)
@@ -108,52 +116,67 @@ export function StockCustodiesPanel({ employeeId }: { employeeId?: string }) {
   }
 
   if (!canView) return <p className="form-error">Zimmetleri görüntüleme yetkiniz yok.</p>
-  return <section className="panel custody-panel">
-    <div className="employees-toolbar">
-      <div><h2>Zimmetli malzemeler</h2><p className="muted">Demirbaşları personele atayın, değiştirin ve iadelerini takip edin.</p></div>
-      {canManage && <button className="btn-primary" type="button" disabled={loading || !!error} onClick={() => openForm()}>Yeni zimmet</button>}
+  return <section className="custody-workspace">
+    <header className="custody-page-head">
+      <div><span className="custody-eyebrow">PERSONEL ENVANTERİ</span><h2>Zimmetli malzemeler</h2><p>Kimde, hangi malzeme var? Zimmetleri ve teslim geçmişini tek yerden yönetin.</p></div>
+      <div className="custody-head-actions">
+        <Link className="custody-secondary" to="/stock"><StockIcon name="box" />Stok takibi</Link>
+        {canManage && <button className="custody-primary" type="button" disabled={loading || !!error} onClick={() => openForm()}><StockIcon name="plus" />Yeni zimmet</button>}
+      </div>
+    </header>
+    <div className="custody-stats">
+      <article><span className="custody-stat-icon"><StockIcon name="check" /></span><div><span>Aktif zimmet</span><strong>{loading ? '—' : activeRows.length}<small>kayıt</small></strong></div></article>
+      <article><span className="custody-stat-icon is-blue"><StockIcon name="users" /></span><div><span>Zimmetli personel</span><strong>{loading ? '—' : activePeople}<small>kişi</small></strong></div></article>
+      <article><span className="custody-stat-icon is-amber"><StockIcon name="box" /></span><div><span>Malzeme çeşidi</span><strong>{loading ? '—' : activeItems}<small>demirbaş</small></strong></div></article>
     </div>
-    <p className="muted small">Zimmet, malzemenin toplam stoğunu değiştirmez; kullanılabilir miktarını azaltır. İade edilen miktar kaynak yerin kullanılabilir stoğuna döner.</p>
-    {error && <p className="form-error" role="alert">{error} <button type="button" className="btn-secondary" onClick={() => void load()}>Tekrar yükle</button></p>}
-    <div className="custody-filters">
-      <label>Arama<input type="search" placeholder="Personel, sicil, malzeme, yer veya seri numarası" value={search} onChange={e => setSearch(e.target.value)} /></label>
-      <label className="custody-checkbox"><input type="checkbox" checked={includeReturned} onChange={e => setIncludeReturned(e.target.checked)} />İade ve değişim geçmişini göster</label>
-    </div>
-    <div className="employees-table-wrap"><table className="data-table">
-      <thead><tr><th>Personel</th><th>Malzeme</th><th>Kaynak yer</th><th>Miktar</th><th>Zimmet tarihi</th><th>Durum / geçmiş</th>{canManage && <th>İşlem</th>}</tr></thead>
-      <tbody>{loading ? <tr><td colSpan={canManage ? 7 : 6}>Yükleniyor…</td></tr> : filtered.length === 0 ?
-        <tr><td colSpan={canManage ? 7 : 6}>Bu filtrelere uygun zimmet bulunamadı.</td></tr> :
-        filtered.slice(currentPage * 25, (currentPage + 1) * 25).map(row => <tr key={row.id}>
-          <td>{hasPermission(PermissionCodes.EmployeesView) ? <Link to={`/employees/${row.employeeId}`}>{row.employeeName}</Link> : row.employeeName}<div className="muted small">{row.employeeNumber}</div></td>
-          <td><strong>{row.itemName}</strong><div className="muted small">{row.itemCode}{row.serialNumber ? ` · Seri: ${row.serialNumber}` : ''}</div>{row.notes && <div className="small">{row.notes}</div>}</td>
-          <td>{row.locationName}</td><td>{fmtQty(row.quantity)} {row.unitLabel}</td><td>{dateLabel(row.assignedOn)}</td>
-          <td>{row.returnedOn ? <>Kapandı · {dateLabel(row.returnedOn)}<div className="muted small">{row.returnNotes}</div></> : <span className="stock-pill">Aktif zimmet</span>}{row.replacesId && <div className="muted small">Önceki zimmet yerine verildi</div>}</td>
-          {canManage && <td><div className="custody-actions">{!row.returnedOn && <>
-            <button type="button" className="btn-secondary" disabled={saving || loading || !!error} onClick={() => openForm(row, true)}>Personeli değiştir</button>
-            <button type="button" className="btn-secondary" disabled={saving || loading || !!error} onClick={() => openForm(row)}>Malzemeyi değiştir</button>
-            <button type="button" className="btn-secondary" disabled={saving || loading || !!error} onClick={() => { setFormError(''); setReturnRow(row); setReturnDate(today()); setReturnNotes('') }}>İade al</button>
-          </>}</div></td>}
-        </tr>)}</tbody>
-    </table></div>
-    <div className="custody-pagination"><span>{filtered.length} kayıt · Sayfa {currentPage + 1} / {pages}</span>
-      <button type="button" className="btn-secondary" disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)}>Önceki</button>
-      <button type="button" className="btn-secondary" disabled={currentPage + 1 >= pages} onClick={() => setPage(currentPage + 1)}>Sonraki</button>
+    {error && <p className="form-error" role="alert">{error} <button type="button" className="custody-secondary" onClick={() => void load()}>Tekrar yükle</button></p>}
+    <div className="custody-register">
+      <div className="custody-register-top">
+        <div className="custody-view-tabs" role="tablist" aria-label="Zimmet görünümü">
+          <button type="button" role="tab" aria-selected={!includeReturned} className={!includeReturned ? 'is-active' : ''} onClick={() => setIncludeReturned(false)}>Aktif zimmetler<span>{activeRows.length}</span></button>
+          <button type="button" role="tab" aria-selected={includeReturned} className={includeReturned ? 'is-active' : ''} onClick={() => setIncludeReturned(true)}>Tüm geçmiş<span>{rows.length}</span></button>
+        </div>
+        <span className="custody-register-note"><span />Stokla birlikte takip edilir</span>
+      </div>
+      <div className="custody-toolbar">
+        <label className="custody-search"><StockIcon name="search" /><input aria-label="Zimmetlerde ara" type="search" placeholder="Malzeme, personel veya seri numarası ara…" value={search} onChange={e => setSearch(e.target.value)} /></label>
+        <label className="custody-place-filter"><span>Tesis</span><select aria-label="Tesis filtresi" value={placeFilter} onChange={e => setPlaceFilter(e.target.value)}><option value="">Tüm tesisler</option>{places.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label>
+      </div>
+      <div className="custody-table-scroll"><table className="custody-table">
+        <thead><tr><th>Malzeme</th><th>Sorumlu personel</th><th>Tesis</th><th>Miktar</th><th>Teslim tarihi</th><th>Durum</th>{canManage && <th className="custody-action-heading">İşlemler</th>}</tr></thead>
+        <tbody>{loading ? <tr><td className="custody-empty" colSpan={canManage ? 7 : 6}><StockIcon name="clock" /><strong>Zimmetler yükleniyor…</strong></td></tr> : filtered.length === 0 ?
+          <tr><td className="custody-empty" colSpan={canManage ? 7 : 6}><StockIcon name="box" /><strong>{search || placeFilter ? 'Aramanıza uygun zimmet bulunamadı.' : 'Henüz zimmet kaydı yok.'}</strong><span>{search || placeFilter ? 'Aramayı veya tesis seçimini değiştirebilirsiniz.' : 'Bir demirbaş seçip personele atayarak başlayın.'}</span></td></tr> :
+          filtered.slice(currentPage * 25, (currentPage + 1) * 25).map(row => <tr className="custody-record" key={row.id}>
+            <td><div className="custody-item-cell"><span className="custody-item-symbol"><StockIcon name="box" /></span><div><strong>{row.itemName}</strong><div className="custody-item-meta"><span>{row.itemCode || 'Kod belirtilmedi'}</span>{row.serialNumber && <span className="custody-serial">SN · {row.serialNumber}</span>}</div></div></div></td>
+            <td><div className="custody-person"><span className="custody-avatar">{initials(row.employeeName)}</span><div>{hasPermission(PermissionCodes.EmployeesView) ? <Link to={`/employees/${row.employeeId}`}>{row.employeeName}</Link> : <strong>{row.employeeName}</strong>}<small>{row.employeeNumber || 'Personel'}</small></div></div></td>
+            <td data-label="Tesis"><span className="custody-location">{row.locationName}</span></td>
+            <td data-label="Miktar"><span className="custody-quantity">{fmtQty(row.quantity)}<small>{row.unitLabel}</small></span></td>
+            <td data-label="Teslim tarihi"><time className="custody-date" dateTime={row.assignedOn}>{dateLabel(row.assignedOn)}</time></td>
+            <td className="custody-status-cell"><span className={`custody-status ${row.returnedOn ? 'is-returned' : ''}`}><span />{row.returnedOn ? 'Teslim alındı' : 'Aktif zimmet'}</span>{(row.notes || row.returnedOn || row.replacesId) && <details className="custody-record-details"><summary>Kaydın ayrıntıları</summary>{row.notes && <p>{row.notes}</p>}{row.returnedOn && <p>{dateLabel(row.returnedOn)} · {row.returnNotes || 'İade alındı.'}</p>}{row.replacesId && <p>Önceki zimmet kapatılarak oluşturuldu.</p>}</details>}</td>
+            {canManage && <td className="custody-action-cell"><div className="custody-actions">{!row.returnedOn ? <>
+              <button type="button" className="custody-transfer-btn" disabled={saving || loading || !!error} onClick={() => openForm(row, true)}><StockIcon name="transfer" />Personeli değiştir</button>
+              <button type="button" className="custody-icon-btn" aria-label="Malzemeyi değiştir" title="Malzemeyi değiştir" disabled={saving || loading || !!error} onClick={() => openForm(row)}><StockIcon name="edit" /><span className="custody-btn-caption">Malzeme</span></button>
+              <button type="button" className="custody-icon-btn" aria-label="İade al" title="İade al" disabled={saving || loading || !!error} onClick={() => { setFormError(''); setReturnRow(row); setReturnDate(today()); setReturnNotes('') }}><StockIcon name="in" /><span className="custody-btn-caption">İade</span></button>
+            </> : <span className="custody-closed-note">Kayıt kapalı</span>}</div></td>}
+          </tr>)}</tbody>
+      </table></div>
+      <footer className="custody-register-footer"><span><strong>{filtered.length}</strong> zimmet kaydı{pages > 1 ? ` · Sayfa ${currentPage + 1} / ${pages}` : ''}</span>{pages > 1 && <div><button type="button" className="custody-secondary" disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)}>Önceki</button><button type="button" className="custody-secondary" disabled={currentPage + 1 >= pages} onClick={() => setPage(currentPage + 1)}>Sonraki</button></div>}<details className="custody-stock-help"><summary>Zimmet stoğu nasıl etkiler?</summary><p>Zimmet, toplam stoğu değiştirmez; kullanılabilir miktarı ayırır. İade edilen malzeme yeniden kullanılabilir olur.</p></details></footer>
     </div>
 
     {form && <div className="org-modal-backdrop stock-modal-backdrop">
-      <div className="org-modal panel stock-modal custody-modal" role="dialog" aria-modal="true" aria-labelledby="custody-title">
+      <div className={`org-modal panel stock-modal custody-modal${transferOnly ? ' is-transfer' : ''}`} role="dialog" aria-modal="true" aria-labelledby="custody-title">
         <header className="stock-modal-head"><h2 id="custody-title">{transferOnly ? 'Zimmetin personelini değiştir' : oldRow ? 'Zimmetli malzemeyi değiştir' : 'Yeni zimmet'}</h2><button className="btn-secondary" type="button" disabled={saving} onClick={() => setForm(null)} aria-label="Kapat">Kapat</button></header>
-        {transferOnly && <p>Malzeme, seri numarası, kaynak yer ve miktar korunur. Yalnızca yeni personeli ve devir tarihini seçin.</p>}
-        {oldRow && <p>{oldRow.employeeName} üzerindeki {fmtQty(oldRow.quantity)} {oldRow.unitLabel} {oldRow.itemName} iade alınacak, aşağıdaki yeni zimmet açılacak.</p>}
+        {transferOnly && oldRow && <div className="custody-transfer-context"><span className="custody-item-symbol"><StockIcon name="box" /></span><div><strong>{oldRow.itemName}</strong><small>{fmtQty(oldRow.quantity)} {oldRow.unitLabel}{oldRow.serialNumber ? ` · ${oldRow.serialNumber}` : ''}</small><p>Mevcut sorumlu: <b>{oldRow.employeeName}</b></p></div></div>}
+        {oldRow && !transferOnly && <p>{oldRow.employeeName} üzerindeki {fmtQty(oldRow.quantity)} {oldRow.unitLabel} {oldRow.itemName} iade alınacak, aşağıdaki yeni zimmet açılacak.</p>}
         <form className="org-form stock-modal-form" onSubmit={e => void save(e)}>
           <fieldset disabled={saving} className="custody-fieldset"><div className="stock-form-grid">
-            <label>Personel<select aria-label="Personel" required value={form.employeeId} onChange={e => setForm({ ...form, employeeId: e.target.value })}><option value="">Aktif personel seçin</option>{employees.filter(p => (!employeeId || p.id === employeeId || !!oldRow) && (!transferOnly || p.id !== oldRow?.employeeId)).map(p => <option key={p.id} value={p.id}>{p.name}{p.employeeNumber ? ` · ${p.employeeNumber}` : ''}</option>)}</select></label>
-            <label>Demirbaş<select aria-label="Demirbaş" disabled={transferOnly} required value={form.stockItemId} onChange={e => setForm({ ...form, stockItemId: e.target.value, locationId: '', serialNumber: '' })}><option value="">Malzeme seçin</option>{items.filter(i => i.kind === 2).map(i => <option key={i.id} value={i.id}>{i.name}{i.code ? ` · ${i.code}` : ''}</option>)}</select></label>
-            <label>Kaynak stok yeri<select aria-label="Kaynak stok yeri" disabled={transferOnly} required value={form.locationId} onChange={e => setForm({ ...form, locationId: e.target.value })}><option value="">Yer seçin</option>{(options?.locations ?? []).filter(loc => balances.some(b => b.locationId === loc.id)).map(loc => <option key={loc.id} value={loc.id}>{loc.name}</option>)}</select></label>
-            <label>Miktar<input aria-label="Miktar" disabled={transferOnly} required type="number" min="0.01" step="0.01" max={available || undefined} value={form.quantity} onChange={e => setForm({ ...form, quantity: Number(e.target.value) })} /><span className="muted small">Kullanılabilir: {fmtQty(available)} {selectedItem?.unitLabel}</span></label>
-            <label>Zimmet / değişim tarihi<input required type="date" min={oldRow?.assignedOn} max={today()} value={form.assignedOn} onChange={e => setForm({ ...form, assignedOn: e.target.value })} /></label>
-            <label>Seri / demirbaş numarası<input aria-label="Seri / demirbaş numarası" disabled={transferOnly} maxLength={100} value={form.serialNumber ?? ''} onChange={e => setForm({ ...form, serialNumber: e.target.value })} /><span className="muted small">Seri numarası girildiğinde miktar 1 olmalıdır.</span></label>
-            <label>Açıklama<textarea maxLength={400} value={form.notes ?? ''} onChange={e => setForm({ ...form, notes: e.target.value })} /></label>
+            <label>{transferOnly ? 'Yeni sorumlu personel' : 'Personel'}<select aria-label="Personel" required value={form.employeeId} onChange={e => setForm({ ...form, employeeId: e.target.value })}><option value="">Aktif personel seçin</option>{employees.filter(p => (!employeeId || p.id === employeeId || !!oldRow) && (!transferOnly || p.id !== oldRow?.employeeId)).map(p => <option key={p.id} value={p.id}>{p.name}{p.employeeNumber ? ` · ${p.employeeNumber}` : ''}</option>)}</select></label>
+            {!transferOnly && <label>Demirbaş<select aria-label="Demirbaş" disabled={transferOnly} required value={form.stockItemId} onChange={e => setForm({ ...form, stockItemId: e.target.value, locationId: '', serialNumber: '' })}><option value="">Malzeme seçin</option>{items.filter(i => i.kind === 2).map(i => <option key={i.id} value={i.id}>{i.name}{i.code ? ` · ${i.code}` : ''}</option>)}</select></label>}
+            {!transferOnly && <label>Kaynak stok yeri<select aria-label="Kaynak stok yeri" disabled={transferOnly} required value={form.locationId} onChange={e => setForm({ ...form, locationId: e.target.value })}><option value="">Yer seçin</option>{(options?.locations ?? []).filter(loc => balances.some(b => b.locationId === loc.id)).map(loc => <option key={loc.id} value={loc.id}>{loc.name}</option>)}</select></label>}
+            {!transferOnly && <label>Miktar<input aria-label="Miktar" disabled={transferOnly} required type="number" min="0.01" step="0.01" max={available || undefined} value={form.quantity} onChange={e => setForm({ ...form, quantity: Number(e.target.value) })} /><span className="muted small">Kullanılabilir: {fmtQty(available)} {selectedItem?.unitLabel}</span></label>}
+            <label>{transferOnly ? 'Devir tarihi' : 'Zimmet / değişim tarihi'}<input required type="date" min={oldRow?.assignedOn} max={today()} value={form.assignedOn} onChange={e => setForm({ ...form, assignedOn: e.target.value })} /></label>
+            {!transferOnly && <label>Seri / demirbaş numarası<input aria-label="Seri / demirbaş numarası" disabled={transferOnly} maxLength={100} value={form.serialNumber ?? ''} onChange={e => setForm({ ...form, serialNumber: e.target.value })} /><span className="muted small">Seri numarası girildiğinde miktar 1 olmalıdır.</span></label>}
+            <label className={transferOnly ? 'span-2' : undefined}>{transferOnly ? 'Devir notu (isteğe bağlı)' : 'Açıklama'}<textarea maxLength={400} value={form.notes ?? ''} onChange={e => setForm({ ...form, notes: e.target.value })} /></label>
           </div></fieldset>
           {!items.some(i => i.kind === 2) && <p className="form-error">Zimmetlenebilir demirbaş yok. Stok takip ekranında malzeme türünü “Demirbaş” olarak belirleyin.</p>}
           {formError && <p role="alert" className="form-error">{formError}</p>}

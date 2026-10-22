@@ -64,6 +64,7 @@ public static class RolePermissionMatrix
             PermissionCodes.OrganizationView,
             PermissionCodes.OrganizationManage,
             PermissionCodes.StockView,
+            PermissionCodes.StockCustodyManage,
             PermissionCodes.TasksView,
             PermissionCodes.TasksAssign,
             PermissionCodes.TasksReview,

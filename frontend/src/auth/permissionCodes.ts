@@ -40,6 +40,7 @@ export const PermissionCodes = {
   SettingsManage: 'Settings.Manage',
   StockView: 'Stock.View',
   StockManage: 'Stock.Manage',
+  StockCustodyManage: 'Stock.CustodyManage',
   TasksView: 'Tasks.View',
   TasksAssign: 'Tasks.Assign',
   TasksSubmit: 'Tasks.Submit',

@@ -14,6 +14,19 @@ namespace PersonelYonetim.Tests;
 public sealed class StockCustodyTests
 {
     [Fact]
+    public async Task Custody_manager_can_assign_and_return_but_cannot_edit_the_stock_catalog()
+    {
+        await using var f = await Fixture.Create();
+        var director = new User(PermissionCodes.StockView, PermissionCodes.StockCustodyManage, PermissionCodes.EmployeesViewAllUnits);
+        var row = await new AssignStockCustodyHandler(f.Db, director).Handle(f.Command(1), default);
+        await new ReturnStockCustodyHandler(f.Db, director).Handle(new() { Id = row.Id, ReturnedOn = Fixture.Today }, default);
+        await Assert.ThrowsAsync<ForbiddenException>(() => new UpsertStockItemHandler(f.Db, director).Handle(new()
+        {
+            Id = f.Item.Id, Name = "Unauthorized stock edit", Kind = StockItemKind.FixedAsset
+        }, default));
+    }
+
+    [Fact]
     public async Task Assignment_reserves_stock_and_return_releases_it_without_inflating_total()
     {
         await using var f = await Fixture.Create();

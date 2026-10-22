@@ -53,6 +53,7 @@ public static class PermissionCodes
     // Stok
     public const string StockView = "Stock.View";
     public const string StockManage = "Stock.Manage";
+    public const string StockCustodyManage = "Stock.CustodyManage";
 
     // İş ataması
     public const string TasksView = "Tasks.View";

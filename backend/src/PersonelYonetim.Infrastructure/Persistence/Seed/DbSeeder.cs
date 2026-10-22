@@ -71,8 +71,9 @@ public static class DbSeeder
         }
         await SeedAppSettingsAsync(db, logger, cancellationToken);
 
-        // Explicit user request: isolated, labelled examples; completion marker prevents reseeding.
-        await RequestedCustodySamples.SeedAsync(db, logger, cancellationToken);
+        // Explicit user request: use existing real personnel and grant only custody management.
+        await CustodyPermissionUpdate.SeedAsync(db, cancellationToken);
+        await CustodyRealPersonnelUpdate.SeedAsync(db, logger, cancellationToken);
 
         // Düz metin TCKN kaldıysa şifrele (eski seed / ilk kurulum)
         var protector = scope.ServiceProvider.GetRequiredService<INationalIdProtector>();

@@ -46,7 +46,7 @@ public sealed class GetCustodyEmployeesHandler(AppDbContext db, ICurrentUserServ
 {
     public async Task<IReadOnlyList<CustodyEmployeeDto>> Handle(GetCustodyEmployeesQuery request, CancellationToken ct)
     {
-        StockAccess.EnsureManage(user);
+        StockAccess.EnsureCustodyManage(user);
         var allowed = await UnitScopeHelper.AllowedUnitIdsAsync(db, user, ct);
         var q = db.Employees.AsNoTracking().Where(x => x.Status == EmployeeStatus.Active);
         if (allowed is not null)
@@ -78,7 +78,7 @@ public sealed class AssignStockCustodyHandler(AppDbContext db, ICurrentUserServi
 {
     public async Task<StockCustodyDto> Handle(AssignStockCustodyCommand request, CancellationToken ct)
     {
-        StockAccess.EnsureManage(user);
+        StockAccess.EnsureCustodyManage(user);
         return await StockTransaction.RunAsync(db, async () =>
         {
             await CustodyData.EnsureLocationAsync(db, user, request.LocationId, ct);
@@ -152,7 +152,7 @@ public sealed class ReturnStockCustodyHandler(AppDbContext db, ICurrentUserServi
 {
     public async Task<StockCustodyDto> Handle(ReturnStockCustodyCommand request, CancellationToken ct)
     {
-        StockAccess.EnsureManage(user);
+        StockAccess.EnsureCustodyManage(user);
         return await StockTransaction.RunAsync(db, async () =>
         {
             var row = await CustodyData.Rows(db).FirstOrDefaultAsync(x => x.Id == request.Id, ct)

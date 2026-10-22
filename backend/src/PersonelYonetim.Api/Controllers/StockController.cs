@@ -26,7 +26,7 @@ public sealed class StockController : ControllerBase
     }
 
     [HttpGet("custody-employees")]
-    [RequirePermission(PermissionCodes.StockManage)]
+    [RequirePermission(PermissionCodes.StockCustodyManage)]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<CustodyEmployeeDto>>>> CustodyEmployees(CancellationToken ct)
     {
         var rows = await _sender.Send(new GetCustodyEmployeesQuery(), ct);
@@ -34,7 +34,7 @@ public sealed class StockController : ControllerBase
     }
 
     [HttpPost("custodies")]
-    [RequirePermission(PermissionCodes.StockManage)]
+    [RequirePermission(PermissionCodes.StockCustodyManage)]
     public async Task<ActionResult<ApiResponse<StockCustodyDto>>> AssignCustody(
         [FromBody] AssignStockCustodyCommand command, CancellationToken ct)
     {
@@ -43,7 +43,7 @@ public sealed class StockController : ControllerBase
     }
 
     [HttpPost("custodies/{id:guid}/return")]
-    [RequirePermission(PermissionCodes.StockManage)]
+    [RequirePermission(PermissionCodes.StockCustodyManage)]
     public async Task<ActionResult<ApiResponse<StockCustodyDto>>> ReturnCustody(
         Guid id, [FromBody] ReturnStockCustodyCommand command, CancellationToken ct)
     {

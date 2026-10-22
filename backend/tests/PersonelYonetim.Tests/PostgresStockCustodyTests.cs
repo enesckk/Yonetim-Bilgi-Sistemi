@@ -19,6 +19,32 @@ namespace PersonelYonetim.Tests;
 public class PostgresStockCustodyTests
 {
     [LocalPostgresFact]
+    public async Task Legacy_example_stock_is_moved_to_real_personnel_without_changing_total_stock_in_postgres()
+    {
+        await using var f = await Fixture.Create();
+        await using var db = f.Context();
+        db.OrganizationUnits.Add(new() { Code = "KSSIM", Name = "Müdürlük", Type = OrganizationUnitType.Directorate });
+        foreach (var (first, last) in new[] { ("Ahmet", "Oral"), ("Abdullah", "Orhan"), ("Ali", "Döner") })
+            db.Employees.Add(new() { FirstName = first, LastName = last, FacilityId = f.Location.Id, UnitId = f.Location.Id });
+        await db.SaveChangesAsync();
+        await RequestedCustodySamples.SeedAsync(db, NullLogger.Instance);
+        var before = await db.StockBalances.SumAsync(x => x.Quantity);
+        await CustodyRealPersonnelUpdate.SeedAsync(db, NullLogger.Instance);
+        await CustodyRealPersonnelUpdate.SeedAsync(db, NullLogger.Instance);
+        db.ChangeTracker.Clear();
+        var rows = await new GetStockCustodiesHandler(db, f.User).Handle(new(), default);
+        Assert.Equal(3, rows.Count);
+        Assert.All(rows, row =>
+        {
+            Assert.DoesNotContain("[ÖRNEK]", row.EmployeeName);
+            Assert.Equal(f.Location.Id, row.LocationId);
+        });
+        Assert.Equal(before, await db.StockBalances.SumAsync(x => x.Quantity));
+        Assert.Equal(6, await db.StockCustodies.IgnoreQueryFilters().CountAsync());
+        Assert.False(await db.Employees.AnyAsync(x => x.EmployeeNumber != null && x.EmployeeNumber.StartsWith("ORNEK-ZIM-")));
+    }
+
+    [LocalPostgresFact]
     public async Task Requested_samples_are_added_once_even_when_two_instances_start_together()
     {
         await using var f = await Fixture.Create();

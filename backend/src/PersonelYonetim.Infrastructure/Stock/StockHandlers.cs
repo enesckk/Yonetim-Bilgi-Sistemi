@@ -26,6 +26,12 @@ internal static class StockAccess
             throw new ForbiddenException("Stok yönetme yetkiniz yok.");
     }
 
+    public static void EnsureCustodyManage(ICurrentUserService user)
+    {
+        if (!user.HasPermission(PermissionCodes.StockManage) && !user.HasPermission(PermissionCodes.StockCustodyManage))
+            throw new ForbiddenException("Zimmet yönetme yetkiniz yok.");
+    }
+
     public static string LocationType(OrganizationUnitType t) => t switch
     {
         OrganizationUnitType.Municipality => "Belediye",
