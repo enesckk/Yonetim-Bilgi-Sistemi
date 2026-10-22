@@ -1,5 +1,12 @@
 namespace PersonelYonetim.Domain.Enums;
 
+public enum StockItemKind : byte
+{
+    Unspecified = 0,
+    Consumable = 1,
+    FixedAsset = 2
+}
+
 /// <summary>
 /// Kültür, sanat ve sosyal işler müdürlüğü stok grupları.
 /// </summary>

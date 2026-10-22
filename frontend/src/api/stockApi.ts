@@ -2,6 +2,9 @@ import { apiRequest } from './client'
 
 export type StockCategory =
   | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 99
+export type StockItemKind = 0 | 1 | 2
+export const stockKindLabel = (kind: StockItemKind) => ({ 0: 'Belirtilmedi', 1: 'Sarf', 2: 'Demirbaş' })[kind]
+
 export type StockUnit = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 export type StockMovementType = 1 | 2 | 3 | 4
 
@@ -27,12 +30,15 @@ export interface StockItemLocation {
   locationId: string
   locationName: string
   quantity: number
+  assignedQuantity: number
+  availableQuantity: number
 }
 
 export interface StockItemRow {
   id: string
   name: string
   code?: string | null
+  kind: StockItemKind
   category: StockCategory
   categoryLabel: string
   unit: StockUnit
@@ -45,6 +51,8 @@ export interface StockItemRow {
   locations?: StockItemLocation[]
   isLow: boolean
   isActive: boolean
+  assignedQuantity: number
+  availableQuantity: number
 }
 
 export interface StockBalanceLine {
@@ -55,12 +63,15 @@ export interface StockBalanceLine {
   minQuantity: number
   isLow: boolean
   notes?: string | null
+  assignedQuantity: number
+  availableQuantity: number
 }
 
 export interface StockItemDetail {
   id: string
   name: string
   code?: string | null
+  kind: StockItemKind
   category: StockCategory
   categoryLabel: string
   unit: StockUnit
@@ -72,6 +83,8 @@ export interface StockItemDetail {
   totalQuantity: number
   isActive: boolean
   balances: StockBalanceLine[]
+  assignedQuantity: number
+  availableQuantity: number
 }
 
 export interface StockLocationCard {
@@ -88,6 +101,7 @@ export interface StockLocationLine {
   stockItemId: string
   name: string
   code?: string | null
+  kind: StockItemKind
   category: StockCategory
   categoryLabel: string
   unit: StockUnit
@@ -97,6 +111,8 @@ export interface StockLocationLine {
   quantity: number
   minQuantity: number
   isLow: boolean
+  assignedQuantity: number
+  availableQuantity: number
 }
 
 export interface StockLocationDetail {
@@ -148,6 +164,7 @@ export interface StockSummary {
 }
 
 export interface UpsertStockItemPayload {
+  kind: StockItemKind
   name: string
   code?: string | null
   category: StockCategory
@@ -226,3 +243,49 @@ export function fetchStockMovements(params?: { itemId?: string; locationId?: str
 export function createStockMovement(body: CreateStockMovementPayload) {
   return apiRequest<StockMovementRow>('/api/stock/movements', { method: 'POST', body })
 }
+
+export interface StockCustody {
+  id: string
+  stockItemId: string
+  itemName: string
+  itemCode?: string | null
+  unitLabel: string
+  locationId: string
+  locationName: string
+  employeeId: string
+  employeeName: string
+  employeeNumber?: string | null
+  quantity: number
+  serialNumber?: string | null
+  assignedOn: string
+  returnedOn?: string | null
+  notes?: string | null
+  returnNotes?: string | null
+  replacesId?: string | null
+}
+
+export interface AssignCustodyPayload {
+  id: string
+  stockItemId: string
+  locationId: string
+  employeeId: string
+  quantity: number
+  serialNumber?: string | null
+  assignedOn: string
+  notes?: string | null
+  replacesId?: string | null
+}
+
+export interface CustodyEmployee { id: string; name: string; employeeNumber?: string | null }
+
+export function fetchCustodies(params?: { employeeId?: string; includeReturned?: boolean }) {
+  const q = new URLSearchParams()
+  if (params?.employeeId) q.set('employeeId', params.employeeId)
+  if (params?.includeReturned) q.set('includeReturned', 'true')
+  return apiRequest<StockCustody[]>(`/api/stock/custodies?${q}`)
+}
+export const fetchCustodyEmployees = () => apiRequest<CustodyEmployee[]>('/api/stock/custody-employees')
+export const assignCustody = (body: AssignCustodyPayload) =>
+  apiRequest<StockCustody>('/api/stock/custodies', { method: 'POST', body })
+export const returnCustody = (id: string, body: { returnedOn: string; notes?: string | null }) =>
+  apiRequest<StockCustody>(`/api/stock/custodies/${id}/return`, { method: 'POST', body })

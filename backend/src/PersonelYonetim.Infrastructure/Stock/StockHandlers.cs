@@ -152,7 +152,7 @@ public sealed class GetStockSummaryHandler : IRequestHandler<GetStockSummaryQuer
             })
             .ToList();
 
-        var recent = await StockMapper.RecentAsync(_db, null, null, 8, ct);
+        var recent = await StockMapper.RecentAsync(_db, _user, null, null, 8, ct);
 
         return new StockSummaryDto
         {
@@ -206,6 +206,7 @@ public sealed class GetStockItemsHandler : IRequestHandler<GetStockItemsQuery, I
             {
                 x.StockItemId,
                 x.Quantity,
+                AssignedQuantity = _db.StockCustodies.Where(c => c.StockItemId == x.StockItemId && c.LocationId == x.LocationId && c.ReturnedOn == null).Sum(c => (decimal?)c.Quantity) ?? 0,
                 x.LocationId,
                 LocationName = x.Location != null ? x.Location.Name : ""
             })
@@ -229,6 +230,7 @@ public sealed class GetStockItemsHandler : IRequestHandler<GetStockItemsQuery, I
                 Id = item.Id,
                 Name = item.Name,
                 Code = item.Code,
+                Kind = item.Kind,
                 Category = item.Category,
                 CategoryLabel = StockLabels.Category(item.Category),
                 Unit = item.Unit,
@@ -237,12 +239,14 @@ public sealed class GetStockItemsHandler : IRequestHandler<GetStockItemsQuery, I
                 Model = item.Model,
                 MinQuantity = item.MinQuantity,
                 TotalQuantity = qty,
+                AssignedQuantity = lines.Sum(x => x.AssignedQuantity),
                 LocationCount = stocked.Count,
                 Locations = stocked.Select(x => new StockItemLocationBriefDto
                 {
                     LocationId = x.LocationId,
                     LocationName = string.IsNullOrWhiteSpace(x.LocationName) ? "—" : x.LocationName,
-                    Quantity = x.Quantity
+                    Quantity = x.Quantity,
+                    AssignedQuantity = x.AssignedQuantity
                 }).ToList(),
                 IsLow = isLow,
                 IsActive = item.IsActive
@@ -267,13 +271,14 @@ public sealed class GetStockItemHandler : IRequestHandler<GetStockItemQuery, Sto
         StockAccess.EnsureView(_user);
         var item = await _db.StockItems.AsNoTracking().FirstOrDefaultAsync(x => x.Id == request.Id, ct)
             ?? throw new NotFoundException("Malzeme bulunamadı.");
+        var allowed = await UnitScopeHelper.AllowedUnitIdsAsync(_db, _user, ct);
         var balances = await _db.StockBalances.AsNoTracking()
             .Include(x => x.Location)
-            .Where(x => x.StockItemId == item.Id)
+            .Where(x => x.StockItemId == item.Id && (allowed == null || allowed.Contains(x.LocationId)))
             .OrderBy(x => x.Location!.Name)
             .ToListAsync(ct);
 
-        return StockMapper.Detail(item, balances);
+        return StockMapper.Detail(item, balances, await StockMapper.AssignedAsync(_db, item.Id, ct));
     }
 }
 
@@ -302,11 +307,15 @@ public sealed class GetStockLocationHandler : IRequestHandler<GetStockLocationQu
             .ThenBy(x => x.StockItem!.Name)
             .ToListAsync(ct);
 
+        var assigned = await _db.StockCustodies.Where(x => x.LocationId == loc.Id && x.ReturnedOn == null)
+            .GroupBy(x => x.StockItemId).Select(g => new { Id = g.Key, Quantity = g.Sum(x => x.Quantity) })
+            .ToDictionaryAsync(x => x.Id, x => x.Quantity, ct);
         var mapped = lines.Select(x => new StockLocationLineDto
         {
             StockItemId = x.StockItemId,
             Name = x.StockItem!.Name,
             Code = x.StockItem.Code,
+            Kind = x.StockItem.Kind,
             Category = x.StockItem.Category,
             CategoryLabel = StockLabels.Category(x.StockItem.Category),
             Unit = x.StockItem.Unit,
@@ -314,6 +323,7 @@ public sealed class GetStockLocationHandler : IRequestHandler<GetStockLocationQu
             Brand = x.StockItem.Brand,
             Model = x.StockItem.Model,
             Quantity = x.Quantity,
+            AssignedQuantity = assigned.GetValueOrDefault(x.StockItemId),
             MinQuantity = x.StockItem.MinQuantity,
             IsLow = StockAccess.IsLow(x.Quantity, x.StockItem.MinQuantity)
         }).ToList();
@@ -346,7 +356,7 @@ public sealed class GetStockMovementsHandler : IRequestHandler<GetStockMovements
     {
         StockAccess.EnsureView(_user);
         var take = Math.Clamp(request.Take, 1, 200);
-        return await StockMapper.RecentAsync(_db, request.StockItemId, request.LocationId, take, ct);
+        return await StockMapper.RecentAsync(_db, _user, request.StockItemId, request.LocationId, take, ct);
     }
 }
 
@@ -361,7 +371,10 @@ public sealed class UpsertStockItemHandler : IRequestHandler<UpsertStockItemComm
         _user = user;
     }
 
-    public async Task<StockItemDetailDto> Handle(UpsertStockItemCommand request, CancellationToken ct)
+    public Task<StockItemDetailDto> Handle(UpsertStockItemCommand request, CancellationToken ct) =>
+        StockTransaction.RunAsync(_db, () => HandleCore(request, ct), ct);
+
+    private async Task<StockItemDetailDto> HandleCore(UpsertStockItemCommand request, CancellationToken ct)
     {
         StockAccess.EnsureManage(_user);
         var name = request.Name.Trim();
@@ -388,6 +401,13 @@ public sealed class UpsertStockItemHandler : IRequestHandler<UpsertStockItemComm
             _db.StockItems.Add(item);
         }
 
+        var hasCustody = await _db.StockCustodies.AnyAsync(x => x.StockItemId == item.Id && x.ReturnedOn == null, ct);
+        if (hasCustody && ((!request.IsActive) || (request.Kind.HasValue && request.Kind != item.Kind) || request.Unit != item.Unit))
+            throw new ConflictException("Aktif zimmet varken malzeme pasifleştirilemez, türü veya ölçü birimi değiştirilemez.");
+        if (request.Id.HasValue && request.Unit != item.Unit &&
+            await _db.StockBalances.AnyAsync(x => x.StockItemId == item.Id && x.Quantity != 0, ct))
+            throw new ConflictException("Stoğu bulunan malzemenin ölçü birimi değiştirilemez.");
+        if (request.Kind.HasValue) item.Kind = request.Kind.Value;
         item.Name = name;
         item.Code = code;
         item.Category = request.Category;
@@ -399,11 +419,12 @@ public sealed class UpsertStockItemHandler : IRequestHandler<UpsertStockItemComm
         item.IsActive = request.IsActive;
         await _db.SaveChangesAsync(ct);
 
+        var allowed = await UnitScopeHelper.AllowedUnitIdsAsync(_db, _user, ct);
         var balances = await _db.StockBalances.AsNoTracking()
             .Include(x => x.Location)
-            .Where(x => x.StockItemId == item.Id)
+            .Where(x => x.StockItemId == item.Id && (allowed == null || allowed.Contains(x.LocationId)))
             .ToListAsync(ct);
-        return StockMapper.Detail(item, balances);
+        return StockMapper.Detail(item, balances, await StockMapper.AssignedAsync(_db, item.Id, ct));
     }
 }
 
@@ -418,11 +439,16 @@ public sealed class ArchiveStockItemHandler : IRequestHandler<ArchiveStockItemCo
         _user = user;
     }
 
-    public async Task Handle(ArchiveStockItemCommand request, CancellationToken ct)
+    public async Task Handle(ArchiveStockItemCommand request, CancellationToken ct) =>
+        await StockTransaction.RunAsync(_db, async () => { await HandleCore(request, ct); return true; }, ct);
+
+    private async Task HandleCore(ArchiveStockItemCommand request, CancellationToken ct)
     {
         StockAccess.EnsureManage(_user);
         var item = await _db.StockItems.FirstOrDefaultAsync(x => x.Id == request.Id, ct)
             ?? throw new NotFoundException("Malzeme bulunamadı.");
+        if (await _db.StockCustodies.AnyAsync(x => x.StockItemId == item.Id && x.ReturnedOn == null, ct))
+            throw new ConflictException("Aktif zimmeti bulunan malzeme arşivlenemez. Önce zimmetleri iade alın.");
         item.IsActive = false;
         item.IsDeleted = true;
         item.DeletedAtUtc = DateTime.UtcNow;
@@ -442,7 +468,10 @@ public sealed class CreateStockMovementHandler : IRequestHandler<CreateStockMove
         _user = user;
     }
 
-    public async Task<StockMovementDto> Handle(CreateStockMovementCommand request, CancellationToken ct)
+    public Task<StockMovementDto> Handle(CreateStockMovementCommand request, CancellationToken ct) =>
+        StockTransaction.RunAsync(_db, () => HandleCore(request, ct), ct);
+
+    private async Task<StockMovementDto> HandleCore(CreateStockMovementCommand request, CancellationToken ct)
     {
         StockAccess.EnsureManage(_user);
         var item = await _db.StockItems.FirstOrDefaultAsync(x => x.Id == request.StockItemId && x.IsActive, ct)
@@ -550,21 +579,30 @@ public sealed class CreateStockMovementHandler : IRequestHandler<CreateStockMove
     private async Task SubtractAsync(Guid itemId, Guid locationId, decimal qty, CancellationToken ct)
     {
         var bal = await GetOrCreateAsync(itemId, locationId, ct);
-        if (bal.Quantity < qty)
-            throw new ValidationException("quantity", "Bu yerde yeterli stok yok.");
+        var assigned = await CustodyData.AssignedAsync(_db, itemId, locationId, ct);
+        if (bal.Quantity - assigned < qty)
+            throw new ValidationException("quantity", "Bu yerde yeterli kullanılabilir stok yok. Zimmetli miktarlar çıkış veya transfer yapılamaz.");
         bal.Quantity -= qty;
     }
 
     private async Task SetAsync(Guid itemId, Guid locationId, decimal qty, CancellationToken ct)
     {
         var bal = await GetOrCreateAsync(itemId, locationId, ct);
+        var assigned = await CustodyData.AssignedAsync(_db, itemId, locationId, ct);
+        if (qty < assigned)
+            throw new ConflictException("Sayım miktarı aktif zimmet toplamından az olamaz. Önce zimmetleri kontrol edin.");
         bal.Quantity = qty;
     }
 }
 
 internal static class StockMapper
 {
-    public static StockItemDetailDto Detail(StockItem item, IReadOnlyList<StockBalance> balances)
+    public static async Task<Dictionary<Guid, decimal>> AssignedAsync(AppDbContext db, Guid itemId, CancellationToken ct) =>
+        await db.StockCustodies.Where(x => x.StockItemId == itemId && x.ReturnedOn == null)
+            .GroupBy(x => x.LocationId).Select(g => new { Id = g.Key, Quantity = g.Sum(x => x.Quantity) })
+            .ToDictionaryAsync(x => x.Id, x => x.Quantity, ct);
+
+    public static StockItemDetailDto Detail(StockItem item, IReadOnlyList<StockBalance> balances, IReadOnlyDictionary<Guid, decimal> assigned)
     {
         var lines = balances
             .OrderBy(x => x.Location?.Name)
@@ -574,6 +612,7 @@ internal static class StockMapper
                 LocationName = x.Location?.Name ?? "—",
                 LocationTypeLabel = x.Location is null ? "" : StockAccess.LocationType(x.Location.Type),
                 Quantity = x.Quantity,
+                AssignedQuantity = assigned.GetValueOrDefault(x.LocationId),
                 MinQuantity = item.MinQuantity,
                 IsLow = StockAccess.IsLow(x.Quantity, item.MinQuantity),
                 Notes = x.Notes
@@ -585,6 +624,7 @@ internal static class StockMapper
             Id = item.Id,
             Name = item.Name,
             Code = item.Code,
+            Kind = item.Kind,
             Category = item.Category,
             CategoryLabel = StockLabels.Category(item.Category),
             Unit = item.Unit,
@@ -594,6 +634,7 @@ internal static class StockMapper
             Description = item.Description,
             MinQuantity = item.MinQuantity,
             TotalQuantity = lines.Sum(x => x.Quantity),
+            AssignedQuantity = lines.Sum(x => x.AssignedQuantity),
             IsActive = item.IsActive,
             Balances = lines
         };
@@ -601,6 +642,7 @@ internal static class StockMapper
 
     public static async Task<IReadOnlyList<StockMovementDto>> RecentAsync(
         AppDbContext db,
+        ICurrentUserService user,
         Guid? itemId,
         Guid? locationId,
         int take,
@@ -611,6 +653,10 @@ internal static class StockMapper
             .Include(x => x.FromLocation)
             .Include(x => x.ToLocation)
             .AsQueryable();
+        var allowed = await UnitScopeHelper.AllowedUnitIdsAsync(db, user, ct);
+        if (allowed is not null)
+            q = q.Where(x => (x.FromLocationId != null && allowed.Contains(x.FromLocationId.Value)) ||
+                (x.ToLocationId != null && allowed.Contains(x.ToLocationId.Value)));
         if (itemId.HasValue)
             q = q.Where(x => x.StockItemId == itemId.Value);
         if (locationId.HasValue)

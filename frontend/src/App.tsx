@@ -69,6 +69,7 @@ const MessagesPage = lazy(() => import('@/pages/MessagesPage').then((m) => ({ de
 const SettlementDetailPage = lazy(() =>
   import('@/pages/SettlementDetailPage').then((m) => ({ default: m.SettlementDetailPage })),
 )
+const StockCustodiesPage = lazy(() => import('@/pages/StockCustodiesPage').then(m => ({ default: m.StockCustodiesPage })))
 const StockPage = lazy(() => import('@/pages/StockPage').then((m) => ({ default: m.StockPage })))
 const StockLocationPage = lazy(() =>
   import('@/pages/StockLocationPage').then((m) => ({ default: m.StockLocationPage })),
@@ -93,6 +94,7 @@ export default function App() {
               >
                 <Route index element={<HomeEntry />} />
                 <Route path="personnel" element={<PersonnelRoute><StaffDashboardPage /></PersonnelRoute>} />
+                <Route path="custodies" element={<PersonnelRoute><PermissionRoute permission={PermissionCodes.StockView}><StockCustodiesPage /></PermissionRoute></PersonnelRoute>} />
                 <Route path="stock" element={<PersonnelRoute><StockPage /></PersonnelRoute>} />
                 <Route path="stock/locations/:id" element={<PersonnelRoute><StockLocationPage /></PersonnelRoute>} />
                 <Route path="tasks" element={<PersonnelRoute><TasksPage /></PersonnelRoute>} />

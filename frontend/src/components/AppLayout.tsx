@@ -225,6 +225,7 @@ export function AppLayout() {
   const personnelNav: NavItem[] = [
     { to: '/employees', label: 'Personeller', icon: <Icon d={I.users} />, permission: PermissionCodes.EmployeesView },
     { to: '/stock', label: 'Stok takip', icon: <Icon d={I.box} />, permission: PermissionCodes.StockView },
+    { to: '/custodies', label: 'Zimmetli malzemeler', icon: <Icon d={I.box} />, permission: PermissionCodes.StockView },
     { to: '/tasks', label: 'İş ataması', icon: <Icon d={I.history} />, permission: PermissionCodes.TasksView },
     { to: '/movements', label: 'Görev geçmişi', icon: <Icon d={I.history} />, permission: PermissionCodes.MovementsView },
     { to: '/units', label: 'Birimler', icon: <Icon d={I.building} />, permission: PermissionCodes.OrganizationView },
@@ -243,6 +244,7 @@ export function AppLayout() {
     { to: '/personnel', label: 'Özet', end: true, icon: <Icon d={I.home} />, permission: PermissionCodes.DashboardView },
     { to: '/employees', label: 'Personeller', icon: <Icon d={I.users} />, permission: PermissionCodes.EmployeesView },
     { to: '/stock', label: 'Stok takip', icon: <Icon d={I.box} />, permission: PermissionCodes.StockView },
+    { to: '/custodies', label: 'Zimmetli malzemeler', icon: <Icon d={I.box} />, permission: PermissionCodes.StockView },
     { to: '/tasks', label: 'İş ataması', icon: <Icon d={I.history} />, permission: PermissionCodes.TasksView },
     { to: '/facilities', label: 'Tesisler', icon: <Icon d={I.facility} />, permission: PermissionCodes.OrganizationView },
     { to: '/organization', label: 'Organizasyon şeması', icon: <Icon d={I.chart} />, permission: PermissionCodes.OrganizationView },
@@ -316,7 +318,7 @@ export function AppLayout() {
   const showTopbarSearch = (() => {
     const path = location.pathname
     if (path === '/events/map' || path === '/messages' || path.startsWith('/events/settlements')) return false
-    if (path === '/employees' || path === '/units' || path === '/facilities' || path === '/organization' || path === '/stock' || path.startsWith('/stock/') || path === '/tasks') {
+    if (path === '/employees' || path === '/units' || path === '/facilities' || path === '/organization' || path === '/stock' || path.startsWith('/stock/') || path === '/custodies' || path === '/tasks') {
       return false
     }
     if (

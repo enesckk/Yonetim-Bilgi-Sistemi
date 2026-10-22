@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { useParams } from 'react-router-dom'
 import { ApiClientError } from '@/api/client'
 import {
+  stockKindLabel,
   createStockMovement,
   fetchStockItems,
   fetchStockLocation,
@@ -214,9 +215,10 @@ export function StockLocationPage() {
                         {row.brand ? ` · ${row.brand}` : ''}
                       </div>
                     </td>
-                    <td>{row.categoryLabel}</td>
+                    <td>{row.categoryLabel} · {stockKindLabel(row.kind)}</td>
                     <td>
                       {fmtQty(row.quantity)} {row.unitLabel}
+                      <div className="muted small">Zimmetli: {fmtQty(row.assignedQuantity)} · Kullanılabilir: {fmtQty(row.availableQuantity)}</div>
                       {row.isLow ? <span className="stock-pill is-low">Kritik</span> : null}
                     </td>
                     <td>{fmtQty(row.minQuantity)}</td>

@@ -16,6 +16,42 @@ public sealed class StockController : ControllerBase
 
     public StockController(ISender sender) => _sender = sender;
 
+    [HttpGet("custodies")]
+    [RequirePermission(PermissionCodes.StockView)]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<StockCustodyDto>>>> Custodies(
+        [FromQuery] Guid? employeeId, [FromQuery] bool includeReturned = false, CancellationToken ct = default)
+    {
+        var rows = await _sender.Send(new GetStockCustodiesQuery(employeeId, includeReturned), ct);
+        return Ok(ApiResponse<IReadOnlyList<StockCustodyDto>>.Ok(rows, HttpContext.TraceIdentifier));
+    }
+
+    [HttpGet("custody-employees")]
+    [RequirePermission(PermissionCodes.StockManage)]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<CustodyEmployeeDto>>>> CustodyEmployees(CancellationToken ct)
+    {
+        var rows = await _sender.Send(new GetCustodyEmployeesQuery(), ct);
+        return Ok(ApiResponse<IReadOnlyList<CustodyEmployeeDto>>.Ok(rows, HttpContext.TraceIdentifier));
+    }
+
+    [HttpPost("custodies")]
+    [RequirePermission(PermissionCodes.StockManage)]
+    public async Task<ActionResult<ApiResponse<StockCustodyDto>>> AssignCustody(
+        [FromBody] AssignStockCustodyCommand command, CancellationToken ct)
+    {
+        var row = await _sender.Send(command, ct);
+        return Ok(ApiResponse<StockCustodyDto>.Ok(row, HttpContext.TraceIdentifier));
+    }
+
+    [HttpPost("custodies/{id:guid}/return")]
+    [RequirePermission(PermissionCodes.StockManage)]
+    public async Task<ActionResult<ApiResponse<StockCustodyDto>>> ReturnCustody(
+        Guid id, [FromBody] ReturnStockCustodyCommand command, CancellationToken ct)
+    {
+        command.Id = id;
+        var row = await _sender.Send(command, ct);
+        return Ok(ApiResponse<StockCustodyDto>.Ok(row, HttpContext.TraceIdentifier));
+    }
+
     [HttpGet("options")]
     [RequirePermission(PermissionCodes.StockView)]
     [ProducesResponseType(typeof(ApiResponse<StockOptionsDto>), StatusCodes.Status200OK)]

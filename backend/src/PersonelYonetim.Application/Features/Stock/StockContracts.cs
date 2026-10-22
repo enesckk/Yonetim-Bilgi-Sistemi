@@ -30,6 +30,7 @@ public sealed class StockItemListRowDto
     public Guid Id { get; init; }
     public string Name { get; init; } = string.Empty;
     public string? Code { get; init; }
+    public StockItemKind Kind { get; init; }
     public StockCategory Category { get; init; }
     public string CategoryLabel { get; init; } = string.Empty;
     public StockUnit Unit { get; init; }
@@ -37,6 +38,8 @@ public sealed class StockItemListRowDto
     public string? Brand { get; init; }
     public string? Model { get; init; }
     public decimal MinQuantity { get; init; }
+    public decimal AssignedQuantity { get; init; }
+    public decimal AvailableQuantity => TotalQuantity - AssignedQuantity;
     public decimal TotalQuantity { get; init; }
     public int LocationCount { get; init; }
     public IReadOnlyList<StockItemLocationBriefDto> Locations { get; init; } = [];
@@ -48,6 +51,8 @@ public sealed class StockItemLocationBriefDto
 {
     public Guid LocationId { get; init; }
     public string LocationName { get; init; } = string.Empty;
+    public decimal AssignedQuantity { get; init; }
+    public decimal AvailableQuantity => Quantity - AssignedQuantity;
     public decimal Quantity { get; init; }
 }
 
@@ -56,6 +61,8 @@ public sealed class StockBalanceLineDto
     public Guid LocationId { get; init; }
     public string LocationName { get; init; } = string.Empty;
     public string LocationTypeLabel { get; init; } = string.Empty;
+    public decimal AssignedQuantity { get; init; }
+    public decimal AvailableQuantity => Quantity - AssignedQuantity;
     public decimal Quantity { get; init; }
     public decimal MinQuantity { get; init; }
     public bool IsLow { get; init; }
@@ -67,6 +74,7 @@ public sealed class StockItemDetailDto
     public Guid Id { get; init; }
     public string Name { get; init; } = string.Empty;
     public string? Code { get; init; }
+    public StockItemKind Kind { get; init; }
     public StockCategory Category { get; init; }
     public string CategoryLabel { get; init; } = string.Empty;
     public StockUnit Unit { get; init; }
@@ -75,6 +83,8 @@ public sealed class StockItemDetailDto
     public string? Model { get; init; }
     public string? Description { get; init; }
     public decimal MinQuantity { get; init; }
+    public decimal AssignedQuantity { get; init; }
+    public decimal AvailableQuantity => TotalQuantity - AssignedQuantity;
     public decimal TotalQuantity { get; init; }
     public bool IsActive { get; init; }
     public IReadOnlyList<StockBalanceLineDto> Balances { get; init; } = [];
@@ -96,12 +106,15 @@ public sealed class StockLocationLineDto
     public Guid StockItemId { get; init; }
     public string Name { get; init; } = string.Empty;
     public string? Code { get; init; }
+    public StockItemKind Kind { get; init; }
     public StockCategory Category { get; init; }
     public string CategoryLabel { get; init; } = string.Empty;
     public StockUnit Unit { get; init; }
     public string UnitLabel { get; init; } = string.Empty;
     public string? Brand { get; init; }
     public string? Model { get; init; }
+    public decimal AssignedQuantity { get; init; }
+    public decimal AvailableQuantity => Quantity - AssignedQuantity;
     public decimal Quantity { get; init; }
     public decimal MinQuantity { get; init; }
     public bool IsLow { get; init; }
@@ -182,6 +195,7 @@ public sealed class UpsertStockItemCommand : IRequest<StockItemDetailDto>
     public Guid? Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? Code { get; set; }
+    public StockItemKind? Kind { get; set; }
     public StockCategory Category { get; set; } = StockCategory.Other;
     public StockUnit Unit { get; set; } = StockUnit.Piece;
     public string? Brand { get; set; }
@@ -202,6 +216,7 @@ public sealed class UpsertStockItemValidator : AbstractValidator<UpsertStockItem
         RuleFor(x => x.Description).MaximumLength(1000);
         RuleFor(x => x.MinQuantity).GreaterThanOrEqualTo(0);
         RuleFor(x => x.Category).IsInEnum();
+        RuleFor(x => x.Kind).IsInEnum().When(x => x.Kind.HasValue);
         RuleFor(x => x.Unit).IsInEnum();
     }
 }
@@ -225,7 +240,7 @@ public sealed class CreateStockMovementValidator : AbstractValidator<CreateStock
     {
         RuleFor(x => x.StockItemId).NotEmpty();
         RuleFor(x => x.MovementType).IsInEnum();
-        RuleFor(x => x.Quantity).GreaterThan(0).WithMessage("Miktar sıfırdan büyük olmalı.");
+        RuleFor(x => x.Quantity).PrecisionScale(18, 2, true).GreaterThan(0).WithMessage("Miktar sıfırdan büyük olmalı.");
         RuleFor(x => x.Reason).MaximumLength(400);
         RuleFor(x => x)
             .Must(x => x.ToLocationId.HasValue)

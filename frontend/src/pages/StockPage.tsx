@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { Link, useNavigate } from 'react-router-dom'
 import { ApiClientError } from '@/api/client'
 import {
+  stockKindLabel,
   archiveStockItem,
   createStockItem,
   createStockMovement,
@@ -28,6 +29,7 @@ type ItemFormMode = 'create' | 'edit' | null
 const emptyItem = (): UpsertStockItemPayload => ({
   name: '',
   code: '',
+  kind: 0,
   category: 99,
   unit: 1,
   brand: '',
@@ -168,6 +170,7 @@ export function StockPage() {
       setItemForm({
         name: detail.name,
         code: detail.code ?? '',
+        kind: detail.kind,
         category: detail.category,
         unit: detail.unit,
         brand: detail.brand ?? '',
@@ -176,18 +179,9 @@ export function StockPage() {
         description: detail.description ?? '',
         isActive: detail.isActive,
       })
-    } catch {
-      setItemForm({
-        name: row.name,
-        code: row.code ?? '',
-        category: row.category,
-        unit: row.unit,
-        brand: row.brand ?? '',
-        model: row.model ?? '',
-        minQuantity: row.minQuantity,
-        description: '',
-        isActive: row.isActive,
-      })
+    } catch (err) {
+      setError(err instanceof ApiClientError ? err.message : 'Malzeme bilgileri yüklenemedi. Tekrar deneyin.')
+      return
     }
     setEditingId(row.id)
     setItemError(null)
@@ -332,6 +326,7 @@ export function StockPage() {
             </p>
           </div>
           <div className="employees-toolbar-actions">
+            <Link className="btn-secondary" to="/custodies">Zimmetli malzemeler</Link>
             {canManage ? (
               <>
                 <button type="button" className="btn-secondary stock-toolbar-btn" onClick={() => openMove()}>
@@ -532,9 +527,11 @@ export function StockPage() {
                         </td>
                         <td>
                           <span className="stock-group-tag">{row.categoryLabel}</span>
+                          <div className="muted small">{stockKindLabel(row.kind)}</div>
                         </td>
                         <td>
                           {fmtQty(qty)} {row.unitLabel}
+                          <div className="muted small">Zimmetli: {fmtQty((row.locations ?? []).filter(p => !locationId || p.locationId === locationId).reduce((n, p) => n + p.assignedQuantity, 0))} · Kullanılabilir: {fmtQty((row.locations ?? []).filter(p => !locationId || p.locationId === locationId).reduce((n, p) => n + p.availableQuantity, 0))}</div>
                           {row.isLow ? <span className="stock-pill is-low">Kritik</span> : null}
                         </td>
                         <td>
@@ -644,6 +641,12 @@ export function StockPage() {
                   <span>Malzemenin stok listesinde nasıl görüneceğini belirler.</span>
                 </div>
                 <div className="stock-form-grid">
+                  <label>Malzeme türü
+                    <select value={itemForm.kind} onChange={e => setItemForm(f => ({ ...f, kind: Number(e.target.value) as 0 | 1 | 2 }))}>
+                      <option value={0}>Belirtilmedi</option><option value={1}>Sarf</option><option value={2}>Demirbaş</option>
+                    </select>
+                    <span className="muted small">Zimmet için demirbaş seçin. Sarf malzemeleri stok çıkışıyla takip edilir.</span>
+                  </label>
                   <label>
                     <span>Malzeme adı <em>Zorunlu</em></span>
                     <input value={itemForm.name} onChange={(e) => setItemForm((f) => ({ ...f, name: e.target.value }))} required maxLength={200} autoFocus placeholder="Örn. Kablosuz mikrofon" />

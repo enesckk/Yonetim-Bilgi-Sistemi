@@ -57,7 +57,7 @@ function securityHeadersPlugin(): Plugin {
         if (html.includes('Content-Security-Policy')) return html
         return html.replace(
           '<head>',
-          `<head>\n    <meta http-equiv="Content-Security-Policy" content="${SECURITY_CSP}" />`,
+          `<head>\n    <meta http-equiv="Content-Security-Policy" content="${SECURITY_CSP.replace("; frame-ancestors 'none'", '')}" />`,
         )
       },
     },

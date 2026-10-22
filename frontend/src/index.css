@@ -18935,3 +18935,22 @@ button:hover > .dq-row-arrow {
     grid-template-columns: 1fr;
   }
 }
+
+/* Personnel custody */
+.custody-panel { padding: 1.25rem; }
+.custody-filters { display: flex; align-items: end; gap: 1rem; flex-wrap: wrap; margin: 1rem 0; }
+.custody-filters > label:first-child { flex: 1; min-width: 220px; }
+.custody-filters label { display: flex; flex-direction: column; gap: .4rem; }
+.custody-filters .custody-checkbox { flex-direction: row; align-items: center; }
+.custody-filters input[type="search"] { width: 100%; padding: .6rem; border: 1px solid var(--border, #dce3e0); border-radius: .5rem; }
+.custody-actions { display: flex; gap: .4rem; flex-wrap: wrap; }
+.custody-pagination { display: flex; align-items: center; justify-content: flex-end; gap: .6rem; flex-wrap: wrap; padding-top: 1rem; }
+.custody-fieldset { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: .8rem; }
+.custody-fieldset label { display: grid; gap: .4rem; }
+
+.custody-modal.stock-modal.panel { display: flex; flex-direction: column; }
+.custody-modal > p { margin: .5rem 1.45rem; flex: 0 0 auto; }
+.custody-modal > .stock-modal-head { flex: 0 0 auto; }
+.custody-modal > .stock-modal-form { max-height: none; min-height: 0; }
+.custody-modal .org-form-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; padding: 1rem 1.45rem; gap: .6rem; }
+.custody-fieldset.stock-form-grid { padding: 1rem 1.45rem; }

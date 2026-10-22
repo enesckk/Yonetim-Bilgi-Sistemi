@@ -67,12 +67,14 @@ import {
   WorkplaceChangeDialog,
 } from '@/components/EmployeeLifecycleDialogs'
 import { PageBackLink } from '@/components/PageBackLink'
+import { StockCustodiesPanel } from './StockCustodiesPage'
 
-type TabId = 'general' | 'corporate' | 'education' | 'skills' | 'history' | 'notes' | 'special'
+type TabId = 'general' | 'corporate' | 'education' | 'skills' | 'history' | 'notes' | 'special' | 'custodies'
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'general', label: 'Genel' },
   { id: 'corporate', label: 'Kurumsal' },
+  { id: 'custodies', label: 'Zimmetli malzemeler' },
   { id: 'education', label: 'Eğitim' },
   { id: 'skills', label: 'Yetkinlikler' },
   { id: 'history', label: 'Görev geçmişi' },
@@ -326,7 +328,7 @@ export function EmployeeDetailPage() {
       )}
 
       <nav className="emp-detail-tabs" role="tablist" aria-label="Profil sekmeleri">
-        {TABS.filter((t) => t.id !== 'special' || canViewSpecial).map((t) => (
+        {TABS.filter((t) => (t.id !== 'special' || canViewSpecial) && (t.id !== 'custodies' || hasPermission(PermissionCodes.StockView))).map((t) => (
           <button
             key={t.id}
             type="button"
@@ -349,6 +351,7 @@ export function EmployeeDetailPage() {
       </nav>
 
       <section className="panel emp-detail-panel" role="tabpanel">
+        {tab === 'custodies' && <StockCustodiesPanel employeeId={id} />}
         {tab === 'general' && <GeneralTab data={data} />}
         {tab === 'corporate' && (
           <CorporateTab
