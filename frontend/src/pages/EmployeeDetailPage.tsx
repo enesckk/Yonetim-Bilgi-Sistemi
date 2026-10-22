@@ -1,3 +1,4 @@
+import { employeeRoleLabel } from '@/lib/employeeRoleLabel'
 import { ActiveCustodyWarning } from '@/components/ActiveCustodyWarning'
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
@@ -258,7 +259,7 @@ export function EmployeeDetailPage() {
             <p className="emp-detail-eyebrow">Personel profili</p>
             <h1>{data.fullName}</h1>
             <p className="emp-detail-lead">
-              {[data.employeeNumber ? `Sicil ${data.employeeNumber}` : null, data.corporate.jobTitleName, data.corporate.primaryDutyName]
+              {[data.employeeNumber ? `Sicil ${data.employeeNumber}` : null, employeeRoleLabel(data.corporate.jobTitleName, data.corporate.primaryDutyName)]
                 .filter(Boolean)
                 .join(' · ') || 'Kurumsal bilgi henüz girilmedi'}
             </p>
