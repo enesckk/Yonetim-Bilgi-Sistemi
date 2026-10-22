@@ -124,7 +124,7 @@ export function StockCustodiesPanel({ employeeId }: { employeeId?: string }) {
   if (!canView) return <p className="form-error">Zimmetleri görüntüleme yetkiniz yok.</p>
   return <section className="custody-workspace">
     <header className="custody-page-head">
-      <div><span className="custody-eyebrow">PERSONEL ENVANTERİ</span><h2>Zimmetli malzemeler</h2><p>Kimde, hangi malzeme var? Zimmetleri ve teslim geçmişini tek yerden yönetin.</p></div>
+      <div><span className="custody-eyebrow">PERSONEL ENVANTERİ</span><h2>Zimmetli malzemeler</h2><p>Kimde, hangi malzeme var? Zimmetleri ve teslim geçmişini tek yerden takip edin.</p></div>
       <div className="custody-head-actions">
         <Link className="custody-secondary" to="/stock"><StockIcon name="box" />Stok takibi</Link>
         {canManage && <button className="custody-primary" type="button" disabled={loading || !!error} onClick={() => openForm()}><StockIcon name="plus" />Yeni zimmet</button>}
@@ -151,7 +151,7 @@ export function StockCustodiesPanel({ employeeId }: { employeeId?: string }) {
       <div className="custody-table-scroll"><table className="custody-table">
         <thead><tr><th>Malzeme</th><th>Sorumlu personel</th><th>Tesis</th><th>Miktar</th><th>Teslim tarihi</th><th>Durum</th>{canManage && <th className="custody-action-heading">İşlemler</th>}</tr></thead>
         <tbody>{loading ? <tr><td className="custody-empty" colSpan={canManage ? 7 : 6}><StockIcon name="clock" /><strong>Zimmetler yükleniyor…</strong></td></tr> : filtered.length === 0 ?
-          <tr><td className="custody-empty" colSpan={canManage ? 7 : 6}><StockIcon name="box" /><strong>{search || placeFilter ? 'Aramanıza uygun zimmet bulunamadı.' : 'Henüz zimmet kaydı yok.'}</strong><span>{search || placeFilter ? 'Aramayı veya tesis seçimini değiştirebilirsiniz.' : 'Bir demirbaş seçip personele atayarak başlayın.'}</span></td></tr> :
+          <tr><td className="custody-empty" colSpan={canManage ? 7 : 6}><StockIcon name="box" /><strong>{search || placeFilter ? 'Aramanıza uygun zimmet bulunamadı.' : 'Henüz zimmet kaydı yok.'}</strong><span>{search || placeFilter ? 'Aramayı veya tesis seçimini değiştirebilirsiniz.' : canManage ? 'Bir demirbaş seçip personele atayarak başlayın.' : 'Personellere yapılan zimmetler burada listelenir.'}</span></td></tr> :
           filtered.slice(currentPage * 25, (currentPage + 1) * 25).map(row => <tr className="custody-record" key={row.id}>
             <td><div className="custody-item-cell"><StockItemPhoto itemId={row.stockItemId} name={row.itemName} hasPhoto={row.hasPhoto} version={row.photoVersion} /><div><strong>{row.itemName}</strong><div className="custody-item-meta"><span>{row.itemCode || 'Kod belirtilmedi'}</span>{row.serialNumber && <span className="custody-serial">SN · {row.serialNumber}</span>}</div></div></div></td>
             <td><div className="custody-person"><span className="custody-avatar">{initials(row.employeeName)}</span><div>{hasPermission(PermissionCodes.EmployeesView) ? <Link to={`/employees/${row.employeeId}`}>{row.employeeName}</Link> : <strong>{row.employeeName}</strong>}<small>{row.employeeNumber || 'Personel'}</small></div></div></td>
