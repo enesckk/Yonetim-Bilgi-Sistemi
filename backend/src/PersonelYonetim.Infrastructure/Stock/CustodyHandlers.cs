@@ -14,9 +14,9 @@ internal static class CustodyData
 {
     public static IQueryable<StockCustody> Rows(AppDbContext db) => db.StockCustodies
         .IgnoreQueryFilters().Where(x => !x.IsDeleted)
-        .Include(x => x.StockItem).Include(x => x.Employee).Include(x => x.Location);
+        .Include(x => x.StockItem).Include(x => x.Employee).Include(x => x.Location).Include(x => x.Returns);
 
-    public static StockCustodyDto Map(StockCustody x) => new()
+    public static StockCustodyDto Map(StockCustody x, DateOnly? firstStockEntryOn = null) => new()
     {
         Id = x.Id, StockItemId = x.StockItemId, ItemName = x.StockItem.Name,
         ItemCode = x.StockItem.Code, UnitLabel = StockLabels.Unit(x.Unit),
@@ -24,6 +24,10 @@ internal static class CustodyData
         EmployeeId = x.EmployeeId, EmployeeName = x.Employee.FullName,
         EmployeeNumber = x.Employee.EmployeeNumber, Quantity = x.Quantity,
         SerialNumber = x.SerialNumber, AssignedOn = x.AssignedOn, ReturnedOn = x.ReturnedOn,
+        ReturnedQuantity = x.ReturnedQuantity,
+        ItemCreatedAtUtc = x.StockItem.CreatedAtUtc, FirstStockEntryOn = firstStockEntryOn,
+        Returns = x.Returns.OrderBy(r => r.ReturnedOn).ThenBy(r => r.CreatedAtUtc)
+            .Select(r => new CustodyReturnDto(r.Id, r.Quantity, r.ReturnedOn, r.Notes)).ToList(),
         Notes = x.Notes, ReturnNotes = x.ReturnNotes, ReplacesId = x.ReplacesId
     };
 
@@ -36,7 +40,7 @@ internal static class CustodyData
 
     public static async Task<decimal> AssignedAsync(AppDbContext db, Guid itemId, Guid locationId, CancellationToken ct) =>
         await db.StockCustodies.Where(x => x.StockItemId == itemId && x.LocationId == locationId && x.ReturnedOn == null)
-            .SumAsync(x => (decimal?)x.Quantity, ct) ?? 0;
+            .SumAsync(x => (decimal?)(x.Quantity - x.ReturnedQuantity), ct) ?? 0;
 
     public static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }
@@ -68,8 +72,12 @@ public sealed class GetStockCustodiesHandler(AppDbContext db, ICurrentUserServic
         if (allowed is not null) q = q.Where(x => allowed.Contains(x.LocationId));
         if (request.EmployeeId.HasValue) q = q.Where(x => x.EmployeeId == request.EmployeeId.Value);
         if (!request.IncludeReturned) q = q.Where(x => x.ReturnedOn == null);
-        return (await q.OrderByDescending(x => x.AssignedOn).ThenByDescending(x => x.CreatedAtUtc).ToListAsync(ct))
-            .Select(CustodyData.Map).ToList();
+        var rows = await q.OrderByDescending(x => x.AssignedOn).ThenByDescending(x => x.CreatedAtUtc).AsSplitQuery().ToListAsync(ct);
+        var ids = rows.Select(x => x.StockItemId).Distinct().ToArray();
+        var entries = await db.StockMovements.Where(x => ids.Contains(x.StockItemId) && x.MovementType == StockMovementType.Inbound)
+            .GroupBy(x => x.StockItemId).Select(g => new { Id = g.Key, Date = g.Min(x => x.OccurredOn) })
+            .ToDictionaryAsync(x => x.Id, x => x.Date, ct);
+        return rows.Select(x => CustodyData.Map(x, entries.TryGetValue(x.StockItemId, out var date) ? date : null)).ToList();
     }
 }
 
@@ -117,6 +125,9 @@ public sealed class AssignStockCustodyHandler(AppDbContext db, ICurrentUserServi
                 if (old.ReturnedOn.HasValue) throw new ConflictException("Bu zimmet zaten kapanmış. Listeyi yenileyin.");
                 if (request.AssignedOn < old.AssignedOn)
                     throw new ConflictException("Değişim tarihi eski zimmet tarihinden önce olamaz.");
+                if (old.Returns.Any(x => x.ReturnedOn > request.AssignedOn))
+                    throw new ConflictException("Değişim tarihi önceki iadeden önce olamaz.");
+                // The old record retains its original quantity; only its outstanding quantity is transferred.
                 old.ReturnedOn = request.AssignedOn;
                 old.ReturnNotes = old.EmployeeId != employee.Id
                     ? "Personel devri: yeni personel için zimmet açıldı."
@@ -158,16 +169,43 @@ public sealed class ReturnStockCustodyHandler(AppDbContext db, ICurrentUserServi
             var row = await CustodyData.Rows(db).FirstOrDefaultAsync(x => x.Id == request.Id, ct)
                 ?? throw new NotFoundException("Zimmet bulunamadı.");
             await CustodyData.EnsureLocationAsync(db, user, row.LocationId, ct);
+            var notes = CustodyData.Clean(request.Notes);
+            if (request.OperationId.HasValue)
+            {
+                var previous = await db.StockCustodyReturns.AsNoTracking().FirstOrDefaultAsync(x => x.Id == request.OperationId, ct);
+                if (previous is not null)
+                {
+                    if (previous.StockCustodyId != row.Id || (request.Quantity.HasValue && previous.Quantity != request.Quantity) ||
+                        previous.ReturnedOn != request.ReturnedOn || previous.Notes != notes)
+                        throw new ConflictException("İşlem kimliği farklı bir iade için kullanılmış. Formu yeniden açın.");
+                    return CustodyData.Map(row);
+                }
+            }
             if (row.ReturnedOn.HasValue)
             {
-                if (row.ReturnedOn != request.ReturnedOn || row.ReturnNotes != CustodyData.Clean(request.Notes))
+                if (request.Quantity.HasValue || row.ReturnedOn != request.ReturnedOn || row.ReturnNotes != notes)
                     throw new ConflictException("Bu zimmet zaten kapatılmış. Listeyi yenileyin.");
                 return CustodyData.Map(row);
             }
-            if (request.ReturnedOn < row.AssignedOn)
-                throw new ConflictException("İade tarihi zimmet tarihinden önce olamaz.");
-            row.ReturnedOn = request.ReturnedOn;
-            row.ReturnNotes = CustodyData.Clean(request.Notes);
+            if (request.ReturnedOn < row.AssignedOn || row.Returns.Any(x => x.ReturnedOn > request.ReturnedOn))
+                throw new ConflictException("İade tarihi zimmet veya önceki iade tarihinden önce olamaz.");
+            var remaining = row.Quantity - row.ReturnedQuantity;
+            var quantity = request.Quantity ?? remaining;
+            if (quantity <= 0 || quantity > remaining)
+                throw new ConflictException("İade miktarı sıfırdan büyük ve kalan zimmet miktarından fazla olmamalıdır.");
+            if (request.Quantity.HasValue && (!request.OperationId.HasValue || request.OperationId == Guid.Empty))
+                throw new ConflictException("İade işlem kimliği eksik. Formu yeniden açın.");
+            row.Returns.Add(new StockCustodyReturn
+            {
+                Id = request.OperationId ?? Guid.NewGuid(), StockCustodyId = row.Id,
+                Quantity = quantity, ReturnedOn = request.ReturnedOn, Notes = notes, CreatedBy = user.UserName
+            });
+            row.ReturnedQuantity += quantity;
+            if (row.ReturnedQuantity == row.Quantity)
+            {
+                row.ReturnedOn = request.ReturnedOn;
+                row.ReturnNotes = notes;
+            }
             row.UpdatedAtUtc = DateTime.UtcNow;
             row.UpdatedBy = user.UserName;
             await db.SaveChangesAsync(ct);

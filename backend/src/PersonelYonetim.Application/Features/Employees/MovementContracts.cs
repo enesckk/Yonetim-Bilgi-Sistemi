@@ -12,6 +12,7 @@ public sealed record GetMovementFormOptionsQuery : IRequest<MovementFormOptionsD
 
 public class CreateMovementRequest
 {
+    public bool AcknowledgeActiveCustodies { get; set; }
     public MovementType MovementType { get; set; }
     public Guid? OldUnitId { get; set; }
     public Guid? NewUnitId { get; set; }

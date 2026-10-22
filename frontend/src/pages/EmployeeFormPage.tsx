@@ -1,3 +1,4 @@
+import { ActiveCustodyWarning } from '@/components/ActiveCustodyWarning'
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
@@ -171,6 +172,8 @@ export function EmployeeFormPage() {
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [custodyWarning, setCustodyWarning] = useState('')
+  const [acknowledged, setAcknowledged] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({})
   const [activeSection, setActiveSection] = useState<SectionId>('identity')
@@ -435,6 +438,7 @@ export function EmployeeFormPage() {
     const nationalIdChanged = !isEdit || nationalIdDigits !== initialDigits
 
     const payload: EmployeeWritePayload = {
+      acknowledgeActiveCustodies: acknowledged,
       firstName: form.firstName.trim(),
       lastName: form.lastName.trim(),
       employeeNumber: emptyToNull(form.employeeNumber),
@@ -479,6 +483,11 @@ export function EmployeeFormPage() {
         navigate(`/employees/${created.id}`)
       }
     } catch (err) {
+      if (err instanceof ApiClientError && err.code === 'ACTIVE_CUSTODY_WARNING') {
+        setCustodyWarning(err.message)
+        setAcknowledged(false)
+        return
+      }
       if (err instanceof ApiClientError) {
         const isDuplicateNationalId =
           err.status === 409 &&
@@ -697,6 +706,7 @@ export function EmployeeFormPage() {
         </nav>
 
         <form className="emp-form-body panel" onSubmit={onSubmit} noValidate>
+          <ActiveCustodyWarning message={custodyWarning} acknowledged={acknowledged} onChange={setAcknowledged} />
           {error && <div className="form-error emp-form-banner">{error}</div>}
 
           <section

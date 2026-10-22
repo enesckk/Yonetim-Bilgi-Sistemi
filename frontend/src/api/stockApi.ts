@@ -258,6 +258,11 @@ export interface StockCustody {
   quantity: number
   serialNumber?: string | null
   assignedOn: string
+  returnedQuantity: number
+  remainingQuantity: number
+  itemCreatedAtUtc: string
+  firstStockEntryOn?: string | null
+  returns: { id: string; quantity: number; returnedOn: string; notes?: string | null }[]
   returnedOn?: string | null
   notes?: string | null
   returnNotes?: string | null
@@ -287,5 +292,5 @@ export function fetchCustodies(params?: { employeeId?: string; includeReturned?:
 export const fetchCustodyEmployees = () => apiRequest<CustodyEmployee[]>('/api/stock/custody-employees')
 export const assignCustody = (body: AssignCustodyPayload) =>
   apiRequest<StockCustody>('/api/stock/custodies', { method: 'POST', body })
-export const returnCustody = (id: string, body: { returnedOn: string; notes?: string | null }) =>
+export const returnCustody = (id: string, body: { operationId?: string; quantity?: number; returnedOn: string; notes?: string | null }) =>
   apiRequest<StockCustody>(`/api/stock/custodies/${id}/return`, { method: 'POST', body })

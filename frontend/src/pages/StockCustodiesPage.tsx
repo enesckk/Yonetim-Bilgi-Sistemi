@@ -11,6 +11,8 @@ import { PermissionCodes } from '@/auth/permissionCodes'
 import { StockIcon } from '@/components/StockIcon'
 
 const today = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Istanbul' })
+const remainingQty = (row: StockCustody) => row.remainingQuantity ?? (row.returnedOn ? 0 : row.quantity - (row.returnedQuantity ?? 0))
+const registeredLabel = (value: string) => new Date(value).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' })
 const dateLabel = (value: string) => value.split('-').reverse().join('.')
 function errorMessage(err: unknown) {
   if (!(err instanceof ApiClientError)) return 'İşlem tamamlanamadı. Bağlantıyı kontrol edip tekrar deneyin.'
@@ -39,6 +41,8 @@ export function StockCustodiesPanel({ employeeId }: { employeeId?: string }) {
   const [returnRow, setReturnRow] = useState<StockCustody | null>(null)
   const [returnDate, setReturnDate] = useState(today)
   const [returnNotes, setReturnNotes] = useState('')
+  const [returnQuantity, setReturnQuantity] = useState(1)
+  const [returnOperationId, setReturnOperationId] = useState('')
 
   const load = useCallback(async () => {
     const sequence = ++loadSequence.current
@@ -77,14 +81,14 @@ export function StockCustodiesPanel({ employeeId }: { employeeId?: string }) {
   const selectedItem = items.find(item => item.id === form?.stockItemId)
   const balances = selectedItem?.locations ?? []
   const available = (balances.find(b => b.locationId === form?.locationId)?.availableQuantity ?? 0)
-    + (oldRow && oldRow.stockItemId === form?.stockItemId && oldRow.locationId === form?.locationId ? oldRow.quantity : 0)
+    + (oldRow && oldRow.stockItemId === form?.stockItemId && oldRow.locationId === form?.locationId ? remainingQty(oldRow) : 0)
 
   function openForm(old?: StockCustody, transfer = false) {
     setTransferOnly(transfer)
     setFormError('')
     setForm({
       id: crypto.randomUUID(), stockItemId: old?.stockItemId ?? '', locationId: old?.locationId ?? '',
-      employeeId: transfer ? '' : old?.employeeId ?? employeeId ?? '', quantity: old?.quantity ?? 1,
+      employeeId: transfer ? '' : old?.employeeId ?? employeeId ?? '', quantity: old ? remainingQty(old) : 1,
       assignedOn: today(), serialNumber: old?.serialNumber ?? '', notes: transfer ? old?.notes ?? '' : '', replacesId: old?.id,
     })
   }
@@ -108,7 +112,7 @@ export function StockCustodiesPanel({ employeeId }: { employeeId?: string }) {
     setSaving(true)
     setFormError('')
     try {
-      await returnCustody(returnRow.id, { returnedOn: returnDate, notes: returnNotes })
+      await returnCustody(returnRow.id, { operationId: returnOperationId, quantity: returnQuantity, returnedOn: returnDate, notes: returnNotes })
       setReturnRow(null)
       await load()
     } catch (err) { setFormError(errorMessage(err)) }
@@ -150,13 +154,17 @@ export function StockCustodiesPanel({ employeeId }: { employeeId?: string }) {
             <td><div className="custody-item-cell"><span className="custody-item-symbol"><StockIcon name="box" /></span><div><strong>{row.itemName}</strong><div className="custody-item-meta"><span>{row.itemCode || 'Kod belirtilmedi'}</span>{row.serialNumber && <span className="custody-serial">SN · {row.serialNumber}</span>}</div></div></div></td>
             <td><div className="custody-person"><span className="custody-avatar">{initials(row.employeeName)}</span><div>{hasPermission(PermissionCodes.EmployeesView) ? <Link to={`/employees/${row.employeeId}`}>{row.employeeName}</Link> : <strong>{row.employeeName}</strong>}<small>{row.employeeNumber || 'Personel'}</small></div></div></td>
             <td data-label="Tesis"><span className="custody-location">{row.locationName}</span></td>
-            <td data-label="Miktar"><span className="custody-quantity">{fmtQty(row.quantity)}<small>{row.unitLabel}</small></span></td>
+            <td data-label="Miktar"><span className="custody-quantity">{fmtQty(row.returnedOn ? row.quantity : remainingQty(row))}<small>{row.unitLabel}</small></span></td>
             <td data-label="Teslim tarihi"><time className="custody-date" dateTime={row.assignedOn}>{dateLabel(row.assignedOn)}</time></td>
-            <td className="custody-status-cell"><span className={`custody-status ${row.returnedOn ? 'is-returned' : ''}`}><span />{row.returnedOn ? 'Teslim alındı' : 'Aktif zimmet'}</span>{(row.notes || row.returnedOn || row.replacesId) && <details className="custody-record-details"><summary>Kaydın ayrıntıları</summary>{row.notes && <p>{row.notes}</p>}{row.returnedOn && <p>{dateLabel(row.returnedOn)} · {row.returnNotes || 'İade alındı.'}</p>}{row.replacesId && <p>Önceki zimmet kapatılarak oluşturuldu.</p>}</details>}</td>
+            <td className="custody-status-cell"><span className={`custody-status ${row.returnedOn ? 'is-returned' : ''}`}><span />{row.returnedOn ? ((row.returnedQuantity ?? row.quantity) < row.quantity ? 'Devir / değişim' : 'Teslim alındı') : 'Aktif zimmet'}</span><details className="custody-record-details"><summary>Kaydın ayrıntıları</summary>
+              <p>İlk teslim: {fmtQty(row.quantity)} {row.unitLabel}{(row.returnedQuantity ?? 0) > 0 ? ` · İade: ${fmtQty(row.returnedQuantity)} ${row.unitLabel}` : ''}</p>
+              <p>Sisteme kayıt: {row.itemCreatedAtUtc ? registeredLabel(row.itemCreatedAtUtc) : 'Bilgi bulunamadı'}</p>
+              <p>İlk stok girişi: {row.firstStockEntryOn ? dateLabel(row.firstStockEntryOn) : 'Stok giriş hareketi bulunamadı'}</p>
+              {(row.returns ?? []).map(r => <p key={r.id}>{dateLabel(r.returnedOn)} · {fmtQty(r.quantity)} {row.unitLabel} iade{r.notes ? ` · ${r.notes}` : ''}</p>)}{row.notes && <p>{row.notes}</p>}{row.returnedOn && <p>{dateLabel(row.returnedOn)} · {row.returnNotes || 'İade alındı.'}</p>}{row.replacesId && <p>Önceki zimmet kapatılarak oluşturuldu.</p>}</details></td>
             {canManage && <td className="custody-action-cell"><div className="custody-actions">{!row.returnedOn ? <>
               <button type="button" className="custody-transfer-btn" disabled={saving || loading || !!error} onClick={() => openForm(row, true)}><StockIcon name="transfer" />Personeli değiştir</button>
               <button type="button" className="custody-icon-btn" aria-label="Malzemeyi değiştir" title="Malzemeyi değiştir" disabled={saving || loading || !!error} onClick={() => openForm(row)}><StockIcon name="edit" /><span className="custody-btn-caption">Malzeme</span></button>
-              <button type="button" className="custody-icon-btn" aria-label="İade al" title="İade al" disabled={saving || loading || !!error} onClick={() => { setFormError(''); setReturnRow(row); setReturnDate(today()); setReturnNotes('') }}><StockIcon name="in" /><span className="custody-btn-caption">İade</span></button>
+              <button type="button" className="custody-icon-btn" aria-label="İade al" title="İade al" disabled={saving || loading || !!error} onClick={() => { setFormError(''); setReturnRow(row); setReturnDate(today()); setReturnNotes(''); setReturnQuantity(remainingQty(row)); setReturnOperationId(crypto.randomUUID()) }}><StockIcon name="in" /><span className="custody-btn-caption">İade</span></button>
             </> : <span className="custody-closed-note">Kayıt kapalı</span>}</div></td>}
           </tr>)}</tbody>
       </table></div>
@@ -166,8 +174,8 @@ export function StockCustodiesPanel({ employeeId }: { employeeId?: string }) {
     {form && <div className="org-modal-backdrop stock-modal-backdrop">
       <div className={`org-modal panel stock-modal custody-modal${transferOnly ? ' is-transfer' : ''}`} role="dialog" aria-modal="true" aria-labelledby="custody-title">
         <header className="stock-modal-head"><h2 id="custody-title">{transferOnly ? 'Zimmetin personelini değiştir' : oldRow ? 'Zimmetli malzemeyi değiştir' : 'Yeni zimmet'}</h2><button className="btn-secondary" type="button" disabled={saving} onClick={() => setForm(null)} aria-label="Kapat">Kapat</button></header>
-        {transferOnly && oldRow && <div className="custody-transfer-context"><span className="custody-item-symbol"><StockIcon name="box" /></span><div><strong>{oldRow.itemName}</strong><small>{fmtQty(oldRow.quantity)} {oldRow.unitLabel}{oldRow.serialNumber ? ` · ${oldRow.serialNumber}` : ''}</small><p>Mevcut sorumlu: <b>{oldRow.employeeName}</b></p></div></div>}
-        {oldRow && !transferOnly && <p>{oldRow.employeeName} üzerindeki {fmtQty(oldRow.quantity)} {oldRow.unitLabel} {oldRow.itemName} iade alınacak, aşağıdaki yeni zimmet açılacak.</p>}
+        {transferOnly && oldRow && <div className="custody-transfer-context"><span className="custody-item-symbol"><StockIcon name="box" /></span><div><strong>{oldRow.itemName}</strong><small>{fmtQty(remainingQty(oldRow))} {oldRow.unitLabel}{oldRow.serialNumber ? ` · ${oldRow.serialNumber}` : ''}</small><p>Mevcut sorumlu: <b>{oldRow.employeeName}</b></p></div></div>}
+        {oldRow && !transferOnly && <p>{oldRow.employeeName} üzerindeki {fmtQty(remainingQty(oldRow))} {oldRow.unitLabel} {oldRow.itemName} iade alınacak, aşağıdaki yeni zimmet açılacak.</p>}
         <form className="org-form stock-modal-form" onSubmit={e => void save(e)}>
           <fieldset disabled={saving} className="custody-fieldset"><div className="stock-form-grid">
             <label>{transferOnly ? 'Yeni sorumlu personel' : 'Personel'}<select aria-label="Personel" required value={form.employeeId} onChange={e => setForm({ ...form, employeeId: e.target.value })}><option value="">Aktif personel seçin</option>{employees.filter(p => (!employeeId || p.id === employeeId || !!oldRow) && (!transferOnly || p.id !== oldRow?.employeeId)).map(p => <option key={p.id} value={p.id}>{p.name}{p.employeeNumber ? ` · ${p.employeeNumber}` : ''}</option>)}</select></label>
@@ -186,13 +194,14 @@ export function StockCustodiesPanel({ employeeId }: { employeeId?: string }) {
     </div>}
     {returnRow && <div className="org-modal-backdrop stock-modal-backdrop"><div className="org-modal panel stock-modal custody-modal" role="dialog" aria-modal="true" aria-labelledby="custody-return-title">
       <header className="stock-modal-head"><h2 id="custody-return-title">Zimmet iadesi</h2><button type="button" className="btn-secondary" disabled={saving} onClick={() => setReturnRow(null)}>Kapat</button></header>
-      <p>{returnRow.employeeName} · {returnRow.itemName} · {fmtQty(returnRow.quantity)} {returnRow.unitLabel}</p>
+      <p>{returnRow.employeeName} · {returnRow.itemName} · {fmtQty(remainingQty(returnRow))} {returnRow.unitLabel}</p>
       <p>İade alınan miktar {returnRow.locationName} yerinde yeniden kullanılabilir olacak.</p>
       <form className="org-form stock-modal-form" onSubmit={e => void saveReturn(e)}><fieldset className="custody-fieldset stock-form-grid" disabled={saving}>
+        <label>İade miktarı<input aria-label="İade miktarı" required type="number" min="0.01" step="0.01" max={remainingQty(returnRow)} value={returnQuantity} onChange={e => setReturnQuantity(Number(e.target.value))} /><span className="muted small">Personelde kalacak: {fmtQty(Math.max(0, remainingQty(returnRow) - returnQuantity))} {returnRow.unitLabel}</span></label>
         <label>İade tarihi<input required type="date" min={returnRow.assignedOn} max={today()} value={returnDate} onChange={e => setReturnDate(e.target.value)} /></label>
         <label>İade açıklaması<textarea maxLength={400} value={returnNotes} onChange={e => setReturnNotes(e.target.value)} /></label>
       </fieldset>{formError && <p className="form-error" role="alert">{formError}</p>}
-        <footer className="org-form-actions"><button className="btn-secondary" type="button" disabled={saving} onClick={() => setReturnRow(null)}>Vazgeç</button><button type="submit" className="btn-primary" disabled={saving}>{saving ? 'Kaydediliyor…' : 'İadeyi onayla'}</button></footer>
+        <footer className="org-form-actions"><button className="btn-secondary" type="button" disabled={saving} onClick={() => setReturnRow(null)}>Vazgeç</button><button type="submit" className="btn-primary" disabled={saving || returnQuantity <= 0 || returnQuantity > remainingQty(returnRow)}>{saving ? 'Kaydediliyor…' : 'İadeyi onayla'}</button></footer>
       </form></div></div>}
   </section>
 }

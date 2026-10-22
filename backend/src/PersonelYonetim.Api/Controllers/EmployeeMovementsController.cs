@@ -41,6 +41,7 @@ public sealed class EmployeeMovementsController : ControllerBase
         {
             EmployeeId = employeeId,
             MovementType = body.MovementType,
+            AcknowledgeActiveCustodies = body.AcknowledgeActiveCustodies,
             OldUnitId = body.OldUnitId, NewUnitId = body.NewUnitId,
             OldFacilityId = body.OldFacilityId, NewFacilityId = body.NewFacilityId,
             OldJobTitleId = body.OldJobTitleId, NewJobTitleId = body.NewJobTitleId,
@@ -67,6 +68,7 @@ public sealed class EmployeeMovementsController : ControllerBase
         {
             EmployeeId = employeeId, MovementId = movementId,
             MovementType = body.MovementType,
+            AcknowledgeActiveCustodies = body.AcknowledgeActiveCustodies,
             OldUnitId = body.OldUnitId, NewUnitId = body.NewUnitId,
             OldFacilityId = body.OldFacilityId, NewFacilityId = body.NewFacilityId,
             OldJobTitleId = body.OldJobTitleId, NewJobTitleId = body.NewJobTitleId,

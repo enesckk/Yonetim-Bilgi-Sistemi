@@ -1,3 +1,4 @@
+import { ActiveCustodyWarning } from '@/components/ActiveCustodyWarning'
 import { useEffect, useState, type FormEvent } from 'react'
 import {
   archiveEmployee,
@@ -223,6 +224,8 @@ export function TransferDirectorateDialog({
   const [destination, setDestination] = useState('')
   const [effectiveDate, setEffectiveDate] = useState(todayIso())
   const [reason, setReason] = useState('')
+  const [custodyWarning, setCustodyWarning] = useState('')
+  const [acknowledged, setAcknowledged] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -237,12 +240,18 @@ export function TransferDirectorateDialog({
     try {
       const dest = destination.trim()
       await setEmployeeStatus(employeeId, {
+        acknowledgeActiveCustodies: acknowledged,
         status: 8,
         effectiveDate,
         reason: dest ? `Nakil: ${dest}. ${reason.trim()}` : reason.trim(),
       })
       await onSaved()
     } catch (err) {
+      if (err instanceof ApiClientError && err.code === 'ACTIVE_CUSTODY_WARNING') {
+        setCustodyWarning(err.message)
+        setAcknowledged(false)
+        return
+      }
       setError(err instanceof ApiClientError ? err.message : 'Nakil kaydedilemedi.')
     } finally {
       setBusy(false)
@@ -300,6 +309,7 @@ export function TransferDirectorateDialog({
               required
             />
           </label>
+          <ActiveCustodyWarning message={custodyWarning} acknowledged={acknowledged} onChange={setAcknowledged} />
           {error ? (
             <div className="form-error span-2" role="alert">
               {error}
@@ -332,6 +342,8 @@ export function DeleteEmployeeDialog({
 }) {
   const confirm = useConfirm()
   const [reason, setReason] = useState('')
+  const [custodyWarning, setCustodyWarning] = useState('')
+  const [acknowledged, setAcknowledged] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -351,9 +363,15 @@ export function DeleteEmployeeDialog({
     setBusy(true)
     setError(null)
     try {
-      await archiveEmployee(employeeId, reason.trim())
+      await archiveEmployee(employeeId, reason.trim(), acknowledged)
       await onDeleted()
     } catch (err) {
+      if (err instanceof ApiClientError && err.code === 'ACTIVE_CUSTODY_WARNING') {
+        setBusy(false)
+        setCustodyWarning(err.message)
+        setAcknowledged(false)
+        return
+      }
       setError(err instanceof ApiClientError ? err.message : 'Silme başarısız.')
       setBusy(false)
     }
@@ -392,6 +410,7 @@ export function DeleteEmployeeDialog({
               required
             />
           </label>
+          <ActiveCustodyWarning message={custodyWarning} acknowledged={acknowledged} onChange={setAcknowledged} />
           {error ? (
             <div className="form-error span-2" role="alert">
               {error}

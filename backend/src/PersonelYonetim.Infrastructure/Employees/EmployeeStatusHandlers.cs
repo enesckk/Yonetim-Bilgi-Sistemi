@@ -31,6 +31,9 @@ public sealed class SetEmployeeStatusHandler(
         if (employee.Status == request.Status)
             throw new ConflictException("Personel zaten bu durumda.");
 
+        if (EmployeeStatusLabels.IsDeparture(request.Status))
+            await ActiveCustodyWarning.EnsureAcknowledgedAsync(db, employee.Id, request.AcknowledgeActiveCustodies, cancellationToken);
+
         var actor = currentUser.UserName ?? "system";
         var previous = employee.Status;
         employee.Status = request.Status;
@@ -103,6 +106,7 @@ public sealed class ArchiveEmployeeHandler(AppDbContext db, ICurrentUserService 
             throw new ConflictException("Bu kayıt zaten arşivlenmiş.");
 
         var actor = currentUser.UserName ?? "system";
+        await ActiveCustodyWarning.EnsureAcknowledgedAsync(db, employee.Id, request.AcknowledgeActiveCustodies, cancellationToken);
         employee.IsDeleted = true;
         employee.DeletedAtUtc = DateTime.UtcNow;
         employee.DeletedBy = actor;
@@ -113,5 +117,17 @@ public sealed class ArchiveEmployeeHandler(AppDbContext db, ICurrentUserService 
         await EmployeeLifecycleSync.ClearManagedUnitsAsync(db, employee.Id, actor, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
         cache.InvalidateOrgLookups();
+    }
+}
+
+internal static class ActiveCustodyWarning
+{
+    public static async Task EnsureAcknowledgedAsync(AppDbContext db, Guid employeeId, bool acknowledged, CancellationToken ct)
+    {
+        if (acknowledged) return;
+        var count = await db.StockCustodies.CountAsync(x => x.EmployeeId == employeeId && x.ReturnedOn == null, ct);
+        if (count > 0)
+            throw new AppException("ACTIVE_CUSTODY_WARNING",
+                $"Bu personelin üzerinde {count} aktif zimmet kaydı var. Ayrılış veya arşivleme malzemeleri otomatik iade etmez. Önce iade/devir işlemini yapın veya zimmetlerin açık kalacağını onaylayın.", 409);
     }
 }

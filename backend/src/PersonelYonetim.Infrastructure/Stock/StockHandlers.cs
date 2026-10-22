@@ -212,7 +212,7 @@ public sealed class GetStockItemsHandler : IRequestHandler<GetStockItemsQuery, I
             {
                 x.StockItemId,
                 x.Quantity,
-                AssignedQuantity = _db.StockCustodies.Where(c => c.StockItemId == x.StockItemId && c.LocationId == x.LocationId && c.ReturnedOn == null).Sum(c => (decimal?)c.Quantity) ?? 0,
+                AssignedQuantity = _db.StockCustodies.Where(c => c.StockItemId == x.StockItemId && c.LocationId == x.LocationId && c.ReturnedOn == null).Sum(c => (decimal?)(c.Quantity - c.ReturnedQuantity)) ?? 0,
                 x.LocationId,
                 LocationName = x.Location != null ? x.Location.Name : ""
             })
@@ -314,7 +314,7 @@ public sealed class GetStockLocationHandler : IRequestHandler<GetStockLocationQu
             .ToListAsync(ct);
 
         var assigned = await _db.StockCustodies.Where(x => x.LocationId == loc.Id && x.ReturnedOn == null)
-            .GroupBy(x => x.StockItemId).Select(g => new { Id = g.Key, Quantity = g.Sum(x => x.Quantity) })
+            .GroupBy(x => x.StockItemId).Select(g => new { Id = g.Key, Quantity = g.Sum(x => x.Quantity - x.ReturnedQuantity) })
             .ToDictionaryAsync(x => x.Id, x => x.Quantity, ct);
         var mapped = lines.Select(x => new StockLocationLineDto
         {
@@ -605,7 +605,7 @@ internal static class StockMapper
 {
     public static async Task<Dictionary<Guid, decimal>> AssignedAsync(AppDbContext db, Guid itemId, CancellationToken ct) =>
         await db.StockCustodies.Where(x => x.StockItemId == itemId && x.ReturnedOn == null)
-            .GroupBy(x => x.LocationId).Select(g => new { Id = g.Key, Quantity = g.Sum(x => x.Quantity) })
+            .GroupBy(x => x.LocationId).Select(g => new { Id = g.Key, Quantity = g.Sum(x => x.Quantity - x.ReturnedQuantity) })
             .ToDictionaryAsync(x => x.Id, x => x.Quantity, ct);
 
     public static StockItemDetailDto Detail(StockItem item, IReadOnlyList<StockBalance> balances, IReadOnlyDictionary<Guid, decimal> assigned)

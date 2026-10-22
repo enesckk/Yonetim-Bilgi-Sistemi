@@ -206,6 +206,9 @@ public sealed class UpdateEmployeeHandler : IRequestHandler<UpdateEmployeeComman
             throw new ForbiddenException("Personel durumunu değiştirme yetkiniz yok.");
         }
 
+        if (previousStatus != request.Status && EmployeeStatusLabels.IsDeparture(request.Status))
+            await ActiveCustodyWarning.EnsureAcknowledgedAsync(_db, employee.Id, request.AcknowledgeActiveCustodies, cancellationToken);
+
         await EmployeeWriteHelpers.EnsureLookupsExistAsync(
             _db, request.UnitId, request.FacilityId, request.EmploymentTypeId,
             request.JobTitleId, request.ManagerEmployeeId, cancellationToken);

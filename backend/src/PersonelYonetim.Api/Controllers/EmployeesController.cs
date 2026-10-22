@@ -120,6 +120,7 @@ public sealed class EmployeesController : ControllerBase
             BirthDate = body.BirthDate,
             Gender = body.Gender,
             Status = body.Status,
+            AcknowledgeActiveCustodies = body.AcknowledgeActiveCustodies,
             PersonalPhone = body.PersonalPhone,
             CorporatePhone = body.CorporatePhone,
             PersonalEmail = body.PersonalEmail,
@@ -160,6 +161,7 @@ public sealed class EmployeesController : ControllerBase
                 EmployeeId = id,
                 Status = body.Status,
                 EffectiveDate = body.EffectiveDate,
+                AcknowledgeActiveCustodies = body.AcknowledgeActiveCustodies,
                 Reason = body.Reason ?? string.Empty
             },
             cancellationToken);
@@ -179,6 +181,7 @@ public sealed class EmployeesController : ControllerBase
             new ArchiveEmployeeCommand
             {
                 EmployeeId = id,
+                AcknowledgeActiveCustodies = body.AcknowledgeActiveCustodies,
                 Reason = body.Reason ?? string.Empty
             },
             cancellationToken);
@@ -236,6 +239,7 @@ public sealed class EmployeesController : ControllerBase
 
 public sealed class SetEmployeeStatusBody
 {
+    public bool AcknowledgeActiveCustodies { get; set; }
     public EmployeeStatus Status { get; set; }
     public DateOnly EffectiveDate { get; set; }
     public string? Reason { get; set; }
@@ -243,5 +247,6 @@ public sealed class SetEmployeeStatusBody
 
 public sealed class ArchiveEmployeeBody
 {
+    public bool AcknowledgeActiveCustodies { get; set; }
     public string? Reason { get; set; }
 }

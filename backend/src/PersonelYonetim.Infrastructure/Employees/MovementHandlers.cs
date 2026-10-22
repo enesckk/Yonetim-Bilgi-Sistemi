@@ -46,6 +46,8 @@ public sealed class CreateMovementHandler(AppDbContext db, ICurrentUserService c
         var employee = await db.Employees.FirstOrDefaultAsync(x => x.Id == request.EmployeeId, ct)
             ?? throw new NotFoundException("Personel bulunamadı.");
 
+        if (request.MovementType == MovementType.TransferToOtherDirectorate)
+            await ActiveCustodyWarning.EnsureAcknowledgedAsync(db, employee.Id, request.AcknowledgeActiveCustodies, ct);
         var actor = currentUser.UserName ?? "system";
         var entity = new EmployeeMovement { EmployeeId = request.EmployeeId, CreatedBy = actor };
         MovementMapping.Apply(entity, request);

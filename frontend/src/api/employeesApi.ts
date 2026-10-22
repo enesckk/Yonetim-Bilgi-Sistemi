@@ -156,6 +156,7 @@ export interface EmployeeEdit {
 }
 
 export interface EmployeeWritePayload {
+  acknowledgeActiveCustodies?: boolean
   firstName: string
   lastName: string
   employeeNumber?: string | null
@@ -213,6 +214,7 @@ export async function updateEmployee(id: string, payload: EmployeeWritePayload):
 }
 
 export interface SetEmployeeStatusPayload {
+  acknowledgeActiveCustodies?: boolean
   status: EmployeeStatus
   effectiveDate: string
   reason: string
@@ -228,10 +230,10 @@ export async function setEmployeeStatus(
   })
 }
 
-export async function archiveEmployee(id: string, reason: string): Promise<void> {
+export async function archiveEmployee(id: string, reason: string, acknowledgeActiveCustodies = false): Promise<void> {
   await apiRequest<unknown>(`/api/employees/${id}/archive`, {
     method: 'POST',
-    body: { reason },
+    body: { reason, acknowledgeActiveCustodies },
   })
 }
 
@@ -397,6 +399,7 @@ export interface MovementFormOptions {
 }
 
 export interface CreateMovementPayload {
+  acknowledgeActiveCustodies?: boolean
   movementType: number
   oldUnitId?: string | null
   newUnitId?: string | null

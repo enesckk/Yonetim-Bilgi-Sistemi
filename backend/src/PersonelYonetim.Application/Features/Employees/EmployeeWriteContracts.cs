@@ -44,6 +44,7 @@ public sealed class CreateEmployeeRequest : IRequest<Guid>
 
 public class UpdateEmployeeRequest
 {
+    public bool AcknowledgeActiveCustodies { get; set; }
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
     public string? EmployeeNumber { get; set; }
@@ -168,6 +169,7 @@ public sealed class UpdateEmployeeCommandValidator : AbstractValidator<UpdateEmp
 /// <summary>Personel durumunu günceller; ayrılış durumlarında görev geçmişi kaydı oluşturur.</summary>
 public sealed class SetEmployeeStatusCommand : IRequest
 {
+    public bool AcknowledgeActiveCustodies { get; set; }
     public Guid EmployeeId { get; set; }
     public EmployeeStatus Status { get; set; }
     public DateOnly EffectiveDate { get; set; }
@@ -190,6 +192,7 @@ public sealed class SetEmployeeStatusCommandValidator : AbstractValidator<SetEmp
 /// <summary>Kaydı listeden kaldırır — fiziksel silme yok; Employees.Archive.</summary>
 public sealed class ArchiveEmployeeCommand : IRequest
 {
+    public bool AcknowledgeActiveCustodies { get; set; }
     public Guid EmployeeId { get; set; }
     public string Reason { get; set; } = string.Empty;
 }

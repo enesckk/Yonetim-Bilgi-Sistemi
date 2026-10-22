@@ -19,6 +19,66 @@ namespace PersonelYonetim.Tests;
 public class PostgresStockCustodyTests
 {
     [LocalPostgresFact]
+    public async Task Concurrent_partial_returns_cannot_release_more_than_the_assigned_quantity()
+    {
+        await using var f = await Fixture.Create();
+        await using (var db = f.Context())
+        {
+            (await db.StockBalances.SingleAsync()).Quantity = 5;
+            await db.SaveChangesAsync();
+            var command = f.Assign(); command.Quantity = 5;
+            await new AssignStockCustodyHandler(db, f.User).Handle(command, default);
+        }
+        Guid custodyId;
+        await using (var db = f.Context()) custodyId = await db.StockCustodies.Select(x => x.Id).SingleAsync();
+        var results = await Task.WhenAll(Enumerable.Range(0, 2).Select(async _ =>
+        {
+            await using var db = f.Context();
+            try
+            {
+                await new ReturnStockCustodyHandler(db, f.User).Handle(new() { Id = custodyId, OperationId = Guid.NewGuid(), Quantity = 3, ReturnedOn = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(3)) }, default);
+                return true;
+            }
+            catch (ConflictException) { return false; }
+        }));
+        Assert.Single(results, x => x);
+        await using var check = f.Context();
+        var row = await check.StockCustodies.SingleAsync();
+        Assert.Equal(3, row.ReturnedQuantity);
+        Assert.Null(row.ReturnedOn);
+        Assert.Single(await check.StockCustodyReturns.ToListAsync());
+        var detail = await new GetStockItemHandler(check, f.User).Handle(new(f.Item.Id), default);
+        Assert.Equal(5, detail.TotalQuantity);
+        Assert.Equal(3, detail.AvailableQuantity);
+    }
+
+    [LocalPostgresFact]
+    public async Task Partial_return_migration_preserves_existing_active_and_closed_custodies()
+    {
+        await using var f = await Fixture.Create();
+        Guid closedId, activeId;
+        await using (var db = f.Context())
+        {
+            var c = f.Assign();
+            var closed = await new AssignStockCustodyHandler(db, f.User).Handle(c, default);
+            await new ReturnStockCustodyHandler(db, f.User).Handle(new() { Id = closed.Id, ReturnedOn = c.AssignedOn }, default);
+            closedId = closed.Id;
+            activeId = (await new AssignStockCustodyHandler(db, f.User).Handle(f.Assign(), default)).Id;
+            var before = db.Database.GetMigrations().Single(x => x.EndsWith("_AddStockCustody"));
+            await db.GetService<IMigrator>().MigrateAsync(before);
+            await db.Database.MigrateAsync();
+        }
+        await using var check = f.Context();
+        var rows = await check.StockCustodies.AsNoTracking().ToListAsync();
+        Assert.Equal(1, rows.Single(x => x.Id == closedId).ReturnedQuantity);
+        Assert.Equal(0, rows.Single(x => x.Id == activeId).ReturnedQuantity);
+        Assert.Null(rows.Single(x => x.Id == activeId).ReturnedOn);
+        Assert.Empty(await check.StockCustodyReturns.ToListAsync());
+        Assert.False(check.Database.HasPendingModelChanges());
+        Assert.Equal(1, (await check.StockBalances.SingleAsync()).Quantity);
+    }
+
+    [LocalPostgresFact]
     public async Task Legacy_example_stock_is_moved_to_real_personnel_without_changing_total_stock_in_postgres()
     {
         await using var f = await Fixture.Create();

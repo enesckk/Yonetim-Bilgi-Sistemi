@@ -2180,6 +2180,10 @@ namespace PersonelYonetim.PostgresMigrations.Migrations
                     b.Property<DateOnly?>("ReturnedOn")
                         .HasColumnType("date");
 
+                    b.Property<decimal>("ReturnedQuantity")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
                     b.Property<string>("SerialNumber")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
@@ -2214,6 +2218,57 @@ namespace PersonelYonetim.PostgresMigrations.Migrations
                     b.HasIndex("StockItemId", "LocationId", "ReturnedOn");
 
                     b.ToTable("StockCustodies", "personel_app");
+                });
+
+            modelBuilder.Entity("PersonelYonetim.Domain.Entities.StockCustodyReturn", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(400)
+                        .HasColumnType("character varying(400)");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateOnly>("ReturnedOn")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("StockCustodyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StockCustodyId");
+
+                    b.ToTable("StockCustodyReturns", "personel_app");
                 });
 
             modelBuilder.Entity("PersonelYonetim.Domain.Entities.StockItem", b =>
@@ -3041,6 +3096,17 @@ namespace PersonelYonetim.PostgresMigrations.Migrations
                     b.Navigation("StockItem");
                 });
 
+            modelBuilder.Entity("PersonelYonetim.Domain.Entities.StockCustodyReturn", b =>
+                {
+                    b.HasOne("PersonelYonetim.Domain.Entities.StockCustody", "StockCustody")
+                        .WithMany("Returns")
+                        .HasForeignKey("StockCustodyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("StockCustody");
+                });
+
             modelBuilder.Entity("PersonelYonetim.Domain.Entities.StockMovement", b =>
                 {
                     b.HasOne("PersonelYonetim.Domain.Entities.OrganizationUnit", "FromLocation")
@@ -3257,6 +3323,11 @@ namespace PersonelYonetim.PostgresMigrations.Migrations
             modelBuilder.Entity("PersonelYonetim.Domain.Entities.Skill", b =>
                 {
                     b.Navigation("EmployeeSkills");
+                });
+
+            modelBuilder.Entity("PersonelYonetim.Domain.Entities.StockCustody", b =>
+                {
+                    b.Navigation("Returns");
                 });
 
             modelBuilder.Entity("PersonelYonetim.Domain.Entities.StockItem", b =>

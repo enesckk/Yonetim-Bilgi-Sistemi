@@ -11,6 +11,7 @@ public class StockCustodyConfiguration : IEntityTypeConfiguration<StockCustody>
         b.ToTable("StockCustodies");
         b.HasKey(x => x.Id);
         b.Property(x => x.Quantity).HasPrecision(18, 2);
+        b.Property(x => x.ReturnedQuantity).HasPrecision(18, 2);
         b.Property(x => x.SerialNumber).HasMaxLength(100);
         b.Property(x => x.Notes).HasMaxLength(400);
         b.Property(x => x.ReturnNotes).HasMaxLength(400);

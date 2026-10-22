@@ -16,6 +16,11 @@ public sealed class StockCustodyDto
     public string EmployeeName { get; init; } = "";
     public string? EmployeeNumber { get; init; }
     public decimal Quantity { get; init; }
+    public decimal ReturnedQuantity { get; init; }
+    public decimal RemainingQuantity => ReturnedOn.HasValue ? 0 : Quantity - ReturnedQuantity;
+    public DateTime ItemCreatedAtUtc { get; init; }
+    public DateOnly? FirstStockEntryOn { get; init; }
+    public IReadOnlyList<CustodyReturnDto> Returns { get; init; } = [];
     public string? SerialNumber { get; init; }
     public DateOnly AssignedOn { get; init; }
     public DateOnly? ReturnedOn { get; init; }
@@ -23,6 +28,8 @@ public sealed class StockCustodyDto
     public string? ReturnNotes { get; init; }
     public Guid? ReplacesId { get; init; }
 }
+
+public sealed record CustodyReturnDto(Guid Id, decimal Quantity, DateOnly ReturnedOn, string? Notes);
 
 public sealed record GetStockCustodiesQuery(Guid? EmployeeId = null, bool IncludeReturned = false)
     : IRequest<IReadOnlyList<StockCustodyDto>>;
@@ -63,6 +70,8 @@ public sealed class AssignStockCustodyValidator : AbstractValidator<AssignStockC
 
 public sealed class ReturnStockCustodyCommand : IRequest<StockCustodyDto>
 {
+    public Guid? OperationId { get; set; }
+    public decimal? Quantity { get; set; }
     public Guid Id { get; set; }
     public DateOnly ReturnedOn { get; set; }
     public string? Notes { get; set; }
@@ -73,6 +82,8 @@ public sealed class ReturnStockCustodyValidator : AbstractValidator<ReturnStockC
     public ReturnStockCustodyValidator()
     {
         RuleFor(x => x.Id).NotEmpty();
+        RuleFor(x => x.Quantity).GreaterThan(0).PrecisionScale(18, 2, true).When(x => x.Quantity.HasValue);
+        RuleFor(x => x.OperationId).NotEmpty().When(x => x.Quantity.HasValue);
         RuleFor(x => x.ReturnedOn).NotEmpty().LessThanOrEqualTo(_ => DateOnly.FromDateTime(DateTime.UtcNow.AddHours(3)));
         RuleFor(x => x.Notes).MaximumLength(400);
     }

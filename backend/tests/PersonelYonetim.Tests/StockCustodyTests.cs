@@ -244,6 +244,144 @@ public sealed class StockCustodyTests
         Assert.False(movement.IsValid);
     }
 
+    [Fact]
+    public async Task Partial_returns_preserve_original_quantity_and_release_only_the_returned_amount_once()
+    {
+        await using var f = await Fixture.Create();
+        var original = await f.Assign(5);
+        var request = new ReturnStockCustodyCommand { Id = original.Id, OperationId = Guid.NewGuid(), Quantity = 2, ReturnedOn = Fixture.Today, Notes = "İki adet" };
+        var handler = new ReturnStockCustodyHandler(f.Db, f.User);
+        var partial = await handler.Handle(request, default);
+        await handler.Handle(request, default);
+        Assert.Equal(5, partial.Quantity);
+        Assert.Equal(2, partial.ReturnedQuantity);
+        Assert.Equal(3, partial.RemainingQuantity);
+        Assert.Null(partial.ReturnedOn);
+        Assert.Single(partial.Returns);
+        var detail = await new GetStockItemHandler(f.Db, f.User).Handle(new(f.Item.Id), default);
+        Assert.Equal(5, detail.TotalQuantity);
+        Assert.Equal(2, detail.AvailableQuantity);
+        Assert.Equal(3, detail.AssignedQuantity);
+        var list = await new GetStockItemsHandler(f.Db, f.User).Handle(new(), default);
+        Assert.Equal(3, Assert.Single(list).AssignedQuantity);
+        var location = await new GetStockLocationHandler(f.Db, f.User).Handle(new(f.Location.Id), default);
+        Assert.Equal(2, Assert.Single(location.Lines).AvailableQuantity);
+        request.Quantity = 1;
+        await Assert.ThrowsAsync<ConflictException>(() => handler.Handle(request, default));
+        var invalid = new ReturnStockCustodyCommand { Id = original.Id, OperationId = Guid.NewGuid(), Quantity = 4, ReturnedOn = Fixture.Today };
+        await Assert.ThrowsAsync<ConflictException>(() => handler.Handle(invalid, default));
+        var final = await handler.Handle(new() { Id = original.Id, OperationId = Guid.NewGuid(), Quantity = 3, ReturnedOn = Fixture.Today }, default);
+        Assert.Equal(0, final.RemainingQuantity);
+        Assert.Equal(5, final.ReturnedQuantity);
+        Assert.NotNull(final.ReturnedOn);
+        Assert.Equal(2, final.Returns.Count);
+        detail = await new GetStockItemHandler(f.Db, f.User).Handle(new(f.Item.Id), default);
+        Assert.Equal(5, detail.AvailableQuantity);
+        Assert.Equal(5, detail.TotalQuantity);
+    }
+
+    [Fact]
+    public async Task Partially_returned_custody_can_transfer_only_the_remaining_quantity()
+    {
+        await using var f = await Fixture.Create();
+        var original = await f.Assign(5);
+        await new ReturnStockCustodyHandler(f.Db, f.User).Handle(new() { Id = original.Id, OperationId = Guid.NewGuid(), Quantity = 2, ReturnedOn = Fixture.Today }, default);
+        var person = new Employee { FirstName = "Yeni", LastName = "Personel" };
+        f.Db.Employees.Add(person);
+        await f.Db.SaveChangesAsync();
+        var command = f.Command(3); command.ReplacesId = original.Id; command.EmployeeId = person.Id;
+        var row = await new AssignStockCustodyHandler(f.Db, f.User).Handle(command, default);
+        Assert.Equal(3, row.RemainingQuantity);
+        var detail = await new GetStockItemHandler(f.Db, f.User).Handle(new(f.Item.Id), default);
+        Assert.Equal(5, detail.TotalQuantity);
+        Assert.Equal(2, detail.AvailableQuantity);
+        var history = await new GetStockCustodiesHandler(f.Db, f.User).Handle(new(IncludeReturned: true), default);
+        Assert.Single(history.Single(x => x.Id == original.Id).Returns);
+    }
+
+    [Fact]
+    public async Task Registration_and_first_inbound_dates_are_distinct_and_unknown_inbound_is_not_invented()
+    {
+        await using var f = await Fixture.Create();
+        await f.Assign(1);
+        var handler = new GetStockCustodiesHandler(f.Db, f.User);
+        var row = Assert.Single(await handler.Handle(new(), default));
+        Assert.NotEqual(default, row.ItemCreatedAtUtc);
+        Assert.Null(row.FirstStockEntryOn);
+        f.Db.StockMovements.Add(new StockMovement { StockItemId = f.Item.Id, ToLocationId = f.Location.Id, MovementType = StockMovementType.Inbound, Quantity = 5, OccurredOn = Fixture.Today.AddDays(-10) });
+        f.Db.StockMovements.Add(new StockMovement { StockItemId = f.Item.Id, ToLocationId = f.Location.Id, MovementType = StockMovementType.Inbound, Quantity = 1, OccurredOn = Fixture.Today.AddDays(-2) });
+        await f.Db.SaveChangesAsync();
+        row = Assert.Single(await handler.Handle(new(), default));
+        Assert.Equal(Fixture.Today.AddDays(-10), row.FirstStockEntryOn);
+    }
+
+    [Theory]
+    [InlineData(EmployeeStatus.Passive)]
+    [InlineData(EmployeeStatus.LeftJob)]
+    [InlineData(EmployeeStatus.Retired)]
+    [InlineData(EmployeeStatus.TransferredToOtherDirectorate)]
+    [InlineData(EmployeeStatus.DutyEnded)]
+    public async Task Departure_requires_explicit_custody_warning_acknowledgment(EmployeeStatus status)
+    {
+        await using var f = await Fixture.Create();
+        var custody = await f.Assign(1);
+        var actor = new User(PermissionCodes.EmployeesSetStatus);
+        using var cache = new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
+        var handler = new PersonelYonetim.Infrastructure.Employees.SetEmployeeStatusHandler(f.Db, actor, null!, cache);
+        var command = new PersonelYonetim.Application.Features.Employees.SetEmployeeStatusCommand { EmployeeId = custody.EmployeeId, Status = status, EffectiveDate = Fixture.Today, Reason = "Test" };
+        var error = await Assert.ThrowsAsync<AppException>(() => handler.Handle(command, default));
+        Assert.Equal("ACTIVE_CUSTODY_WARNING", error.Code);
+        f.Db.ChangeTracker.Clear();
+        Assert.Equal(EmployeeStatus.Active, (await f.Db.Employees.SingleAsync()).Status);
+        // Departure may continue after acknowledgment; no automatic return or stock change.
+        if (status != EmployeeStatus.Passive)
+        {
+            command.AcknowledgeActiveCustodies = true;
+            await handler.Handle(command, default);
+            Assert.Single(await f.Db.StockCustodies.Where(x => x.ReturnedOn == null).ToListAsync());
+            Assert.Equal(5, (await f.Db.StockBalances.SingleAsync()).Quantity);
+        }
+    }
+
+    [Fact]
+    public async Task Archiving_requires_acknowledgment_and_keeps_custody_history()
+    {
+        await using var f = await Fixture.Create();
+        var custody = await f.Assign(1);
+        var actor = new User(PermissionCodes.EmployeesArchive);
+        using var cache = new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
+        var handler = new PersonelYonetim.Infrastructure.Employees.ArchiveEmployeeHandler(f.Db, actor, cache);
+        var command = new PersonelYonetim.Application.Features.Employees.ArchiveEmployeeCommand { EmployeeId = custody.EmployeeId, Reason = "Test" };
+        Assert.Equal("ACTIVE_CUSTODY_WARNING", (await Assert.ThrowsAsync<AppException>(() => handler.Handle(command, default))).Code);
+        Assert.False((await f.Db.Employees.SingleAsync()).IsDeleted);
+        command.AcknowledgeActiveCustodies = true;
+        await handler.Handle(command, default);
+        Assert.True((await f.Db.Employees.IgnoreQueryFilters().SingleAsync()).IsDeleted);
+        var rows = await new GetStockCustodiesHandler(f.Db, f.User).Handle(new(), default);
+        Assert.Single(rows);
+    }
+
+    [Fact]
+    public async Task Editing_employee_and_manual_directorate_transfer_cannot_bypass_the_custody_warning()
+    {
+        await using var f = await Fixture.Create();
+        var custody = await f.Assign(1);
+        using var cache = new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
+        var actor = new User(PermissionCodes.EmployeesUpdate, PermissionCodes.EmployeesSetStatus, PermissionCodes.EmployeesViewAllUnits, PermissionCodes.MovementsCreate);
+        var edit = new PersonelYonetim.Infrastructure.Employees.UpdateEmployeeHandler(f.Db, actor, null!, null!, cache);
+        var error = await Assert.ThrowsAsync<AppException>(() => edit.Handle(new() { Id = custody.EmployeeId, FirstName = "Test", LastName = "Personel", Status = EmployeeStatus.LeftJob }, default));
+        Assert.Equal("ACTIVE_CUSTODY_WARNING", error.Code);
+        var movement = new PersonelYonetim.Infrastructure.Employees.CreateMovementHandler(f.Db, actor);
+        var command = new PersonelYonetim.Application.Features.Employees.CreateMovementCommand { EmployeeId = custody.EmployeeId, MovementType = MovementType.TransferToOtherDirectorate, StartDate = Fixture.Today };
+        error = await Assert.ThrowsAsync<AppException>(() => movement.Handle(command, default));
+        Assert.Equal("ACTIVE_CUSTODY_WARNING", error.Code);
+        Assert.Empty(await f.Db.EmployeeMovements.ToListAsync());
+        command.AcknowledgeActiveCustodies = true;
+        await movement.Handle(command, default);
+        Assert.Equal(EmployeeStatus.TransferredToOtherDirectorate, (await f.Db.Employees.SingleAsync()).Status);
+        Assert.Null((await f.Db.StockCustodies.SingleAsync()).ReturnedOn);
+    }
+
     private sealed class User(params string[] permissions) : ICurrentUserService
     {
         public Guid? UserId { get; init; }

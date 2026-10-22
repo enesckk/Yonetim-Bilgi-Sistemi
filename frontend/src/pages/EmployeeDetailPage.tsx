@@ -1,3 +1,4 @@
+import { ActiveCustodyWarning } from '@/components/ActiveCustodyWarning'
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
@@ -496,6 +497,8 @@ function StatusChangeDialog({
   const [status, setStatus] = useState<EmployeeStatus>(currentStatus)
   const [effectiveDate, setEffectiveDate] = useState(todayIso())
   const [reason, setReason] = useState('')
+  const [custodyWarning, setCustodyWarning] = useState('')
+  const [acknowledged, setAcknowledged] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -529,12 +532,18 @@ function StatusChangeDialog({
     setError(null)
     try {
       await setEmployeeStatus(employeeId, {
+        acknowledgeActiveCustodies: acknowledged,
         status,
         effectiveDate,
         reason: reason.trim(),
       })
       await onSaved()
     } catch (err) {
+      if (err instanceof ApiClientError && err.code === 'ACTIVE_CUSTODY_WARNING') {
+        setCustodyWarning(err.message)
+        setAcknowledged(false)
+        return
+      }
       setError(err instanceof ApiClientError ? err.message : 'Durum güncellenemedi.')
     } finally {
       setBusy(false)
@@ -569,7 +578,7 @@ function StatusChangeDialog({
             <span>Yeni durum</span>
             <select
               value={status}
-              onChange={(e) => setStatus(Number(e.target.value) as EmployeeStatus)}
+              onChange={(e) => { setStatus(Number(e.target.value) as EmployeeStatus); setCustodyWarning(''); setAcknowledged(false) }}
               required
             >
               {statuses.map((s) => (
@@ -603,6 +612,7 @@ function StatusChangeDialog({
               required
             />
           </label>
+          <ActiveCustodyWarning message={custodyWarning} acknowledged={acknowledged} onChange={setAcknowledged} />
           {error ? (
             <div className="form-error span-2" role="alert">
               {error}
@@ -2104,6 +2114,8 @@ function HistoryTab({
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState<FormState>(emptyForm)
   const [saving, setSaving] = useState(false)
+  const [custodyWarning, setCustodyWarning] = useState('')
+  const [acknowledged, setAcknowledged] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({})
 
@@ -2124,6 +2136,8 @@ function HistoryTab({
   }, [canManage])
 
   function openCreate() {
+    setCustodyWarning('')
+    setAcknowledged(false)
     setEditingId(null)
     setForm(emptyForm())
     setFieldErrors({})
@@ -2132,6 +2146,8 @@ function HistoryTab({
   }
 
   function openEdit(item: Movement) {
+    setCustodyWarning('')
+    setAcknowledged(false)
     setEditingId(item.id)
     setForm({
       movementType: item.movementType,
@@ -2161,6 +2177,7 @@ function HistoryTab({
   function buildPayload(): CreateMovementPayload {
     return {
       movementType: form.movementType,
+      acknowledgeActiveCustodies: acknowledged,
       startDate: form.startDate,
       endDate: form.endDate.trim() || null,
       reason: form.reason.trim() || null,
@@ -2193,6 +2210,11 @@ function HistoryTab({
       setEditingId(null)
       await onChanged()
     } catch (err) {
+      if (err instanceof ApiClientError && err.code === 'ACTIVE_CUSTODY_WARNING') {
+        setCustodyWarning(err.message)
+        setAcknowledged(false)
+        return
+      }
       if (err instanceof ApiClientError) {
         setError(err.message)
         if (err.validationErrors) setFieldErrors(err.validationErrors)
@@ -2253,6 +2275,7 @@ function HistoryTab({
         <p className="muted small">Manuel hareket eklemek için yetkili kullanıcı gerekir.</p>
       )}
 
+      <ActiveCustodyWarning message={custodyWarning} acknowledged={acknowledged} onChange={setAcknowledged} />
       {error && <div className="form-error">{error}</div>}
 
       {showForm && options && (

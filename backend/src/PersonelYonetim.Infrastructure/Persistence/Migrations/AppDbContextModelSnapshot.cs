@@ -2160,6 +2160,10 @@ namespace PersonelYonetim.Infrastructure.Persistence.Migrations
                     b.Property<DateOnly?>("ReturnedOn")
                         .HasColumnType("date");
 
+                    b.Property<decimal>("ReturnedQuantity")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<string>("SerialNumber")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
@@ -2194,6 +2198,57 @@ namespace PersonelYonetim.Infrastructure.Persistence.Migrations
                     b.HasIndex("StockItemId", "LocationId", "ReturnedOn");
 
                     b.ToTable("StockCustodies", (string)null);
+                });
+
+            modelBuilder.Entity("PersonelYonetim.Domain.Entities.StockCustodyReturn", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateOnly>("ReturnedOn")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("StockCustodyId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StockCustodyId");
+
+                    b.ToTable("StockCustodyReturns", (string)null);
                 });
 
             modelBuilder.Entity("PersonelYonetim.Domain.Entities.StockItem", b =>
@@ -3021,6 +3076,17 @@ namespace PersonelYonetim.Infrastructure.Persistence.Migrations
                     b.Navigation("StockItem");
                 });
 
+            modelBuilder.Entity("PersonelYonetim.Domain.Entities.StockCustodyReturn", b =>
+                {
+                    b.HasOne("PersonelYonetim.Domain.Entities.StockCustody", "StockCustody")
+                        .WithMany("Returns")
+                        .HasForeignKey("StockCustodyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("StockCustody");
+                });
+
             modelBuilder.Entity("PersonelYonetim.Domain.Entities.StockMovement", b =>
                 {
                     b.HasOne("PersonelYonetim.Domain.Entities.OrganizationUnit", "FromLocation")
@@ -3237,6 +3303,11 @@ namespace PersonelYonetim.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("PersonelYonetim.Domain.Entities.Skill", b =>
                 {
                     b.Navigation("EmployeeSkills");
+                });
+
+            modelBuilder.Entity("PersonelYonetim.Domain.Entities.StockCustody", b =>
+                {
+                    b.Navigation("Returns");
                 });
 
             modelBuilder.Entity("PersonelYonetim.Domain.Entities.StockItem", b =>

@@ -44,6 +44,7 @@ public class AppDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<DirectMessage> DirectMessages => Set<DirectMessage>();
     public DbSet<EventNote> EventNotes => Set<EventNote>();
     public DbSet<StockItem> StockItems => Set<StockItem>();
+    public DbSet<StockCustodyReturn> StockCustodyReturns => Set<StockCustodyReturn>();
     public DbSet<StockCustody> StockCustodies => Set<StockCustody>();
     public DbSet<StockBalance> StockBalances => Set<StockBalance>();
     public DbSet<StockMovement> StockMovements => Set<StockMovement>();
