@@ -193,6 +193,8 @@ public sealed class ReturnStockCustodyHandler(AppDbContext db, ICurrentUserServi
             var quantity = request.Quantity ?? remaining;
             if (quantity <= 0 || quantity > remaining)
                 throw new ConflictException("İade miktarı sıfırdan büyük ve kalan zimmet miktarından fazla olmamalıdır.");
+            if (row.SerialNumber is not null && quantity != remaining)
+                throw new ConflictException("Seri numaralı tekil demirbaş bölünerek iade edilemez. Tamamını iade alın.");
             if (request.Quantity.HasValue && (!request.OperationId.HasValue || request.OperationId == Guid.Empty))
                 throw new ConflictException("İade işlem kimliği eksik. Formu yeniden açın.");
             row.Returns.Add(new StockCustodyReturn

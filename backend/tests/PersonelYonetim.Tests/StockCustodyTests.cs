@@ -382,6 +382,21 @@ public sealed class StockCustodyTests
         Assert.Null((await f.Db.StockCustodies.SingleAsync()).ReturnedOn);
     }
 
+    [Fact]
+    public async Task Serial_numbered_assets_cannot_be_fractionally_returned()
+    {
+        await using var f = await Fixture.Create();
+        var custody = await f.Assign(1, "TEKIL-001");
+        var handler = new ReturnStockCustodyHandler(f.Db, f.User);
+        await Assert.ThrowsAsync<ConflictException>(() => handler.Handle(new() { Id = custody.Id, OperationId = Guid.NewGuid(), Quantity = .5m, ReturnedOn = Fixture.Today }, default));
+        f.Db.ChangeTracker.Clear();
+        Assert.Empty(await f.Db.StockCustodyReturns.ToListAsync());
+        Assert.Equal(0, (await f.Db.StockCustodies.SingleAsync()).ReturnedQuantity);
+        var returned = await handler.Handle(new() { Id = custody.Id, OperationId = Guid.NewGuid(), Quantity = 1, ReturnedOn = Fixture.Today }, default);
+        Assert.NotNull(returned.ReturnedOn);
+        Assert.Equal(0, returned.RemainingQuantity);
+    }
+
     private sealed class User(params string[] permissions) : ICurrentUserService
     {
         public Guid? UserId { get; init; }
