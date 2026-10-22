@@ -5,6 +5,8 @@ namespace PersonelYonetim.Application.Features.Stock;
 
 public sealed class StockCustodyDto
 {
+    public bool HasPhoto { get; init; }
+    public DateTime? PhotoVersion { get; init; }
     public Guid Id { get; init; }
     public Guid StockItemId { get; init; }
     public string ItemName { get; init; } = "";

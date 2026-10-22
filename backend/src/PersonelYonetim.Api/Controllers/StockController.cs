@@ -16,6 +16,35 @@ public sealed class StockController : ControllerBase
 
     public StockController(ISender sender) => _sender = sender;
 
+    [HttpGet("items/{id:guid}/photo")]
+    [RequirePermission(PermissionCodes.StockView)]
+    public async Task<IActionResult> Photo(Guid id, CancellationToken ct)
+    {
+        var photo = await _sender.Send(new OpenStockPhotoQuery(id), ct);
+        Response.Headers.CacheControl = "no-store";
+        return File(photo.Stream, photo.ContentType, enableRangeProcessing: false);
+    }
+
+    [HttpPost("items/{id:guid}/photo")]
+    [RequirePermission(PermissionCodes.StockCustodyManage)]
+    [RequestSizeLimit(6 * 1024 * 1024)]
+    public async Task<ActionResult<ApiResponse>> UploadPhoto(Guid id, IFormFile? file, CancellationToken ct)
+    {
+        if (file is null || file.Length == 0)
+            throw new Application.Common.Exceptions.ValidationException("file", "Görsel seçilmedi.");
+        await using var stream = file.OpenReadStream();
+        await _sender.Send(new UploadStockPhotoCommand(id, stream, file.FileName, file.ContentType), ct);
+        return Ok(ApiResponse.Ok(HttpContext.TraceIdentifier));
+    }
+
+    [HttpDelete("items/{id:guid}/photo")]
+    [RequirePermission(PermissionCodes.StockCustodyManage)]
+    public async Task<ActionResult<ApiResponse>> DeletePhoto(Guid id, CancellationToken ct)
+    {
+        await _sender.Send(new DeleteStockPhotoCommand(id), ct);
+        return Ok(ApiResponse.Ok(HttpContext.TraceIdentifier));
+    }
+
     [HttpGet("custodies")]
     [RequirePermission(PermissionCodes.StockView)]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<StockCustodyDto>>>> Custodies(

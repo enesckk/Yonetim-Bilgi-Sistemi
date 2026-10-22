@@ -6,6 +6,7 @@ namespace PersonelYonetim.Domain.Entities;
 /// <summary>Müdürlük malzeme tanımı (katalog). Miktar yer bazında StockBalance'ta tutulur.</summary>
 public class StockItem : AuditableEntity
 {
+    public string? PhotoPath { get; set; }
     public StockItemKind Kind { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? Code { get; set; }

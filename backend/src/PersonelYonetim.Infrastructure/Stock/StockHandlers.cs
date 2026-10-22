@@ -28,8 +28,9 @@ internal static class StockAccess
 
     public static void EnsureCustodyManage(ICurrentUserService user)
     {
-        if (!user.HasPermission(PermissionCodes.StockManage) && !user.HasPermission(PermissionCodes.StockCustodyManage))
-            throw new ForbiddenException("Zimmet yönetme yetkiniz yok.");
+        if (!user.IsInRole(RoleCodes.SystemAdmin) ||
+            (!user.HasPermission(PermissionCodes.StockManage) && !user.HasPermission(PermissionCodes.StockCustodyManage)))
+            throw new ForbiddenException("Zimmetleri yalnızca sistem yöneticisi değiştirebilir.");
     }
 
     public static string LocationType(OrganizationUnitType t) => t switch
@@ -233,6 +234,7 @@ public sealed class GetStockItemsHandler : IRequestHandler<GetStockItemsQuery, I
             var isLow = lines.Any(b => StockAccess.IsLow(b.Quantity, item.MinQuantity));
             return new StockItemListRowDto
             {
+                HasPhoto = !string.IsNullOrEmpty(item.PhotoPath), PhotoVersion = item.UpdatedAtUtc ?? item.CreatedAtUtc,
                 Id = item.Id,
                 Name = item.Name,
                 Code = item.Code,
@@ -627,6 +629,7 @@ internal static class StockMapper
 
         return new StockItemDetailDto
         {
+            HasPhoto = !string.IsNullOrEmpty(item.PhotoPath), PhotoVersion = item.UpdatedAtUtc ?? item.CreatedAtUtc,
             Id = item.Id,
             Name = item.Name,
             Code = item.Code,

@@ -93,6 +93,8 @@ public sealed class RequestedCustodySamplesTests
     {
         public Guid? UserId => null;
         public string UserName => "sample-test";
+        public bool IsAdmin { get; init; } = true;
+        public bool IsInRole(string code) => IsAdmin && code == RoleCodes.SystemAdmin;
         public bool IsAuthenticated => true;
         public IReadOnlyCollection<string> Permissions => [PermissionCodes.StockView, PermissionCodes.StockManage, PermissionCodes.EmployeesViewAllUnits];
         public bool HasPermission(string code) => Permissions.Contains(code);

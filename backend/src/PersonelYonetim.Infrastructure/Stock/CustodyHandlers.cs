@@ -18,6 +18,7 @@ internal static class CustodyData
 
     public static StockCustodyDto Map(StockCustody x, DateOnly? firstStockEntryOn = null) => new()
     {
+        HasPhoto = !string.IsNullOrEmpty(x.StockItem.PhotoPath), PhotoVersion = x.StockItem.UpdatedAtUtc ?? x.StockItem.CreatedAtUtc,
         Id = x.Id, StockItemId = x.StockItemId, ItemName = x.StockItem.Name,
         ItemCode = x.StockItem.Code, UnitLabel = StockLabels.Unit(x.Unit),
         LocationId = x.LocationId, LocationName = x.Location.Name,

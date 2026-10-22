@@ -1,3 +1,5 @@
+import { isSystemAdmin } from '@/auth/roles'
+import { StockItemPhoto, StockPhotoEditor } from '@/components/StockItemPhoto'
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ApiClientError } from '@/api/client'
@@ -47,13 +49,15 @@ function todayIso() {
 }
 
 export function StockPage() {
-  const { hasPermission } = useAuth()
+  const { hasPermission, user } = useAuth()
   const confirm = useConfirm()
   const alert = useAlert()
   const navigate = useNavigate()
   const canView = hasPermission(PermissionCodes.StockView) || hasPermission(PermissionCodes.StockManage)
   const canManage = hasPermission(PermissionCodes.StockManage)
 
+  const canManagePhotos = isSystemAdmin(user) && hasPermission(PermissionCodes.FilesUpload) && (hasPermission(PermissionCodes.StockManage) || hasPermission(PermissionCodes.StockCustodyManage))
+  const [photoItem, setPhotoItem] = useState<StockItemRow | null>(null)
   const [tab, setTab] = useState<Tab>('items')
   const [summary, setSummary] = useState<StockSummary | null>(null)
   const [items, setItems] = useState<StockItemRow[]>([])
@@ -518,12 +522,12 @@ export function StockPage() {
                       return (
                       <tr key={row.id} className={row.isLow ? 'row-error' : undefined}>
                         <td>
-                          <strong>{row.name}</strong>
+                          <div className="stock-item-with-photo"><StockItemPhoto itemId={row.id} name={row.name} hasPhoto={row.hasPhoto} version={row.photoVersion} /><div><strong>{row.name}</strong>
                           <div className="muted small">
                             {row.code ?? 'Kod yok'}
                             {row.brand ? ` · ${row.brand}` : ''}
                             {row.model ? ` ${row.model}` : ''}
-                          </div>
+                          </div></div></div>
                         </td>
                         <td>
                           <span className="stock-group-tag">{row.categoryLabel}</span>
@@ -566,6 +570,7 @@ export function StockPage() {
                               <StockIcon name="in" />
                               Giriş
                             </button>
+                            {canManagePhotos && <button type="button" className="stock-table-action" onClick={() => setPhotoItem(row)}>Görsel</button>}
                             <button type="button" className="stock-table-action is-danger" onClick={() => void onArchive(row)}>
                               <StockIcon name="archive" />
                               Kaldır
@@ -604,6 +609,19 @@ export function StockPage() {
           </ul>
         ) : null}
       </section>
+
+      {photoItem && <div className="org-modal-backdrop stock-modal-backdrop">
+        <div className="org-modal panel stock-modal" role="dialog" aria-modal="true" aria-labelledby="stock-photo-title">
+          <header className="stock-modal-head"><h2 id="stock-photo-title">{photoItem.name} · Görsel</h2><button type="button" className="btn-secondary" onClick={() => setPhotoItem(null)}>Kapat</button></header>
+          <div className="stock-photo-dialog-content"><StockItemPhoto itemId={photoItem.id} name={photoItem.name} hasPhoto={photoItem.hasPhoto} version={photoItem.photoVersion} large />
+            <StockPhotoEditor itemId={photoItem.id} name={photoItem.name} hasPhoto={photoItem.hasPhoto} onChanged={async () => {
+              const updated = await fetchStockItem(photoItem.id)
+              setPhotoItem(current => current?.id === photoItem.id ? { ...current, hasPhoto: updated.hasPhoto, photoVersion: updated.photoVersion } : current)
+              await load({ silent: true })
+            }} />
+          </div>
+        </div>
+      </div>}
 
       {itemMode ? (
         <div className="org-modal-backdrop stock-modal-backdrop" onClick={() => !saving && setItemMode(null)}>

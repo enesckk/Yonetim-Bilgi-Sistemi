@@ -1,3 +1,5 @@
+import { isSystemAdmin } from '@/auth/roles'
+import { StockItemPhoto, StockPhotoEditor } from '@/components/StockItemPhoto'
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { ApiClientError } from '@/api/client'
@@ -20,9 +22,9 @@ function errorMessage(err: unknown) {
 }
 
 export function StockCustodiesPanel({ employeeId }: { employeeId?: string }) {
-  const { hasPermission } = useAuth()
+  const { hasPermission, user } = useAuth()
   const canView = hasPermission(PermissionCodes.StockView)
-  const canManage = hasPermission(PermissionCodes.StockManage) || hasPermission(PermissionCodes.StockCustodyManage)
+  const canManage = isSystemAdmin(user) && (hasPermission(PermissionCodes.StockManage) || hasPermission(PermissionCodes.StockCustodyManage))
   const loadSequence = useRef(0)
   const [rows, setRows] = useState<StockCustody[]>([])
   const [items, setItems] = useState<StockItemRow[]>([])
@@ -151,20 +153,21 @@ export function StockCustodiesPanel({ employeeId }: { employeeId?: string }) {
         <tbody>{loading ? <tr><td className="custody-empty" colSpan={canManage ? 7 : 6}><StockIcon name="clock" /><strong>Zimmetler yükleniyor…</strong></td></tr> : filtered.length === 0 ?
           <tr><td className="custody-empty" colSpan={canManage ? 7 : 6}><StockIcon name="box" /><strong>{search || placeFilter ? 'Aramanıza uygun zimmet bulunamadı.' : 'Henüz zimmet kaydı yok.'}</strong><span>{search || placeFilter ? 'Aramayı veya tesis seçimini değiştirebilirsiniz.' : 'Bir demirbaş seçip personele atayarak başlayın.'}</span></td></tr> :
           filtered.slice(currentPage * 25, (currentPage + 1) * 25).map(row => <tr className="custody-record" key={row.id}>
-            <td><div className="custody-item-cell"><span className="custody-item-symbol"><StockIcon name="box" /></span><div><strong>{row.itemName}</strong><div className="custody-item-meta"><span>{row.itemCode || 'Kod belirtilmedi'}</span>{row.serialNumber && <span className="custody-serial">SN · {row.serialNumber}</span>}</div></div></div></td>
+            <td><div className="custody-item-cell"><StockItemPhoto itemId={row.stockItemId} name={row.itemName} hasPhoto={row.hasPhoto} version={row.photoVersion} /><div><strong>{row.itemName}</strong><div className="custody-item-meta"><span>{row.itemCode || 'Kod belirtilmedi'}</span>{row.serialNumber && <span className="custody-serial">SN · {row.serialNumber}</span>}</div></div></div></td>
             <td><div className="custody-person"><span className="custody-avatar">{initials(row.employeeName)}</span><div>{hasPermission(PermissionCodes.EmployeesView) ? <Link to={`/employees/${row.employeeId}`}>{row.employeeName}</Link> : <strong>{row.employeeName}</strong>}<small>{row.employeeNumber || 'Personel'}</small></div></div></td>
             <td data-label="Tesis"><span className="custody-location">{row.locationName}</span></td>
             <td data-label="Miktar"><span className="custody-quantity">{fmtQty(row.returnedOn ? row.quantity : remainingQty(row))}<small>{row.unitLabel}</small></span></td>
             <td data-label="Teslim tarihi"><time className="custody-date" dateTime={row.assignedOn}>{dateLabel(row.assignedOn)}</time></td>
             <td className="custody-status-cell"><span className={`custody-status ${row.returnedOn ? 'is-returned' : ''}`}><span />{row.returnedOn ? ((row.returnedQuantity ?? row.quantity) < row.quantity ? 'Devir / değişim' : 'Teslim alındı') : 'Aktif zimmet'}</span><details className="custody-record-details"><summary>Kaydın ayrıntıları</summary>
+              {canManage && hasPermission(PermissionCodes.FilesUpload) && <StockPhotoEditor itemId={row.stockItemId} name={row.itemName} hasPhoto={row.hasPhoto} onChanged={load} />}
               <p>İlk teslim: {fmtQty(row.quantity)} {row.unitLabel}{(row.returnedQuantity ?? 0) > 0 ? ` · İade: ${fmtQty(row.returnedQuantity)} ${row.unitLabel}` : ''}</p>
               <p>Sisteme kayıt: {row.itemCreatedAtUtc ? registeredLabel(row.itemCreatedAtUtc) : 'Bilgi bulunamadı'}</p>
               <p>İlk stok girişi: {row.firstStockEntryOn ? dateLabel(row.firstStockEntryOn) : 'Stok giriş hareketi bulunamadı'}</p>
               {(row.returns ?? []).map(r => <p key={r.id}>{dateLabel(r.returnedOn)} · {fmtQty(r.quantity)} {row.unitLabel} iade{r.notes ? ` · ${r.notes}` : ''}</p>)}{row.notes && <p>{row.notes}</p>}{row.returnedOn && <p>{dateLabel(row.returnedOn)} · {row.returnNotes || 'İade alındı.'}</p>}{row.replacesId && <p>Önceki zimmet kapatılarak oluşturuldu.</p>}</details></td>
             {canManage && <td className="custody-action-cell"><div className="custody-actions">{!row.returnedOn ? <>
               <button type="button" className="custody-transfer-btn" disabled={saving || loading || !!error} onClick={() => openForm(row, true)}><StockIcon name="transfer" />Personeli değiştir</button>
-              <button type="button" className="custody-icon-btn" aria-label="Malzemeyi değiştir" title="Malzemeyi değiştir" disabled={saving || loading || !!error} onClick={() => openForm(row)}><StockIcon name="edit" /><span className="custody-btn-caption">Malzeme</span></button>
-              <button type="button" className="custody-icon-btn" aria-label="İade al" title="İade al" disabled={saving || loading || !!error} onClick={() => { setFormError(''); setReturnRow(row); setReturnDate(today()); setReturnNotes(''); setReturnQuantity(remainingQty(row)); setReturnOperationId(crypto.randomUUID()) }}><StockIcon name="in" /><span className="custody-btn-caption">İade</span></button>
+              <button type="button" className="custody-transfer-btn" aria-label="Malzemeyi değiştir" title="Malzemeyi değiştir" disabled={saving || loading || !!error} onClick={() => openForm(row)}><StockIcon name="edit" />Düzenle</button>
+              <button type="button" className="custody-transfer-btn" aria-label="İade al" title="İade al" disabled={saving || loading || !!error} onClick={() => { setFormError(''); setReturnRow(row); setReturnDate(today()); setReturnNotes(''); setReturnQuantity(remainingQty(row)); setReturnOperationId(crypto.randomUUID()) }}>İade al</button>
             </> : <span className="custody-closed-note">Kayıt kapalı</span>}</div></td>}
           </tr>)}</tbody>
       </table></div>

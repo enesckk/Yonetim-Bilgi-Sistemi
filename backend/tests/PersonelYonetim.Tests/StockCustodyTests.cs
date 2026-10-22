@@ -14,16 +14,15 @@ namespace PersonelYonetim.Tests;
 public sealed class StockCustodyTests
 {
     [Fact]
-    public async Task Custody_manager_can_assign_and_return_but_cannot_edit_the_stock_catalog()
+    public async Task Director_with_stale_write_permissions_can_view_but_cannot_assign_transfer_or_return()
     {
         await using var f = await Fixture.Create();
-        var director = new User(PermissionCodes.StockView, PermissionCodes.StockCustodyManage, PermissionCodes.EmployeesViewAllUnits);
-        var row = await new AssignStockCustodyHandler(f.Db, director).Handle(f.Command(1), default);
-        await new ReturnStockCustodyHandler(f.Db, director).Handle(new() { Id = row.Id, ReturnedOn = Fixture.Today }, default);
-        await Assert.ThrowsAsync<ForbiddenException>(() => new UpsertStockItemHandler(f.Db, director).Handle(new()
-        {
-            Id = f.Item.Id, Name = "Unauthorized stock edit", Kind = StockItemKind.FixedAsset
-        }, default));
+        var row = await f.Assign(1);
+        var director = new User(PermissionCodes.StockView, PermissionCodes.StockManage, PermissionCodes.StockCustodyManage, PermissionCodes.EmployeesViewAllUnits) { IsAdmin = false };
+        Assert.Single(await new GetStockCustodiesHandler(f.Db, director).Handle(new(), default));
+        await Assert.ThrowsAsync<ForbiddenException>(() => new AssignStockCustodyHandler(f.Db, director).Handle(f.Command(1), default));
+        await Assert.ThrowsAsync<ForbiddenException>(() => new ReturnStockCustodyHandler(f.Db, director).Handle(new() { Id = row.Id, ReturnedOn = Fixture.Today }, default));
+        await Assert.ThrowsAsync<ForbiddenException>(() => new GetCustodyEmployeesHandler(f.Db, director).Handle(new(), default));
     }
 
     [Fact]
@@ -401,6 +400,8 @@ public sealed class StockCustodyTests
     {
         public Guid? UserId { get; init; }
         public string UserName => "test";
+        public bool IsAdmin { get; init; } = true;
+        public bool IsInRole(string code) => IsAdmin && code == RoleCodes.SystemAdmin;
         public bool IsAuthenticated => true;
         public IReadOnlyCollection<string> Permissions => permissions;
         public bool HasPermission(string code) => permissions.Contains(code);

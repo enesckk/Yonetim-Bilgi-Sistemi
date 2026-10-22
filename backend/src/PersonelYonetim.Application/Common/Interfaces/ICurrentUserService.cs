@@ -9,6 +9,7 @@ public interface ICurrentUserService
     Guid? UserId { get; }
     string? UserName { get; }
     bool IsAuthenticated { get; }
+    bool IsInRole(string roleCode) => false;
     bool HasPermission(string permissionCode);
     IReadOnlyCollection<string> Permissions { get; }
 }

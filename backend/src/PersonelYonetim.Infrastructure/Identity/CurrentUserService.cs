@@ -33,6 +33,8 @@ public sealed class CurrentUserService : ICurrentUserService
         User?.FindAll(JwtTokenService.PermissionClaimType).Select(c => c.Value).ToArray()
         ?? Array.Empty<string>();
 
+    public bool IsInRole(string roleCode) => IsAuthenticated && User?.IsInRole(roleCode) == true;
+
     public bool HasPermission(string permissionCode) =>
         IsAuthenticated && Permissions.Contains(permissionCode);
 }

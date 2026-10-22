@@ -11,6 +11,7 @@ public class StockItemConfiguration : IEntityTypeConfiguration<StockItem>
         builder.ToTable("StockItems");
         builder.HasKey(x => x.Id);
 
+        builder.Property(x => x.PhotoPath).HasMaxLength(500);
         builder.Property(x => x.Name).HasMaxLength(200).IsRequired();
         builder.Property(x => x.Code).HasMaxLength(40);
         builder.Property(x => x.Brand).HasMaxLength(80);

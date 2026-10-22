@@ -1,4 +1,4 @@
-import { apiRequest } from './client'
+import { apiRequest, apiUpload } from './client'
 
 export type StockCategory =
   | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 99
@@ -35,6 +35,8 @@ export interface StockItemLocation {
 }
 
 export interface StockItemRow {
+  hasPhoto: boolean
+  photoVersion?: string | null
   id: string
   name: string
   code?: string | null
@@ -68,6 +70,8 @@ export interface StockBalanceLine {
 }
 
 export interface StockItemDetail {
+  hasPhoto: boolean
+  photoVersion?: string | null
   id: string
   name: string
   code?: string | null
@@ -245,6 +249,8 @@ export function createStockMovement(body: CreateStockMovementPayload) {
 }
 
 export interface StockCustody {
+  hasPhoto: boolean
+  photoVersion?: string | null
   id: string
   stockItemId: string
   itemName: string
@@ -294,3 +300,10 @@ export const assignCustody = (body: AssignCustodyPayload) =>
   apiRequest<StockCustody>('/api/stock/custodies', { method: 'POST', body })
 export const returnCustody = (id: string, body: { operationId?: string; quantity?: number; returnedOn: string; notes?: string | null }) =>
   apiRequest<StockCustody>(`/api/stock/custodies/${id}/return`, { method: 'POST', body })
+
+export async function uploadStockPhoto(id: string, file: File) {
+  const form = new FormData()
+  form.append('file', file)
+  await apiUpload(`/api/stock/items/${id}/photo`, form)
+}
+export const deleteStockPhoto = (id: string) => apiRequest<unknown>(`/api/stock/items/${id}/photo`, { method: 'DELETE' })

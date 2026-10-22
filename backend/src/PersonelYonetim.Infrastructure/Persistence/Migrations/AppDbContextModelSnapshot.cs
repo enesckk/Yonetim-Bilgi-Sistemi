@@ -2308,6 +2308,10 @@ namespace PersonelYonetim.Infrastructure.Persistence.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<string>("PhotoPath")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<byte>("Unit")
                         .HasColumnType("tinyint");
 

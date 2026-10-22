@@ -27,6 +27,8 @@ public sealed class StockOptionsDto
 
 public sealed class StockItemListRowDto
 {
+    public bool HasPhoto { get; init; }
+    public DateTime? PhotoVersion { get; init; }
     public Guid Id { get; init; }
     public string Name { get; init; } = string.Empty;
     public string? Code { get; init; }
@@ -71,6 +73,8 @@ public sealed class StockBalanceLineDto
 
 public sealed class StockItemDetailDto
 {
+    public bool HasPhoto { get; init; }
+    public DateTime? PhotoVersion { get; init; }
     public Guid Id { get; init; }
     public string Name { get; init; } = string.Empty;
     public string? Code { get; init; }
