@@ -58,7 +58,7 @@ export interface EmployeeListQuery {
   sortDesc?: boolean
 }
 
-export async function fetchEmployees(query: EmployeeListQuery): Promise<PagedResult<EmployeeListItem>> {
+export async function fetchEmployees(query: EmployeeListQuery, signal?: AbortSignal): Promise<PagedResult<EmployeeListItem>> {
   const params = new URLSearchParams()
   if (query.search) params.set('search', query.search)
   if (query.unitId) params.set('unitId', query.unitId)
@@ -89,7 +89,7 @@ export async function fetchEmployees(query: EmployeeListQuery): Promise<PagedRes
   if (query.sortBy) params.set('sortBy', query.sortBy)
   if (query.sortDesc) params.set('sortDesc', 'true')
 
-  return apiRequest<PagedResult<EmployeeListItem>>(`/api/employees?${params.toString()}`)
+  return apiRequest<PagedResult<EmployeeListItem>>(`/api/employees?${params.toString()}`, { signal })
 }
 
 export async function fetchEmployeeById(id: string): Promise<EmployeeDetail> {

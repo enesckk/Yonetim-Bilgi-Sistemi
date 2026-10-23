@@ -66,26 +66,26 @@ public sealed class EmployeeQueryService : IEmployeeQueryService
 
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
-            var term = query.Search.Trim().ToLower();
+            var term = query.Search.Trim().ToLowerInvariant().Replace("İ", "i").Replace("ı", "i");
             employees = employees.Where(x =>
-                x.FirstName.ToLower().Contains(term) ||
-                x.LastName.ToLower().Contains(term) ||
-                (x.FirstName + " " + x.LastName).ToLower().Contains(term) ||
-                (x.EmployeeNumber != null && x.EmployeeNumber.ToLower().Contains(term)) ||
+                x.FirstName.ToLower().Replace("İ", "i").Replace("ı", "i").Contains(term) ||
+                x.LastName.ToLower().Replace("İ", "i").Replace("ı", "i").Contains(term) ||
+                (x.FirstName + " " + x.LastName).ToLower().Replace("İ", "i").Replace("ı", "i").Contains(term) ||
+                (x.EmployeeNumber != null && x.EmployeeNumber.ToLower().Replace("İ", "i").Replace("ı", "i").Contains(term)) ||
                 (x.PersonalPhone != null && x.PersonalPhone.Contains(term)) ||
                 (x.CorporatePhone != null && x.CorporatePhone.Contains(term)) ||
-                (x.PersonalEmail != null && x.PersonalEmail.ToLower().Contains(term)) ||
-                (x.CorporateEmail != null && x.CorporateEmail.ToLower().Contains(term)) ||
-                (x.JobTitle != null && x.JobTitle.Name.ToLower().Contains(term)) ||
-                (x.Unit != null && x.Unit.Name.ToLower().Contains(term)) ||
-                (x.Facility != null && x.Facility.Name.ToLower().Contains(term)) ||
-                (x.EmploymentType != null && x.EmploymentType.Name.ToLower().Contains(term)) ||
-                x.Assignments.Any(a => a.JobDuty != null && a.JobDuty.Name.ToLower().Contains(term)) ||
+                (x.PersonalEmail != null && x.PersonalEmail.ToLower().Replace("İ", "i").Replace("ı", "i").Contains(term)) ||
+                (x.CorporateEmail != null && x.CorporateEmail.ToLower().Replace("İ", "i").Replace("ı", "i").Contains(term)) ||
+                (x.JobTitle != null && x.JobTitle.Name.ToLower().Replace("İ", "i").Replace("ı", "i").Contains(term)) ||
+                (x.Unit != null && x.Unit.Name.ToLower().Replace("İ", "i").Replace("ı", "i").Contains(term)) ||
+                (x.Facility != null && x.Facility.Name.ToLower().Replace("İ", "i").Replace("ı", "i").Contains(term)) ||
+                (x.EmploymentType != null && x.EmploymentType.Name.ToLower().Replace("İ", "i").Replace("ı", "i").Contains(term)) ||
+                x.Assignments.Any(a => a.JobDuty != null && a.JobDuty.Name.ToLower().Replace("İ", "i").Replace("ı", "i").Contains(term)) ||
                 x.EducationRecords.Any(e =>
-                    (e.Department != null && e.Department.ToLower().Contains(term)) ||
-                    (e.University != null && e.University.ToLower().Contains(term)) ||
-                    (e.School != null && e.School.ToLower().Contains(term))) ||
-                x.Skills.Any(s => s.Skill != null && s.Skill.Name.ToLower().Contains(term)));
+                    (e.Department != null && e.Department.ToLower().Replace("İ", "i").Replace("ı", "i").Contains(term)) ||
+                    (e.University != null && e.University.ToLower().Replace("İ", "i").Replace("ı", "i").Contains(term)) ||
+                    (e.School != null && e.School.ToLower().Replace("İ", "i").Replace("ı", "i").Contains(term))) ||
+                x.Skills.Any(s => s.Skill != null && s.Skill.Name.ToLower().Replace("İ", "i").Replace("ı", "i").Contains(term)));
         }
 
         if (query.UnitId.HasValue)

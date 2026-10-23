@@ -152,6 +152,7 @@ export function EmployeesPage() {
     | null
   >(null)
 
+  const listRequest = useRef<AbortController | null>(null)
   const columnsPanelRef = useRef<HTMLDivElement>(null)
   const viewsPanelRef = useRef<HTMLDivElement>(null)
 
@@ -285,6 +286,9 @@ export function EmployeesPage() {
   }, [columnsOpen, viewsOpen])
 
   const load = useCallback(async () => {
+    listRequest.current?.abort()
+    const request = new AbortController()
+    listRequest.current = request
     setLoading(true)
     setError(null)
     try {
@@ -319,16 +323,18 @@ export function EmployeesPage() {
         pageSize,
         sortBy,
         sortDesc,
-      })
+      }, request.signal)
+      if (request.signal.aborted) return
       setItems(result.items)
       setTotalCount(result.totalCount)
       setTotalPages(result.totalPages)
     } catch (err) {
+      if (request.signal.aborted) return
       setItems([])
       if (err instanceof ApiClientError) setError(err.message)
       else setError('Personel listesi alınamadı.')
     } finally {
-      setLoading(false)
+      if (!request.signal.aborted) setLoading(false)
     }
   }, [
     search,
@@ -345,6 +351,7 @@ export function EmployeesPage() {
 
   useEffect(() => {
     void load()
+    return () => listRequest.current?.abort()
   }, [load])
 
   function toggleSort(column: string) {
@@ -705,8 +712,16 @@ export function EmployeesPage() {
           <div className="employees-filters-search">
             <input
               placeholder="Ad, soyad, sicil, unvan, görev, birim, tesis, e-posta, telefon, istihdam, bölüm, yetkinlik…"
+              type="search"
+              aria-label="Personel ara"
+              title="Yazdıkça sonuçlar güncellenir"
               value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
+              onChange={(e) => {
+                setSearchInput(e.target.value)
+                setSearch(e.target.value.trim())
+                setPage(1)
+                setActiveViewId(null)
+              }}
             />
             <button type="submit">Ara</button>
           </div>
