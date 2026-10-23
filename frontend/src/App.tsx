@@ -65,6 +65,7 @@ const FacilityLocationsPage = lazy(() =>
 const EventImportPage = lazy(() =>
   import('@/pages/EventImportPage').then((m) => ({ default: m.EventImportPage })),
 )
+const AdminMessagesPage = lazy(() => import('@/pages/AdminMessagesPage').then(m => ({ default: m.AdminMessagesPage })))
 const MessagesPage = lazy(() => import('@/pages/MessagesPage').then((m) => ({ default: m.MessagesPage })))
 const SettlementDetailPage = lazy(() =>
   import('@/pages/SettlementDetailPage').then((m) => ({ default: m.SettlementDetailPage })),
@@ -122,6 +123,7 @@ export default function App() {
                   }
                 />
                 <Route path="messages" element={<MessagesPage />} />
+                <Route path="admin/messages" element={<AdminOnlyRoute><AdminMessagesPage /></AdminOnlyRoute>} />
                 <Route path="settings" element={<AdminOnlyRoute><SettingsPage /></AdminOnlyRoute>} />
                 <Route path="users" element={<AdminOnlyRoute><UsersAdminPage /></AdminOnlyRoute>} />
                 <Route path="roles" element={<AdminOnlyRoute><RolesMatrixPage /></AdminOnlyRoute>} />

@@ -67,6 +67,7 @@ export function AppLayout() {
   const location = useLocation()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+  const [menuSearch, setMenuSearch] = useState('')
   const admin = isSystemAdmin(user)
   const seesAllUnits = admin || hasPermission(PermissionCodes.EmployeesViewAllUnits)
   const showPersonnelModule = canUsePersonnelModule(user)
@@ -224,10 +225,10 @@ export function AppLayout() {
 
   const personnelNav: NavItem[] = [
     { to: '/employees', label: 'Personeller', icon: <Icon d={I.users} />, permission: PermissionCodes.EmployeesView },
-    { to: '/stock', label: 'Stok takip', icon: <Icon d={I.box} />, permission: PermissionCodes.StockView },
-    { to: '/custodies', label: 'Zimmetli malzemeler', icon: <Icon d={I.box} />, permission: PermissionCodes.StockView },
     { to: '/tasks', label: 'İş ataması', icon: <Icon d={I.history} />, permission: PermissionCodes.TasksView },
     { to: '/movements', label: 'Görev geçmişi', icon: <Icon d={I.history} />, permission: PermissionCodes.MovementsView },
+    { to: '/stock', label: 'Stok takip', icon: <Icon d={I.box} />, permission: PermissionCodes.StockView },
+    { to: '/custodies', label: 'Zimmetli malzemeler', icon: <Icon d={I.box} />, permission: PermissionCodes.StockView },
     { to: '/units', label: 'Birimler', icon: <Icon d={I.building} />, permission: PermissionCodes.OrganizationView },
     { to: '/facilities', label: 'Tesisler', icon: <Icon d={I.facility} />, permission: PermissionCodes.OrganizationView },
     { to: '/organization', label: 'Organizasyon şeması', icon: <Icon d={I.chart} />, permission: PermissionCodes.OrganizationView },
@@ -237,6 +238,8 @@ export function AppLayout() {
     { to: '/reports', label: 'Raporlar', icon: <Icon d={I.reports} />, permission: PermissionCodes.ReportsView },
     { to: '/data-quality', label: 'Veri eksikleri', icon: <Icon d={I.quality} />, permission: PermissionCodes.DataQualityView },
     { to: '/audit-logs', label: 'İşlem geçmişi', icon: <Icon d={I.audit} />, permission: PermissionCodes.AuditLogsView },
+    { to: '/messages', label: 'Mesajlarım', icon: <Icon d={I.message} />, permission: PermissionCodes.MessagesUse, badge: unreadMessages },
+    { to: '/admin/messages', label: 'Sohbet arşivi', icon: <Icon d={I.message} /> },
     ...adminSystemNav,
   ]
 
@@ -278,6 +281,7 @@ export function AppLayout() {
       permission: PermissionCodes.MessagesUse,
       badge: unreadMessages,
     },
+    ...(admin ? [{ to: '/admin/messages', label: 'Sohbet arşivi', icon: <Icon d={I.message} /> }] : []),
   ]
 
   const operatorNav: NavItem[] = [
@@ -373,15 +377,26 @@ export function AppLayout() {
             <Icon d={collapsed ? I.expand : I.collapse} size={16} />
           </button>
         </div>
+        {admin && navItems === personnelNav && !collapsed ? <label className="sidebar-menu-search">
+          <span className="sr-only">Menüde ara</span>
+          <input type="search" value={menuSearch} onChange={e => setMenuSearch(e.target.value)} placeholder="Menüde ara…" />
+        </label> : null}
         <nav className="sidebar-nav">
           {navItems.map((item) => {
             const allowed =
               item.to === '/messages'
                 ? canMessages
                 : !item.permission || hasPermission(item.permission)
-            if (!allowed) return null
+            if (!allowed || (item.to === '/admin/messages' && !admin)) return null
+            if (admin && navItems === personnelNav && !collapsed && !item.label.toLocaleLowerCase('tr-TR').includes(menuSearch.trim().toLocaleLowerCase('tr-TR'))) return null
 
+            const group = admin && navItems === personnelNav ? ({
+              '/employees': 'Personel ve görevler', '/stock': 'Malzeme yönetimi', '/units': 'Kurum yapısı',
+              '/skills': 'Tanımlar ve belgeler', '/reports': 'Kontrol ve raporlar', '/messages': 'İletişim', '/users': 'Sistem yönetimi',
+            } as Record<string, string>)[item.to] : undefined
             return (
+              <div key={item.to} className="sidebar-nav-entry">
+              {group ? <p className="sidebar-group-label">{group}</p> : null}
               <NavLink
                 key={item.to}
                 to={item.to}
@@ -420,6 +435,7 @@ export function AppLayout() {
                   <span className="nav-badge">{item.badge > 99 ? '99+' : item.badge}</span>
                 ) : null}
               </NavLink>
+              </div>
             )
           })}
         </nav>

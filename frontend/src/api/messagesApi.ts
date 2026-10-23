@@ -68,3 +68,19 @@ export async function sendDirectMessage(
 export async function downloadMessageFile(messageId: string): Promise<void> {
   await apiDownloadFile(`/api/messages/${messageId}/file`)
 }
+
+export interface MessageArchivePage<T> { items: T[]; totalCount: number; page: number; pageSize: number }
+export interface AdminConversation {
+  firstUser: MessageUser
+  secondUser: MessageUser
+  messageCount: number
+  lastAtUtc: string
+  lastSenderUserId: string
+  lastBody: string
+}
+export function fetchAdminConversations(search: string, page: number) {
+  return apiRequest<MessageArchivePage<AdminConversation>>(`/api/admin/messages/conversations?search=${encodeURIComponent(search)}&page=${page}`)
+}
+export function fetchAdminThread(first: string, second: string, page: number) {
+  return apiRequest<MessageArchivePage<DirectMessage>>(`/api/admin/messages/with/${first}/${second}?page=${page}`)
+}
