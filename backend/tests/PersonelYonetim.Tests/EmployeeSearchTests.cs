@@ -59,6 +59,10 @@ public class EmployeeSearchTests(Xunit.Abstractions.ITestOutputHelper output)
             await db.SaveChangesAsync();
             var service = new EmployeeQueryService(db, new User(true), null!, null!);
             await service.GetListAsync(new EmployeeListQuery { Search = "i" });
+            var prefix = await service.GetListAsync(new EmployeeListQuery { Search = "t", NameSearch = true });
+            Assert.Equal(86, prefix.TotalCount);
+            Assert.All(prefix.Items, x => Assert.StartsWith("Tamer", x.FirstName));
+            Assert.Equal(87, (await service.GetListAsync(new EmployeeListQuery { Search = "i", NameSearch = true })).TotalCount);
             var timings = new List<double>();
             foreach (var term in new[] { "t", "i", "İ", "ı", "ta", "tamer", "0532 123 45 67", "+90 (532) 123-45-67" }) {
                 var watch = System.Diagnostics.Stopwatch.StartNew();
@@ -69,6 +73,33 @@ public class EmployeeSearchTests(Xunit.Abstractions.ITestOutputHelper output)
             }
             output.WriteLine($"Median: {timings.Order().ElementAt(timings.Count / 2):F1} ms; max: {timings.Max():F1} ms (local PostgreSQL, not production network)");
         } finally { await db.Database.EnsureDeletedAsync(); }
+    }
+
+    [Fact]
+    public async Task Name_prefix_search_excludes_title_unit_and_middle_of_word_matches()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:"); await connection.OpenAsync();
+        await using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connection).Options);
+        await db.Database.EnsureCreatedAsync();
+        var title = new JobTitle { Name = "Gençlik Personeli" };
+        db.JobTitles.Add(title);
+        db.Employees.AddRange(
+            new Employee { FirstName = "Enes", LastName = "Yılmaz", PersonalPhone = "0532 123 45 67" },
+            new Employee { FirstName = "Mehmet Enes", LastName = "Oral" },
+            new Employee { FirstName = "Cengiz", LastName = "Şen" },
+            new Employee { FirstName = "Mehmet", LastName = "Abatay", JobTitleId = title.Id },
+            new Employee { FirstName = "Tuba", LastName = "Kaya" },
+            new Employee { FirstName = "Ali", LastName = "Tahir" });
+        await db.SaveChangesAsync();
+        var service = new EmployeeQueryService(db, new User(true), null!, null!);
+        var en = await service.GetListAsync(new EmployeeListQuery { Search = "en", NameSearch = true });
+        Assert.Equal(new[] { "Enes Yılmaz", "Mehmet Enes Oral" }, en.Items.Select(x => x.FullName).Order().ToArray());
+        var t = await service.GetListAsync(new EmployeeListQuery { Search = "t", NameSearch = true });
+        Assert.Equal(new[] { "Ali Tahir", "Tuba Kaya" }, t.Items.Select(x => x.FullName).Order().ToArray());
+        var all = await service.GetListAsync(new EmployeeListQuery { Search = "en" });
+        Assert.Contains(all.Items, x => x.FullName == "Mehmet Abatay");
+        Assert.Single((await service.GetListAsync(new EmployeeListQuery { Search = "0532 123 45 67", NameSearch = true })).Items);
+        Assert.Empty((await service.GetListAsync(new EmployeeListQuery { Search = "yok", NameSearch = true })).Items);
     }
 
     private sealed class User(bool phone = false) : ICurrentUserService

@@ -19,6 +19,8 @@ public interface IEmployeeQueryService
 public class EmployeeListQuery
 {
     public string? Search { get; set; }
+    /// <summary>Harf aramalarında ad/soyad kelime başlangıçları; sayısal aramada sicil/telefon korunur.</summary>
+    public bool NameSearch { get; set; }
     public Guid? UnitId { get; set; }
     /// <summary>UnitId seçiliyse alt birimleri de dahil et.</summary>
     public bool IncludeSubUnits { get; set; }

@@ -25,6 +25,7 @@ function toExportParams(filters?: EmployeeExportFilters): string {
   if (!filters) return ''
 
   if (filters.search) params.set('search', filters.search)
+  if (filters.nameSearch) params.set('nameSearch', 'true')
   if (filters.unitId) params.set('unitId', filters.unitId)
   if (filters.includeSubUnits) params.set('includeSubUnits', 'true')
   if (filters.facilityId) params.set('facilityId', filters.facilityId)

@@ -28,6 +28,7 @@ export interface EmployeeListItem {
 }
 
 export interface EmployeeListQuery {
+  nameSearch?: boolean
   search?: string
   unitId?: string
   includeSubUnits?: boolean
@@ -61,6 +62,7 @@ export interface EmployeeListQuery {
 export async function fetchEmployees(query: EmployeeListQuery, signal?: AbortSignal): Promise<PagedResult<EmployeeListItem>> {
   const params = new URLSearchParams()
   if (query.search) params.set('search', query.search)
+  if (query.nameSearch) params.set('nameSearch', 'true')
   if (query.unitId) params.set('unitId', query.unitId)
   if (query.includeSubUnits) params.set('includeSubUnits', 'true')
   if (query.facilityId) params.set('facilityId', query.facilityId)

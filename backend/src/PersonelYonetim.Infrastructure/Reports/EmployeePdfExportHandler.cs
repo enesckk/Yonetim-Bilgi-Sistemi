@@ -10,6 +10,7 @@ using PersonelYonetim.Domain.Entities;
 using PersonelYonetim.Domain.Enums;
 using PersonelYonetim.Domain.Settings;
 using PersonelYonetim.Infrastructure.Persistence;
+using PersonelYonetim.Infrastructure.Employees;
 using PersonelYonetim.Infrastructure.Security;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -321,29 +322,7 @@ internal static class EmployeeExportQuery
 
         query = scoped;
 
-        if (!string.IsNullOrWhiteSpace(filter.Search))
-        {
-            var term = filter.Search.Trim().ToLower();
-            query = query.Where(x =>
-                x.FirstName.ToLower().Contains(term)
-                || x.LastName.ToLower().Contains(term)
-                || (x.FirstName + " " + x.LastName).ToLower().Contains(term)
-                || (x.EmployeeNumber != null && x.EmployeeNumber.ToLower().Contains(term))
-                || (x.PersonalPhone != null && x.PersonalPhone.Contains(term))
-                || (x.CorporatePhone != null && x.CorporatePhone.Contains(term))
-                || (x.PersonalEmail != null && x.PersonalEmail.ToLower().Contains(term))
-                || (x.CorporateEmail != null && x.CorporateEmail.ToLower().Contains(term))
-                || (x.JobTitle != null && x.JobTitle.Name.ToLower().Contains(term))
-                || (x.Unit != null && x.Unit.Name.ToLower().Contains(term))
-                || (x.Facility != null && x.Facility.Name.ToLower().Contains(term))
-                || (x.EmploymentType != null && x.EmploymentType.Name.ToLower().Contains(term))
-                || x.Assignments.Any(a => a.JobDuty != null && a.JobDuty.Name.ToLower().Contains(term))
-                || x.EducationRecords.Any(e =>
-                    (e.Department != null && e.Department.ToLower().Contains(term))
-                    || (e.University != null && e.University.ToLower().Contains(term))
-                    || (e.School != null && e.School.ToLower().Contains(term)))
-                || x.Skills.Any(s => s.Skill != null && s.Skill.Name.ToLower().Contains(term)));
-        }
+        query = EmployeeSearchFilter.Apply(query, filter, currentUser);
 
         if (filter.UnitId.HasValue)
         {

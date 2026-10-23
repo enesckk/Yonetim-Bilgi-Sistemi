@@ -118,6 +118,7 @@ export function EmployeesPage() {
   const canExportPdf = hasPermission(PermissionCodes.ReportsExportPdf)
 
   const [options, setOptions] = useState<EmployeeFormOptions | null>(null)
+  const [nameSearch, setNameSearch] = useState(true)
   const [search, setSearch] = useState(urlSearch)
   const [searchInput, setSearchInput] = useState(urlSearch)
   const [unitId, setUnitId] = useState('')
@@ -296,6 +297,7 @@ export function EmployeesPage() {
     try {
       const result = await fetchEmployees({
         search: search || undefined,
+        nameSearch,
         unitId: unitId || undefined,
         includeSubUnits: Boolean(unitId) && advanced.includeSubUnits,
         facilityId: facilityId || undefined,
@@ -340,6 +342,7 @@ export function EmployeesPage() {
     }
   }, [
     search,
+    nameSearch,
     unitId,
     facilityId,
     employmentTypeId,
@@ -386,6 +389,7 @@ export function EmployeesPage() {
   function clearFilters() {
     setSearchInput('')
     setSearch('')
+    setNameSearch(true)
     setUnitId('')
     setFacilityId('')
     setEmploymentTypeId('')
@@ -398,6 +402,7 @@ export function EmployeesPage() {
   function currentFilters(): ListFiltersState {
     return {
       search,
+      nameSearch,
       unitId,
       facilityId,
       employmentTypeId,
@@ -443,6 +448,7 @@ export function EmployeesPage() {
         ? Boolean(view.filters.advanced.includeSubUnits)
         : true
 
+    setNameSearch(view.filters.nameSearch ?? true)
     setSearch(view.filters.search ?? '')
     setSearchInput(view.filters.search ?? '')
     setUnitId(view.filters.unitId ?? '')
@@ -526,6 +532,7 @@ export function EmployeesPage() {
   function buildExportFilters() {
     return {
       search: search || undefined,
+      nameSearch,
       unitId: unitId || undefined,
       includeSubUnits: Boolean(unitId) && advanced.includeSubUnits,
       facilityId: facilityId || undefined,
@@ -615,6 +622,7 @@ export function EmployeesPage() {
       employmentTypeId,
       status,
       advanced,
+      nameSearch,
     )
     return describeListFilters(filters, {
       unitName: options?.units.find((u) => u.id === unitId)?.name,
@@ -624,6 +632,7 @@ export function EmployeesPage() {
     })
   }, [
     search,
+    nameSearch,
     unitId,
     facilityId,
     employmentTypeId,
@@ -645,7 +654,7 @@ export function EmployeesPage() {
             <p className="muted small employees-toolbar-lead">
               {admin
                 ? 'Filtreleyin, sütun seçin, görünüm kaydedin. Excel/PDF mevcut filtreleri dışa aktarır.'
-                : 'Ad, sicil veya birim ile arayın. Durum ve birim filtreleriyle listeyi daraltın.'}
+                : 'Yazdıkça ad veya soyadı bu harflerle başlayan personeller listelenir. Birim ve unvan için “Tüm alanlar”ı seçin.'}
             </p>
           </div>
 
@@ -711,9 +720,13 @@ export function EmployeesPage() {
         </div>
 
         <form className="employees-filters" onSubmit={onSearchSubmit}>
-          <div className="employees-filters-search">
+          <div className="employees-filters-search employee-name-search">
+            <select aria-label="Arama kapsamı" value={nameSearch ? 'name' : 'all'} onChange={e => { setNameSearch(e.target.value === 'name'); setPage(1); setActiveViewId(null) }}>
+              <option value="name">İsim / sicil / telefon</option>
+              <option value="all">Tüm alanlar</option>
+            </select>
             <input
-              placeholder="Ad, soyad, sicil, unvan, görev, birim, tesis, e-posta, telefon, istihdam, bölüm, yetkinlik…"
+              placeholder={nameSearch ? "İsim yazın: en → Enes, t → Tuba… veya sicil / telefon girin" : "Ad, soyad, sicil, unvan, görev, birim, tesis, e-posta, telefon…"}
               type="search"
               aria-label="Personel ara"
               title="Yazdıkça sonuçlar güncellenir"
@@ -1719,8 +1732,9 @@ function currentFiltersSnapshot(
   employmentTypeId: string,
   status: '' | EmployeeStatus,
   advanced: AdvancedFiltersState,
+  nameSearch: boolean,
 ): ListFiltersState {
-  return { search, unitId, facilityId, employmentTypeId, status, advanced }
+  return { search, nameSearch, unitId, facilityId, employmentTypeId, status, advanced }
 }
 
 const ORG_TYPE = {

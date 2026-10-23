@@ -19197,3 +19197,6 @@ button:hover > .dq-row-arrow {
 /* Leave scroll room for the mobile install suggestion instead of covering actions. */
 html { scroll-padding-bottom: var(--pwa-install-space, 0px); }
 body { padding-bottom: var(--pwa-install-space, 0px); }
+.employees-filters-search.employee-name-search { grid-template-columns: minmax(150px, .24fr) minmax(0, 1fr) auto; }
+.employee-name-search > select { min-width: 0; border: 1px solid var(--border); border-radius: 8px; padding: .45rem .6rem; background: #fff; }
+@media (max-width: 560px) { .employees-filters-search.employee-name-search { grid-template-columns: minmax(0, 1fr) auto; } .employee-name-search > select { grid-column: 1 / -1; } }
