@@ -19134,3 +19134,21 @@ button:hover > .dq-row-arrow {
 .custody-person-field { display: grid; align-content: start; min-width: 0; gap: 7px; }
 .custody-person-field > label { margin: 0; }
 .custody-person-field > input[type='search'] { font-size: 12px; }
+
+/* Keep catalog creation focused on the asset and its next stock entry. */
+.stock-kind-picker { min-width: 0; margin: 0; padding: 0; border: 0; }
+.stock-kind-picker legend { margin-bottom: .5rem; font-weight: 600; font-size: .88rem; }
+.stock-kind-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; }
+.stock-form-grid .stock-kind-options label { display: flex; align-items: flex-start; gap: .6rem; padding: .8rem; border: 1px solid #dbe3ea; border-radius: 10px; cursor: pointer; background: #fff; }
+.stock-form-grid .stock-kind-options label.is-selected { border-color: #24866a; background: #f4faf7; }
+.stock-form-grid .stock-kind-options input { width: 1rem; height: 1rem; min-height: 0; margin: .15rem 0 0; padding: 0; accent-color: #218862; flex-shrink: 0; }
+.stock-kind-options strong, .stock-kind-options small { display: block; }
+.stock-kind-options small { margin-top: .25rem; color: #64748b; font-size: .75rem; line-height: 1.45; font-weight: 400; }
+.stock-item-extras { border-bottom: 1px solid #edf1ee; }
+.stock-item-extras summary { padding: 1rem 1.45rem; cursor: pointer; font-weight: 600; color: #334155; }
+.stock-item-extras summary span { display: block; margin: .25rem 0 0 1rem; font-size: .76rem; color: #64748b; font-weight: 400; }
+.stock-next-step { display: flex; align-items: flex-start; gap: .65rem; padding: 1rem 1.45rem; color: #334155; }
+.stock-next-step input { margin-top: .2rem; accent-color: #218862; }
+.stock-next-step strong { font-size: .84rem; }
+.stock-next-step small { display: block; margin-top: .25rem; font-size: .76rem; line-height: 1.5; color: #64748b; }
+@media (max-width: 560px) { .stock-kind-options { grid-template-columns: 1fr; } }

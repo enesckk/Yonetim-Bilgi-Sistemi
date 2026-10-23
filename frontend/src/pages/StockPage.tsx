@@ -71,6 +71,7 @@ export function StockPage() {
   const [itemMode, setItemMode] = useState<ItemFormMode>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [itemForm, setItemForm] = useState(emptyItem)
+  const [addStockAfterSave, setAddStockAfterSave] = useState(true)
   const [itemError, setItemError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -163,6 +164,7 @@ export function StockPage() {
 
   const openCreateItem = () => {
     setItemForm(emptyItem())
+    setAddStockAfterSave(true)
     setEditingId(null)
     setItemError(null)
     setItemMode('create')
@@ -194,6 +196,7 @@ export function StockPage() {
 
   const onSaveItem = async (e: FormEvent) => {
     e.preventDefault()
+    if (saving) return
     setSaving(true)
     setItemError(null)
     try {
@@ -205,7 +208,12 @@ export function StockPage() {
         description: itemForm.description?.trim() || null,
       }
       if (itemMode === 'edit' && editingId) await updateStockItem(editingId, payload)
-      else await createStockItem(payload)
+      else {
+        const created = await createStockItem(payload)
+        // Keep the confirmed item available even if the catalog refresh fails.
+        setItems(current => [...current.filter(item => item.id !== created.id), { ...created, locationCount: created.balances.length, isLow: created.totalQuantity < created.minQuantity }])
+        if (addStockAfterSave) openMove({ stockItemId: created.id, movementType: 1 })
+      }
       setItemMode(null)
       await load({ silent: true })
     } catch (err) {
@@ -247,6 +255,7 @@ export function StockPage() {
 
   const onSaveMove = async (e: FormEvent) => {
     e.preventDefault()
+    if (saving) return
     setSaving(true)
     setMoveError(null)
     try {
@@ -638,7 +647,7 @@ export function StockPage() {
                 <div>
                   <p className="org-modal-eyebrow">Malzeme kataloğu</p>
                   <h2 id="stock-item-modal-title">{itemMode === 'create' ? 'Yeni malzeme' : 'Malzemeyi düzenle'}</h2>
-                  <p>Malzemenin temel bilgilerini ve kritik stok seviyesini tanımlayın.</p>
+                  <p>Zimmetlenecek ürün için Demirbaş seçin, adını yazıp devam edin.</p>
                 </div>
               </div>
               <button
@@ -659,12 +668,20 @@ export function StockPage() {
                   <span>Malzemenin stok listesinde nasıl görüneceğini belirler.</span>
                 </div>
                 <div className="stock-form-grid">
-                  <label>Malzeme türü
-                    <select value={itemForm.kind} onChange={e => setItemForm(f => ({ ...f, kind: Number(e.target.value) as 0 | 1 | 2 }))}>
-                      <option value={0}>Belirtilmedi</option><option value={1}>Sarf</option><option value={2}>Demirbaş</option>
-                    </select>
-                    <span className="muted small">Zimmet için demirbaş seçin. Sarf malzemeleri stok çıkışıyla takip edilir.</span>
-                  </label>
+                  <fieldset className="stock-kind-picker span-2">
+                    <legend>Malzeme türü</legend>
+                    <div className="stock-kind-options">
+                      {([{ value: 2, title: 'Demirbaş', text: 'Personele zimmetlenir. İade ve değişimleri takip edilir.' },
+                        { value: 1, title: 'Sarf', text: 'Kullanıldıkça tüketilir. Stok çıkışıyla takip edilir.' }] as const).map(kind => (
+                        <label key={kind.value} className={itemForm.kind === kind.value ? 'is-selected' : ''}>
+                          <input type="radio" name="stock-kind" value={kind.value} checked={itemForm.kind === kind.value}
+                            required={itemMode === 'create'} onChange={() => setItemForm(f => ({ ...f, kind: kind.value }))} />
+                          <span><strong>{kind.title}</strong><small>{kind.text}</small></span>
+                        </label>
+                      ))}
+                    </div>
+                    {itemMode === 'edit' && itemForm.kind === 0 ? <small>Bu eski kaydın türü belirtilmemiş. Zimmetlemek için demirbaş seçin.</small> : null}
+                  </fieldset>
                   <label>
                     <span>Malzeme adı <em>Zorunlu</em></span>
                     <input value={itemForm.name} onChange={(e) => setItemForm((f) => ({ ...f, name: e.target.value }))} required maxLength={200} autoFocus placeholder="Örn. Kablosuz mikrofon" />
@@ -687,11 +704,8 @@ export function StockPage() {
                   </label>
                 </div>
               </section>
-              <section className="stock-form-section">
-                <div className="stock-form-section-title">
-                  <strong>Ürün ve stok ayarları</strong>
-                  <span>İsteğe bağlı ürün detayları ve uyarı eşiği.</span>
-                </div>
+              <details className="stock-item-extras" key={itemMode + (editingId ?? '')} open={itemMode === 'edit' ? true : undefined}>
+                <summary>Diğer bilgiler <span>Marka, model, stok uyarısı ve açıklama · isteğe bağlı</span></summary>
                 <div className="stock-form-grid">
                   <label>
                     <span>Marka</span>
@@ -715,14 +729,18 @@ export function StockPage() {
                     <textarea rows={3} value={itemForm.description ?? ''} onChange={(e) => setItemForm((f) => ({ ...f, description: e.target.value }))} maxLength={1000} placeholder="Malzemeyle ilgili kısa bir not ekleyin…" />
                   </label>
                 </div>
-              </section>
+              </details>
+              {itemMode === 'create' ? <label className="stock-next-step">
+                <input type="checkbox" checked={addStockAfterSave} onChange={e => setAddStockAfterSave(e.target.checked)} />
+                <span><strong>Kaydettikten sonra stok girişi yap</strong><small>Sonraki adımda tesis ve miktarı seçin. Demirbaşlar, stok girişi sonrası Zimmetli malzemeler ekranından personele atanabilir.</small></span>
+              </label> : null}
               <footer className="org-form-actions stock-modal-actions">
                 <button type="button" className="btn-secondary" onClick={() => setItemMode(null)} disabled={saving}>
                   Vazgeç
                 </button>
                 <button type="submit" className="btn-primary stock-save-btn" disabled={saving}>
                   <StockIcon name="save" />
-                  {saving ? 'Kaydediliyor…' : 'Kaydet'}
+                  {saving ? 'Kaydediliyor…' : itemMode === 'create' && addStockAfterSave ? 'Kaydet ve stok ekle' : 'Kaydet'}
                 </button>
               </footer>
             </form>
