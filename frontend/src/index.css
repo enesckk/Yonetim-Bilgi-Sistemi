@@ -19197,6 +19197,25 @@ button:hover > .dq-row-arrow {
 /* Leave scroll room for the mobile install suggestion instead of covering actions. */
 html { scroll-padding-bottom: var(--pwa-install-space, 0px); }
 body { padding-bottom: var(--pwa-install-space, 0px); }
-.employees-filters-search.employee-name-search { grid-template-columns: minmax(150px, .24fr) minmax(0, 1fr) auto; }
-.employee-name-search > select { min-width: 0; border: 1px solid var(--border); border-radius: 8px; padding: .45rem .6rem; background: #fff; }
-@media (max-width: 560px) { .employees-filters-search.employee-name-search { grid-template-columns: minmax(0, 1fr) auto; } .employee-name-search > select { grid-column: 1 / -1; } }
+
+/* A quiet search bar; secondary choices stay behind one disclosure. */
+.employees-filters-search.employee-name-search { grid-template-columns: minmax(0, 1fr) auto auto; align-items: stretch; gap: .55rem; }
+.employee-name-search > input[type='search'] { min-height: 42px; padding: .6rem .85rem; border-color: #dbe3ec; border-radius: 10px; }
+.employees-filters-search .employee-filter-toggle { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; width: auto; min-height: 42px; padding: .6rem .85rem; border: 1px solid #dbe3ec; border-radius: 10px; background: #fff; color: #475569; font-weight: 600; }
+.employees-filters-search .employee-filter-toggle:hover, .employees-filters-search .employee-filter-toggle.is-open { background: #f4f7fa; border-color: #c3d0de; }
+.employees-filters-search .employee-search-submit { width: auto; min-height: 42px; border-radius: 10px; padding: .6rem 1.1rem; }
+.employee-filter-chevron { transition: transform .15s ease; }
+.employee-filter-toggle.is-open .employee-filter-chevron { transform: rotate(180deg); }
+.employee-filter-count { min-width: 1.2rem; padding: .1rem .3rem; background: #e8eef5; border-radius: 5px; font-size: .7rem; }
+.employee-filter-panel { margin-top: .65rem; padding: .9rem; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc; }
+.employee-filter-panel[hidden] { display: none; }
+.employee-search-scope { display: flex; align-items: center; gap: .75rem; margin-bottom: .75rem; color: #64748b; font-size: .8rem; }
+.employee-search-scope select { min-width: 0; max-width: 100%; padding: .45rem .65rem; border: 1px solid #dbe3ec; border-radius: 8px; color: #334155; background: #fff; }
+.employee-filter-panel .employees-filters-org { margin-bottom: 0; }
+@media (max-width: 560px) {
+  .employees-filters-search.employee-name-search { grid-template-columns: minmax(0, 1fr) auto; }
+  .employee-name-search > input[type='search'] { grid-column: 1 / -1; }
+  .employees-filters-search .employee-search-submit, .employees-filters-search .employee-filter-toggle { width: 100%; min-height: 44px; }
+  .employee-filter-panel { padding: .7rem; }
+}
+@media (prefers-reduced-motion: reduce) { .employee-filter-chevron { transition: none; } }

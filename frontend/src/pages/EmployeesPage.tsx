@@ -126,6 +126,7 @@ export function EmployeesPage() {
   const [employmentTypeId, setEmploymentTypeId] = useState('')
   const [status, setStatus] = useState<'' | EmployeeStatus>('')
   const [advanced, setAdvanced] = useState<AdvancedFiltersState>(emptyAdvancedFilters)
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(loadPageSize)
@@ -612,6 +613,9 @@ export function EmployeesPage() {
     search || unitId || facilityId || employmentTypeId || status || hasAdvancedActive,
   )
 
+  const filterCount = Number(Boolean(unitId)) + Number(Boolean(facilityId)) + Number(Boolean(employmentTypeId))
+    + Number(Boolean(status)) + countAdvancedActive(advanced, unitId) + Number(!nameSearch)
+
   const activeViewName = allViews.find((v) => v.id === activeViewId)?.name
 
   const filterChips = useMemo(() => {
@@ -652,9 +656,7 @@ export function EmployeesPage() {
               <div className="stat-chip mobile-inline-chip">{totalCount} kayıt</div>
             </div>
             <p className="muted small employees-toolbar-lead">
-              {admin
-                ? 'Filtreleyin, sütun seçin, görünüm kaydedin. Excel/PDF mevcut filtreleri dışa aktarır.'
-                : 'Yazdıkça ad veya soyadı bu harflerle başlayan personeller listelenir. Birim ve unvan için “Tüm alanlar”ı seçin.'}
+              Personel kayıtlarını yönetin.
             </p>
           </div>
 
@@ -719,14 +721,9 @@ export function EmployeesPage() {
           </div>
         </div>
 
-        <form className="employees-filters" onSubmit={onSearchSubmit}>
+        <form className="employees-filters" onSubmit={onSearchSubmit} noValidate>
           <div className="employees-filters-search employee-name-search">
-            <select aria-label="Arama kapsamı" value={nameSearch ? 'name' : 'all'} onChange={e => { setNameSearch(e.target.value === 'name'); setPage(1); setActiveViewId(null) }}>
-              <option value="name">İsim / sicil / telefon</option>
-              <option value="all">Tüm alanlar</option>
-            </select>
             <input
-              placeholder={nameSearch ? "İsim yazın: en → Enes, t → Tuba… veya sicil / telefon girin" : "Ad, soyad, sicil, unvan, görev, birim, tesis, e-posta, telefon…"}
               type="search"
               aria-label="Personel ara"
               title="Yazdıkça sonuçlar güncellenir"
@@ -738,9 +735,20 @@ export function EmployeesPage() {
                 setActiveViewId(null)
               }}
             />
-            <button type="submit">Ara</button>
+            <button type="submit" className="employee-search-submit">Ara</button>
+            <button type="button" className={`employee-filter-toggle ${filtersOpen ? 'is-open' : ''}`} aria-expanded={filtersOpen} aria-controls="employee-filter-panel" onClick={() => setFiltersOpen(open => !open)}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M7 12h10M10 17h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
+              Filtreler{filterCount > 0 ? <span className="employee-filter-count">{filterCount}</span> : null}
+              <svg className="employee-filter-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </button>
           </div>
-
+          <div className="employee-filter-panel" id="employee-filter-panel" hidden={!filtersOpen}>
+            <label className="employee-search-scope"><span>Arama alanı</span>
+              <select aria-label="Arama kapsamı" value={nameSearch ? 'name' : 'all'} onChange={e => { setNameSearch(e.target.value === 'name'); setPage(1); setActiveViewId(null) }}>
+                <option value="name">İsim ve numara</option>
+                <option value="all">Tüm alanlar</option>
+              </select>
+            </label>
           <div className="employees-filters-row employees-filters-org">
             <select
               value={orgCascade.directorateId}
@@ -867,8 +875,6 @@ export function EmployeesPage() {
               )}
             </div>
           </div>
-        </form>
-
         {admin && advancedOpen && (
           <div className="advanced-filters">
             <div className="advanced-filters-head">
@@ -1102,6 +1108,9 @@ export function EmployeesPage() {
             </div>
           </div>
         )}
+
+          </div>
+        </form>
 
         {admin ? (
         <div className="employees-viewbar">

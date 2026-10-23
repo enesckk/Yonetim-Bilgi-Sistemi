@@ -358,7 +358,7 @@ export function describeListFilters(
   },
 ): string[] {
   const chips: string[] = []
-  if (filters.search) chips.push(`${filters.nameSearch === false ? 'Tüm alanlar' : 'İsim / sicil / telefon'}: “${filters.search}”`)
+  if (filters.search) chips.push(`${filters.nameSearch === false ? 'Genel arama' : 'Arama'}: “${filters.search}”`)
   if (filters.unitId) chips.push(labels?.unitName ? `Birim: ${labels.unitName}` : 'Birim seçili')
   if (filters.facilityId)
     chips.push(labels?.facilityName ? `Tesis: ${labels.facilityName}` : 'Tesis seçili')
