@@ -19130,3 +19130,7 @@ button:hover > .dq-row-arrow {
 .stock-photo-preview > div { display: flex; align-items: center; justify-content: space-between; gap: 15px; margin-bottom: 16px; }
 .stock-photo-preview > img { display: block; width: 100%; max-height: 70dvh; object-fit: contain; }
 @media (max-width: 760px) { .custody-record .custody-actions { flex-wrap: wrap; } .custody-record .custody-transfer-btn { flex: 1 1 auto; } }
+
+.custody-person-field { display: grid; align-content: start; min-width: 0; gap: 7px; }
+.custody-person-field > label { margin: 0; }
+.custody-person-field > input[type='search'] { font-size: 12px; }

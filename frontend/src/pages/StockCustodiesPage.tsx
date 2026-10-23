@@ -1,3 +1,4 @@
+import { matchesEmployeeSearch } from '@/lib/employeeSearch'
 import { isSystemAdmin } from '@/auth/roles'
 import { StockItemPhoto, StockPhotoEditor } from '@/components/StockItemPhoto'
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
@@ -32,6 +33,7 @@ export function StockCustodiesPanel({ employeeId }: { employeeId?: string }) {
   const [options, setOptions] = useState<StockOptions | null>(null)
   const [includeReturned, setIncludeReturned] = useState(false)
   const [search, setSearch] = useState('')
+  const [employeeSearch, setEmployeeSearch] = useState('')
   const [placeFilter, setPlaceFilter] = useState('')
   const [page, setPage] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -80,12 +82,17 @@ export function StockCustodiesPanel({ employeeId }: { employeeId?: string }) {
   const pages = Math.max(1, Math.ceil(filtered.length / 25))
   const currentPage = Math.min(page, pages - 1)
   const oldRow = rows.find(row => row.id === form?.replacesId)
+  const eligibleEmployees = employees.filter(p => (!employeeId || p.id === employeeId || !!oldRow) && (!transferOnly || p.id !== oldRow?.employeeId))
+  const matchingEmployees = eligibleEmployees.filter(p => matchesEmployeeSearch(p, employeeSearch))
+  const selectedEmployee = eligibleEmployees.find(p => p.id === form?.employeeId)
+  const selectedOutsideSearch = selectedEmployee && !matchingEmployees.some(p => p.id === selectedEmployee.id)
   const selectedItem = items.find(item => item.id === form?.stockItemId)
   const balances = selectedItem?.locations ?? []
   const available = (balances.find(b => b.locationId === form?.locationId)?.availableQuantity ?? 0)
     + (oldRow && oldRow.stockItemId === form?.stockItemId && oldRow.locationId === form?.locationId ? remainingQty(oldRow) : 0)
 
   function openForm(old?: StockCustody, transfer = false) {
+    setEmployeeSearch('')
     setTransferOnly(transfer)
     setFormError('')
     setForm({
@@ -181,7 +188,16 @@ export function StockCustodiesPanel({ employeeId }: { employeeId?: string }) {
         {oldRow && !transferOnly && <p>{oldRow.employeeName} üzerindeki {fmtQty(remainingQty(oldRow))} {oldRow.unitLabel} {oldRow.itemName} iade alınacak, aşağıdaki yeni zimmet açılacak.</p>}
         <form className="org-form stock-modal-form" onSubmit={e => void save(e)}>
           <fieldset disabled={saving} className="custody-fieldset"><div className="stock-form-grid">
-            <label>{transferOnly ? 'Yeni sorumlu personel' : 'Personel'}<select aria-label="Personel" required value={form.employeeId} onChange={e => setForm({ ...form, employeeId: e.target.value })}><option value="">Aktif personel seçin</option>{employees.filter(p => (!employeeId || p.id === employeeId || !!oldRow) && (!transferOnly || p.id !== oldRow?.employeeId)).map(p => <option key={p.id} value={p.id}>{p.name}{p.employeeNumber ? ` · ${p.employeeNumber}` : ''}</option>)}</select></label>
+            <div className="custody-person-field">
+              <label htmlFor="custody-employee">{transferOnly ? 'Yeni sorumlu personel' : 'Personel'}</label>
+              <input aria-label="Personel ara" type="search" placeholder="Ad, soyad veya sicil numarası ara" autoComplete="off" value={employeeSearch} onChange={e => setEmployeeSearch(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.parentElement?.querySelector('select')?.focus() } }} aria-controls="custody-employee" />
+              <select id="custody-employee" aria-label="Personel" required value={form.employeeId} onChange={e => setForm({ ...form, employeeId: e.target.value })}>
+                <option value="">Aktif personel seçin</option>
+                {selectedOutsideSearch && <optgroup label="Seçili personel"><option value={selectedEmployee.id}>{selectedEmployee.name}{selectedEmployee.employeeNumber ? ` · ${selectedEmployee.employeeNumber}` : ''}</option></optgroup>}
+                {matchingEmployees.map(p => <option key={p.id} value={p.id}>{p.name}{p.employeeNumber ? ` · ${p.employeeNumber}` : ''}</option>)}
+              </select>
+              {employeeSearch.trim() && <span className="muted small" role="status">{matchingEmployees.length ? `${matchingEmployees.length} personel bulundu.` : 'Aramaya uygun personel bulunamadı.'}</span>}
+            </div>
             {!transferOnly && <label>Demirbaş<select aria-label="Demirbaş" disabled={transferOnly} required value={form.stockItemId} onChange={e => setForm({ ...form, stockItemId: e.target.value, locationId: '', serialNumber: '' })}><option value="">Malzeme seçin</option>{items.filter(i => i.kind === 2).map(i => <option key={i.id} value={i.id}>{i.name}{i.code ? ` · ${i.code}` : ''}</option>)}</select></label>}
             {!transferOnly && <label>Kaynak stok yeri<select aria-label="Kaynak stok yeri" disabled={transferOnly} required value={form.locationId} onChange={e => setForm({ ...form, locationId: e.target.value })}><option value="">Yer seçin</option>{(options?.locations ?? []).filter(loc => balances.some(b => b.locationId === loc.id)).map(loc => <option key={loc.id} value={loc.id}>{loc.name}</option>)}</select></label>}
             {!transferOnly && <label>Miktar<input aria-label="Miktar" disabled={transferOnly} required type="number" min="0.01" step="0.01" max={available || undefined} value={form.quantity} onChange={e => setForm({ ...form, quantity: Number(e.target.value) })} /><span className="muted small">Kullanılabilir: {fmtQty(available)} {selectedItem?.unitLabel}</span></label>}
