@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 type InstallChoice = { outcome: 'accepted' | 'dismissed' }
 
@@ -20,6 +20,7 @@ function isIosDevice() {
 }
 
 export function PwaInstallPrompt() {
+  const cardRef = useRef<HTMLElement>(null)
   const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null)
   const [visible, setVisible] = useState(false)
   const [showInstructions, setShowInstructions] = useState(false)
@@ -57,6 +58,24 @@ export function PwaInstallPrompt() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!visible || !cardRef.current) return
+    const card = cardRef.current
+    const updateSpace = () => {
+      const bottom = parseFloat(window.getComputedStyle(card).bottom) || 0
+      document.documentElement.style.setProperty('--pwa-install-space', `${Math.ceil(card.getBoundingClientRect().height + bottom + 16)}px`)
+    }
+    updateSpace()
+    const observer = new ResizeObserver(updateSpace)
+    observer.observe(card)
+    window.addEventListener('resize', updateSpace)
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', updateSpace)
+      document.documentElement.style.removeProperty('--pwa-install-space')
+    }
+  }, [visible])
+
   function dismiss() {
     try {
       sessionStorage.setItem(DISMISSED_KEY, '1')
@@ -82,7 +101,7 @@ export function PwaInstallPrompt() {
   if (!visible) return null
 
   return (
-    <section className="pwa-install-card" aria-label="Uygulamayı telefona ekle">
+    <section ref={cardRef} className="pwa-install-card" aria-label="Uygulamayı telefona ekle">
       <img src="/pwa-192x192.png" width={48} height={48} alt="YBS logosu" />
       <div className="pwa-install-copy">
         <strong>YBS’yi telefona ekleyin</strong>

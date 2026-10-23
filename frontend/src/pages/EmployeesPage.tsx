@@ -23,6 +23,8 @@ import { ApiClientError } from '@/api/client'
 import { useAuth } from '@/auth/AuthContext'
 import { PermissionCodes } from '@/auth/permissionCodes'
 import { canImportEmployees, isSystemAdmin } from '@/auth/roles'
+import { PhoneLink } from '@/components/PhoneLink'
+import { telHref } from '@/lib/phone'
 import { EmployeeAvatar } from '@/components/EmployeeAvatar'
 import {
   DeleteEmployeeDialog,
@@ -1300,6 +1302,7 @@ export function EmployeesPage() {
                         key={id}
                         id={id}
                         row={row}
+                        canViewPhone={canViewPhone}
                         canUpdate={canUpdate}
                         canCreateMovements={canCreateMovements}
                         canSetStatus={canSetStatus}
@@ -1398,6 +1401,7 @@ export function EmployeesPage() {
 function EmployeeCell({
   id,
   row,
+  canViewPhone,
   canUpdate,
   canCreateMovements,
   canSetStatus,
@@ -1406,6 +1410,7 @@ function EmployeeCell({
 }: {
   id: ColumnId
   row: EmployeeListItem
+  canViewPhone: boolean
   canUpdate: boolean
   canCreateMovements: boolean
   canSetStatus: boolean
@@ -1431,6 +1436,7 @@ function EmployeeCell({
               <Link to={`/employees/${row.id}`} className="row-link">
                 <strong>{row.fullName}</strong>
               </Link>
+              {canViewPhone ? <PhoneLink phone={telHref(row.personalPhone) ? row.personalPhone : row.corporatePhone} name={row.fullName} label="Telefonla ara" className="employee-quick-call" /> : null}
               {row.hasSpecialCondition && (
                 <span className="badge-warn" title="Özel durum kaydı var (detay yetkiye bağlı)">
                   Özel
@@ -1457,7 +1463,7 @@ function EmployeeCell({
     case 'employment':
       return <td>{row.employmentTypeName ?? '—'}</td>
     case 'phone':
-      return <td>{row.personalPhone ?? row.corporatePhone ?? '—'}</td>
+      return <td>{canViewPhone ? <PhoneLink phone={row.personalPhone?.trim() || row.corporatePhone} name={row.fullName} /> : '—'}</td>
     case 'hireDate':
       return <td>{row.hireDate ? formatDate(row.hireDate) : '—'}</td>
     case 'serviceYears':

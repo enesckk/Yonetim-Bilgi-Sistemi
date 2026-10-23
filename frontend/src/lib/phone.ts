@@ -14,9 +14,15 @@ export function formatPhone(value?: string | null) {
 }
 
 export function telHref(value?: string | null) {
-  const d = digitsPhone(value)
+  const raw = value?.trim() ?? ''
+  // Do not turn masked numbers, extensions or arbitrary text into a different number.
+  if (!/^(?:\+|00)?[\d\s().-]+$/.test(raw)) return null
+  const d = digitsPhone(raw)
+  if (d.length < 7 || d.length > 15) return null
+  if (raw.startsWith('+')) return d.startsWith('0') ? null : `tel:+${d}`
+  if (raw.startsWith('00')) return d.length > 8 ? `tel:+${d.slice(2)}` : null
   if (d.length === 11 && d.startsWith('0')) return `tel:+90${d.slice(1)}`
   if (d.length === 10) return `tel:+90${d}`
-  if (d.length >= 7) return `tel:${d}`
-  return null
+  if (d.length === 12 && d.startsWith('90')) return `tel:+${d}`
+  return `tel:${d}`
 }

@@ -19189,3 +19189,11 @@ button:hover > .dq-row-arrow {
 .admin-conversation-list ul { max-height: max(280px, calc(100dvh - 380px)); overflow-y: auto; }
 .admin-message-thread h2 { scroll-margin-top: 125px; }
 @media (max-width: 900px) { .admin-conversation-list ul { max-height: 280px; } }
+.employee-quick-call { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; min-height: 44px; width: fit-content; padding: .35rem .65rem; border: 1px solid #d8e3eb; border-radius: 8px; background: #fff; color: #235a78; text-decoration: none; font-size: .78rem; font-weight: 600; }
+.employee-quick-call::before { content: '☎'; font-size: 1rem; }
+.employee-quick-call:hover, .employee-phone-link:hover { background: #f0f6fa; }
+.employee-phone-link { display: inline-flex; align-items: center; min-height: 44px; color: #235a78; text-decoration: underline; text-underline-offset: .15em; }
+.emp-name-text .employee-quick-call { margin-top: .25rem; }
+/* Leave scroll room for the mobile install suggestion instead of covering actions. */
+html { scroll-padding-bottom: var(--pwa-install-space, 0px); }
+body { padding-bottom: var(--pwa-install-space, 0px); }

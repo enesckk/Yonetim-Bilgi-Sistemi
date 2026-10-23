@@ -62,6 +62,8 @@ import { useAuth } from '@/auth/AuthContext'
 import { PermissionCodes } from '@/auth/permissionCodes'
 import { isSystemAdmin } from '@/auth/roles'
 import { useConfirm } from '@/components/ConfirmDialog'
+import { PhoneLink } from '@/components/PhoneLink'
+import { telHref } from '@/lib/phone'
 import { EmployeeAvatar } from '@/components/EmployeeAvatar'
 import {
   DeleteEmployeeDialog,
@@ -90,6 +92,7 @@ export function EmployeeDetailPage() {
   const navigate = useNavigate()
   const { hasPermission, user } = useAuth()
   const admin = isSystemAdmin(user)
+  const canViewPhone = hasPermission(PermissionCodes.EmployeesViewPhone)
   const [tab, setTab] = useState<TabId>('general')
   const [data, setData] = useState<EmployeeDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -268,6 +271,10 @@ export function EmployeeDetailPage() {
               <p className="emp-detail-facility">Tesis: {data.corporate.facilityName}</p>
             )}
             <div className="emp-detail-hero-actions">
+              {canViewPhone ? <>
+                <PhoneLink phone={telHref(data.general.personalPhone) ? data.general.personalPhone : data.general.corporatePhone} name={data.fullName} label="Telefonla ara" className="btn-secondary employee-quick-call" />
+                {telHref(data.general.personalPhone) && telHref(data.general.corporatePhone) !== telHref(data.general.personalPhone) ? <PhoneLink phone={data.general.corporatePhone} name={data.fullName} label="Kurumsal telefonu ara" className="btn-secondary employee-quick-call" /> : null}
+              </> : null}
               {canUpdate && (
                 <Link to={`/employees/${data.id}/edit`} className="btn-primary link-btn">
                   Düzenle
@@ -663,6 +670,8 @@ function SectionHead({
 }
 
 function GeneralTab({ data }: { data: EmployeeDetail }) {
+  const { hasPermission } = useAuth()
+  const canViewPhone = hasPermission(PermissionCodes.EmployeesViewPhone)
   const g = data.general
   return (
     <div className="emp-detail-section">
@@ -695,13 +704,13 @@ function GeneralTab({ data }: { data: EmployeeDetail }) {
         <div>
           <h3 className="emp-detail-block-title">İletişim</h3>
           <dl className="field-grid">
-            <Field label="Telefon" value={g.personalPhone} />
-            <Field label="Kurumsal telefon" value={g.corporatePhone} />
+            <div className="field"><dt>Telefon</dt><dd>{canViewPhone ? <PhoneLink phone={g.personalPhone} name={data.fullName} /> : '—'}</dd></div>
+            <div className="field"><dt>Kurumsal telefon</dt><dd>{canViewPhone ? <PhoneLink phone={g.corporatePhone} name={data.fullName} /> : '—'}</dd></div>
             <Field label="E-posta" value={g.personalEmail} />
             <Field label="Kurumsal e-posta" value={g.corporateEmail} />
             <Field label="Adres" value={g.address} />
             <Field label="Acil durumda aranacak kişi" value={g.emergencyContactName} />
-            <Field label="Acil durum telefonu" value={g.emergencyContactPhone} />
+            <div className="field"><dt>Acil durum telefonu</dt><dd>{canViewPhone ? <PhoneLink phone={g.emergencyContactPhone} name={data.fullName} /> : '—'}</dd></div>
           </dl>
         </div>
       </div>
