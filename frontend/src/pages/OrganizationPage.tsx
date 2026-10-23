@@ -596,7 +596,7 @@ export function OrganizationPage({ section = 'chart' }: { section?: Organization
   }
 
   return (
-    <div className={`org-page${section === 'chart' ? ' is-chart-fit' : ''}`}>
+    <div className={`org-page${section === 'chart' ? ' is-chart-fit' : section === 'facilities' ? ' is-facilities' : ''}`}>
       <header className="org-hero panel">
         <div>
           <p className="org-eyebrow">
@@ -617,8 +617,8 @@ export function OrganizationPage({ section = 'chart' }: { section?: Organization
                   ? 'Ana ve alt birimleri, birim amirlerini ve kadro durumunu yönetin.'
                   : 'Ana ve alt birimleri, birim amirlerini ve kadro durumunu görün.'
                 : canManage
-                  ? 'Birimlere bağlı tesisleri, tesis amirlerini ve kadroyu yönetin.'
-                  : 'Birimlere bağlı tesisleri, tesis amirlerini ve kadroyu görün.'}
+                  ? 'Tesis, amir ve personel bilgilerini yönetin.'
+                  : 'Tesis, amir ve personel bilgilerini inceleyin.'}
           </p>
         </div>
         <div className="report-hero-side">
@@ -713,17 +713,19 @@ export function OrganizationPage({ section = 'chart' }: { section?: Organization
             ))}
           </div>
         ) : (
-          <strong>Tesis listesi</strong>
+          <span className="org-facility-result-count">{filteredFlat.length} tesis</span>
         )}
         <div className="org-filters">
           <input
             type="search"
-            placeholder={`${section === 'facilities' ? 'Tesis' : 'Birim'}, kod veya amir ara…`}
+            placeholder={section === 'facilities' ? undefined : 'Birim, kod veya amir ara…'}
+            aria-label={section === 'facilities' ? 'Tesis ara' : 'Birim ara'}
+            title={section === 'facilities' ? 'Tesis adı, kodu veya amir adıyla arayın' : undefined}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
           {section === 'facilities' && (
-            <select value={unitFilter} onChange={(e) => setUnitFilter(e.target.value)}>
+            <select aria-label="Bağlı birim" value={unitFilter} onChange={(e) => setUnitFilter(e.target.value)}>
               <option value="">Tüm birimler</option>
               {facilityUnitOptions.map((u) => (
                 <option key={u.id} value={u.id}>
@@ -733,7 +735,7 @@ export function OrganizationPage({ section = 'chart' }: { section?: Organization
               ))}
             </select>
           )}
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+          <select aria-label={section === 'facilities' ? 'Tesis durumu' : 'Birim durumu'} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
             <option value="">Tüm durumlar</option>
             <option value="1">Aktif</option>
             <option value="2">Pasif</option>
@@ -744,6 +746,7 @@ export function OrganizationPage({ section = 'chart' }: { section?: Organization
             <option value="7">Devredildi</option>
             <option value="8">Kullanım dışı</option>
           </select>
+          {section === 'facilities' && (search || unitFilter || statusFilter) ? <button type="button" className="btn-secondary" onClick={() => { setSearch(''); setUnitFilter(''); setStatusFilter('') }}>Temizle</button> : null}
         </div>
       </div>
 
@@ -1424,19 +1427,20 @@ function OrgFacilitiesGroupedView({
     return (
       <article
         key={n.id}
-        className={`org-card${selectedId === n.id ? ' is-selected' : ''}`}
+        className={`org-card org-facility-card${selectedId === n.id ? ' is-selected' : ''}`}
         onClick={() => onSelect(n.id)}
       >
         <div className="org-card-top">
-          <span className="org-card-type">{n.facilityCategoryName || 'Tesis türü belirtilmemiş'}</span>
+          <span className="org-card-type">{n.facilityCategoryName || 'Tesis'}</span>
           <span className={`org-status-pill status-${n.status}`}>{n.statusLabel}</span>
         </div>
-        <h3>{n.name}</h3>
-        <p className="org-card-manager">{amirText(true, n.managerName)}</p>
+        <h3><button type="button" className="org-facility-name" onClick={e => { e.stopPropagation(); onSelect(n.id) }}>{n.name}</button></h3>
+        <p className="org-card-manager"><span>Tesis amiri</span><strong>{n.managerName || 'Atanmadı'}</strong></p>
         <p className="org-card-count">
           <strong>{activeCount}</strong> aktif personel
         </p>
         <div className="org-card-actions" onClick={(e) => e.stopPropagation()}>
+          <button type="button" className="org-card-btn org-facility-inspect" onClick={() => onSelect(n.id)}>İncele <span aria-hidden="true">→</span></button>
           {canManage && (
             <>
               <button type="button" className="org-card-btn" onClick={() => onEdit(n)}>
@@ -1458,9 +1462,7 @@ function OrgFacilitiesGroupedView({
         <section key={key} className="org-facility-group">
           <div className="org-card-section-head">
             <div>
-              <p className="org-card-section-label">Bağlı birim</p>
               <h2>{group.parentName}</h2>
-              <p className="muted small">Bu birime bağlı tesisler</p>
             </div>
             <span>{group.items.length} tesis</span>
           </div>
@@ -1471,9 +1473,7 @@ function OrgFacilitiesGroupedView({
         <section className="org-facility-group org-youth-section">
           <div className="org-card-section-head">
             <div>
-              <p className="org-card-section-label">Bağlı birim</p>
               <h2>Gençlik Kütüphaneleri</h2>
-              <p className="muted small">Mahalle kütüphaneleri</p>
             </div>
             <span>{youthItems.length} tesis</span>
           </div>
