@@ -1,4 +1,5 @@
 import type { CurrentUser } from '@/api/types'
+import { PermissionCodes } from '@/auth/permissionCodes'
 
 export const OFFICER_ROLE = 'OFFICER'
 export const SYSTEM_ADMIN_ROLE = 'SYSTEM_ADMIN'
@@ -43,7 +44,9 @@ export function canImportEmployees(user: CurrentUser | null | undefined): boolea
 
 /** Müdür, idari amir ve admin Müdürlük sekmesini görür. */
 export function canUsePersonnelModule(user: CurrentUser | null | undefined): boolean {
-  return user?.roles?.some((role) => PERSONNEL_MODULE_ROLES.has(role)) ?? false
+  return (user?.roles?.some((role) => PERSONNEL_MODULE_ROLES.has(role)) ?? false)
+    || (user?.permissions?.includes(PermissionCodes.EmployeesView) ?? false)
+    || (user?.permissions?.includes(PermissionCodes.StockView) ?? false)
 }
 
 /** Müdür ve admin tüm tesis/mahalle genelini görür; idari amir görmez. */
@@ -55,5 +58,12 @@ export function canSeeAllUnits(user: CurrentUser | null | undefined): boolean {
 export function defaultHomePath(user: CurrentUser | null | undefined): string {
   if (isSystemAdmin(user)) return '/'
   if (canUsePersonnelModule(user)) return '/personnel'
-  return canSeeAllUnits(user) ? '/events/map' : '/events/calendar'
+  if (canUseEventsModule(user)) return canSeeAllUnits(user) ? '/events/map' : '/events/calendar'
+  return '/messages'
+}
+
+/** Event routes and module selection must agree, including after switching accounts. */
+export function canUseEventsModule(user: CurrentUser | null | undefined): boolean {
+  if (user?.roles?.includes(OFFICER_ROLE)) return false
+  return user?.permissions?.includes(PermissionCodes.EventsView) ?? false
 }

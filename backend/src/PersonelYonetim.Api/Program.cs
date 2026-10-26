@@ -81,7 +81,18 @@ app.Use(async (context, next) =>
 app.UseDefaultFiles();
 var staticContentTypes = new FileExtensionContentTypeProvider();
 staticContentTypes.Mappings[".geojson"] = "application/geo+json";
-app.UseStaticFiles(new StaticFileOptions { ContentTypeProvider = staticContentTypes });
+app.UseStaticFiles(new StaticFileOptions
+{
+    ContentTypeProvider = staticContentTypes,
+    OnPrepareResponse = context =>
+    {
+        // Always revalidate the entry point so existing sessions receive new role routing.
+        if (context.File.Name.Equals("index.html", StringComparison.OrdinalIgnoreCase)
+            || context.File.Name.Equals("sw.js", StringComparison.OrdinalIgnoreCase)
+            || context.File.Name.Equals("registerSW.js", StringComparison.OrdinalIgnoreCase))
+            context.Context.Response.Headers.CacheControl = "no-cache, max-age=0, must-revalidate";
+    }
+});
 
 app.UseCors("Frontend");
 app.UseAuthentication();

@@ -4,7 +4,7 @@ import { fetchUnreadNotificationCount } from '@/api/notificationsApi'
 import { fetchUnreadMessageCount } from '@/api/messagesApi'
 import { useAuth } from '@/auth/AuthContext'
 import { PermissionCodes } from '@/auth/permissionCodes'
-import { isSystemAdmin, canUsePersonnelModule } from '@/auth/roles'
+import { isSystemAdmin, canUsePersonnelModule, canUseEventsModule } from '@/auth/roles'
 import { AccountMenu } from '@/components/AccountMenu'
 import { EmployeeAvatar } from '@/components/EmployeeAvatar'
 import { NotificationBell } from '@/components/NotificationBell'
@@ -71,7 +71,7 @@ export function AppLayout() {
   const admin = isSystemAdmin(user)
   const seesAllUnits = admin || hasPermission(PermissionCodes.EmployeesViewAllUnits)
   const showPersonnelModule = canUsePersonnelModule(user)
-  const canEvents = hasPermission(PermissionCodes.EventsView)
+  const canEvents = canUseEventsModule(user)
   const canNotifications = hasPermission(PermissionCodes.NotificationsView)
   const canMessages =
     hasPermission(PermissionCodes.MessagesUse) || hasPermission(PermissionCodes.NotificationsView)
@@ -162,7 +162,7 @@ export function AppLayout() {
   }, [collapsed])
 
   const moduleFromPath: AppModule = canEvents && location.pathname.startsWith('/events') ? 'events' : 'personnel'
-  const [appModule, setAppModule] = useState<AppModule>(() => {
+  const [savedAppModule, setAppModule] = useState<AppModule>(() => {
     try {
       const saved = localStorage.getItem(MODULE_KEY)
       if ((saved === 'events' && canEvents) || saved === 'personnel') return saved
@@ -172,15 +172,17 @@ export function AppLayout() {
     return moduleFromPath
   })
 
+  const appModule: AppModule = canEvents ? savedAppModule : 'personnel'
+
   useEffect(() => {
-    if (location.pathname.startsWith('/messages')) return
+    if (location.pathname.startsWith('/messages') && canEvents) return
     setAppModule(moduleFromPath)
     try {
       localStorage.setItem(MODULE_KEY, moduleFromPath)
     } catch {
       /* ignore */
     }
-  }, [moduleFromPath, location.pathname])
+  }, [moduleFromPath, location.pathname, canEvents])
 
   function switchModule(next: AppModule) {
     setAppModule(next)
