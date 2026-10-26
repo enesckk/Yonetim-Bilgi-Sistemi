@@ -13,11 +13,6 @@ describe('officer navigation', () => {
     expect(canUseEventsModule(user)).toBe(false)
     expect(defaultHomePath(user)).toBe('/personnel')
   })
-  it('recognizes personnel access by permissions for custom role names', () => {
-    const user = { ...officer, roles: ['CUSTOM_OFFICER'] }
-    expect(canUsePersonnelModule(user)).toBe(true)
-    expect(defaultHomePath(user)).toBe('/personnel')
-  })
   it('does not send accounts without event access to the map', () => {
     expect(defaultHomePath({ ...officer, roles: [], permissions: ['Messages.Use', 'Employees.ViewAllUnits'] })).toBe('/messages')
   })

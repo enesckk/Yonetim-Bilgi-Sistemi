@@ -44,9 +44,7 @@ export function canImportEmployees(user: CurrentUser | null | undefined): boolea
 
 /** Müdür, idari amir ve admin Müdürlük sekmesini görür. */
 export function canUsePersonnelModule(user: CurrentUser | null | undefined): boolean {
-  return (user?.roles?.some((role) => PERSONNEL_MODULE_ROLES.has(role)) ?? false)
-    || (user?.permissions?.includes(PermissionCodes.EmployeesView) ?? false)
-    || (user?.permissions?.includes(PermissionCodes.StockView) ?? false)
+  return user?.roles?.some((role) => PERSONNEL_MODULE_ROLES.has(role)) ?? false
 }
 
 /** Müdür ve admin tüm tesis/mahalle genelini görür; idari amir görmez. */
