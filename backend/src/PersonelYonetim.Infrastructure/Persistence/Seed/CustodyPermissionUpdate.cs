@@ -17,7 +17,7 @@ public static class CustodyPermissionUpdate
             if (await db.AppSettings.IgnoreQueryFilters().AnyAsync(x => x.Key == Marker, ct)) return false;
             var permission = await db.Permissions.SingleAsync(x => x.Code == PermissionCodes.StockCustodyManage, ct);
             var nonAdminLinks = await db.RolePermissions.Include(x => x.Role)
-                .Where(x => x.PermissionId == permission.Id && x.Role.Code != RoleCodes.SystemAdmin).ToListAsync(ct);
+                .Where(x => x.PermissionId == permission.Id && x.Role.Code != RoleCodes.SystemAdmin && x.Role.Code != RoleCodes.Officer).ToListAsync(ct);
             db.RolePermissions.RemoveRange(nonAdminLinks);
             var roles = await db.Roles.Where(x => x.Code == RoleCodes.SystemAdmin).ToListAsync(ct);
             foreach (var role in roles)

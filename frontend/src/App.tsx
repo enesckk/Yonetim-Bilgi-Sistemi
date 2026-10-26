@@ -127,18 +127,18 @@ export default function App() {
                 <Route path="settings" element={<AdminOnlyRoute><SettingsPage /></AdminOnlyRoute>} />
                 <Route path="users" element={<AdminOnlyRoute><UsersAdminPage /></AdminOnlyRoute>} />
                 <Route path="roles" element={<AdminOnlyRoute><RolesMatrixPage /></AdminOnlyRoute>} />
-                <Route path="events" element={<EventsHomePage />} />
-                <Route path="events/list" element={<EventsListPage />} />
-                <Route path="events/calendar" element={<EventsCalendarPage />} />
-                <Route path="events/halls" element={<Navigate to="/events/calendar" replace />} />
-                <Route path="events/map" element={<EventsMapPage />} />
-                <Route path="events/settlements/:code" element={<SettlementDetailPage />} />
-                <Route path="events/facilities" element={<EventsFacilitiesPage />} />
-                <Route path="events/facilities-locations" element={<PermissionRoute permission={PermissionCodes.OrganizationView} message="Tesis konumlarını görüntüleme yetkiniz yok."><FacilityLocationsPage /></PermissionRoute>} />
-                <Route path="events/import" element={<EventImportPage />} />
-                <Route path="events/new" element={<EventFormPage />} />
-                <Route path="events/:id/edit" element={<EventFormPage />} />
-                <Route path="events/:id" element={<EventDetailPage />} />
+                <Route path="events" element={<PermissionRoute permission={PermissionCodes.EventsView}><EventsHomePage /></PermissionRoute>} />
+                <Route path="events/list" element={<PermissionRoute permission={PermissionCodes.EventsView}><EventsListPage /></PermissionRoute>} />
+                <Route path="events/calendar" element={<PermissionRoute permission={PermissionCodes.EventsView}><EventsCalendarPage /></PermissionRoute>} />
+                <Route path="events/halls" element={<PermissionRoute permission={PermissionCodes.EventsView}><Navigate to="/events/calendar" replace /></PermissionRoute>} />
+                <Route path="events/map" element={<PermissionRoute permission={PermissionCodes.EventsView}><EventsMapPage /></PermissionRoute>} />
+                <Route path="events/settlements/:code" element={<PermissionRoute permission={PermissionCodes.EventsView}><SettlementDetailPage /></PermissionRoute>} />
+                <Route path="events/facilities" element={<PermissionRoute permission={PermissionCodes.EventsView}><EventsFacilitiesPage /></PermissionRoute>} />
+                <Route path="events/facilities-locations" element={<PermissionRoute permission={PermissionCodes.EventsView}><PermissionRoute permission={PermissionCodes.OrganizationView} message="Tesis konumlarını görüntüleme yetkiniz yok."><FacilityLocationsPage /></PermissionRoute></PermissionRoute>} />
+                <Route path="events/import" element={<PermissionRoute permission={PermissionCodes.EventsView}><EventImportPage /></PermissionRoute>} />
+                <Route path="events/new" element={<PermissionRoute permission={PermissionCodes.EventsView}><EventFormPage /></PermissionRoute>} />
+                <Route path="events/:id/edit" element={<PermissionRoute permission={PermissionCodes.EventsView}><EventFormPage /></PermissionRoute>} />
+                <Route path="events/:id" element={<PermissionRoute permission={PermissionCodes.EventsView}><EventDetailPage /></PermissionRoute>} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

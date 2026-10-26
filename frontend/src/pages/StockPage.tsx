@@ -1,4 +1,4 @@
-import { isSystemAdmin } from '@/auth/roles'
+import { isSystemAdmin, OFFICER_ROLE } from '@/auth/roles'
 import { StockItemPhoto, StockPhotoEditor } from '@/components/StockItemPhoto'
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
@@ -56,7 +56,7 @@ export function StockPage() {
   const canView = hasPermission(PermissionCodes.StockView) || hasPermission(PermissionCodes.StockManage)
   const canManage = hasPermission(PermissionCodes.StockManage)
 
-  const canManagePhotos = isSystemAdmin(user) && hasPermission(PermissionCodes.FilesUpload) && (hasPermission(PermissionCodes.StockManage) || hasPermission(PermissionCodes.StockCustodyManage))
+  const canManagePhotos = (isSystemAdmin(user) || user?.roles?.includes(OFFICER_ROLE)) && hasPermission(PermissionCodes.FilesUpload) && (hasPermission(PermissionCodes.StockManage) || hasPermission(PermissionCodes.StockCustodyManage))
   const [photoItem, setPhotoItem] = useState<StockItemRow | null>(null)
   const [tab, setTab] = useState<Tab>('items')
   const [summary, setSummary] = useState<StockSummary | null>(null)

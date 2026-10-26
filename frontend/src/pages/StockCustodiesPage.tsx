@@ -1,5 +1,5 @@
 import { matchesEmployeeSearch } from '@/lib/employeeSearch'
-import { isSystemAdmin } from '@/auth/roles'
+import { isSystemAdmin, OFFICER_ROLE } from '@/auth/roles'
 import { StockItemPhoto, StockPhotoEditor } from '@/components/StockItemPhoto'
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
@@ -25,7 +25,7 @@ function errorMessage(err: unknown) {
 export function StockCustodiesPanel({ employeeId }: { employeeId?: string }) {
   const { hasPermission, user } = useAuth()
   const canView = hasPermission(PermissionCodes.StockView)
-  const canManage = isSystemAdmin(user) && (hasPermission(PermissionCodes.StockManage) || hasPermission(PermissionCodes.StockCustodyManage))
+  const canManage = (isSystemAdmin(user) || user?.roles?.includes(OFFICER_ROLE)) && (hasPermission(PermissionCodes.StockManage) || hasPermission(PermissionCodes.StockCustodyManage))
   const loadSequence = useRef(0)
   const [rows, setRows] = useState<StockCustody[]>([])
   const [items, setItems] = useState<StockItemRow[]>([])

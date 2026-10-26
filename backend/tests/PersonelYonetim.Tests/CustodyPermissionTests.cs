@@ -40,13 +40,16 @@ public class CustodyPermissionTests
     }
 
     [Theory]
+    [InlineData(RoleCodes.Officer, PermissionCodes.StockCustodyManage, true)]
+    [InlineData(RoleCodes.Officer, PermissionCodes.StockManage, true)]
+    [InlineData(RoleCodes.Officer, PermissionCodes.StockView, false)]
     [InlineData(RoleCodes.SystemAdmin, PermissionCodes.StockManage, true)]
     [InlineData(RoleCodes.SystemAdmin, PermissionCodes.StockCustodyManage, true)]
     [InlineData(RoleCodes.SystemAdmin, PermissionCodes.StockView, false)]
     [InlineData(RoleCodes.Director, PermissionCodes.StockManage, false)]
     [InlineData(RoleCodes.Director, PermissionCodes.StockCustodyManage, false)]
     [InlineData(RoleCodes.AdministrativeOfficer, PermissionCodes.StockManage, false)]
-    public async Task Custody_policy_requires_admin_role_even_with_old_write_permission(string role, string granted, bool expected)
+    public async Task Custody_policy_allows_only_admin_and_officer_with_write_permission(string role, string granted, bool expected)
     {
         var user = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.Role, role), new Claim(JwtTokenService.PermissionClaimType, granted)], "test"));
         var requirement = new PermissionRequirement(PermissionCodes.StockCustodyManage);

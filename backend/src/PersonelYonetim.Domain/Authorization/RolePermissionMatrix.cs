@@ -190,6 +190,24 @@ public static class RolePermissionMatrix
             PermissionCodes.EventsManage
         ],
 
+        [RoleCodes.Officer] =
+        [
+            PermissionCodes.DashboardView,
+            PermissionCodes.EmployeesView,
+            PermissionCodes.EmployeesViewAllUnits,
+            PermissionCodes.EmployeesViewPhone,
+            PermissionCodes.EmployeesViewAddress,
+            PermissionCodes.EmployeesViewNationalId,
+            PermissionCodes.EmployeesViewSpecialConditions,
+            PermissionCodes.OrganizationView,
+            PermissionCodes.StockView,
+            PermissionCodes.StockManage,
+            PermissionCodes.StockCustodyManage,
+            PermissionCodes.FilesUpload,
+            PermissionCodes.NotificationsView,
+            PermissionCodes.MessagesUse
+        ],
+
         // Salt görüntüleme
         [RoleCodes.Viewer] =
         [

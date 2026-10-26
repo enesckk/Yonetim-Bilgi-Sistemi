@@ -20,8 +20,8 @@ public sealed class PermissionAuthorizationHandler : AuthorizationHandler<Permis
         AuthorizationHandlerContext context,
         PermissionRequirement requirement)
     {
-        // A stale director token may still contain the previous custody permission.
-        if (requirement.Permission == PermissionCodes.StockCustodyManage && !context.User.IsInRole(RoleCodes.SystemAdmin))
+        // Only admins and officers can manage custody, including with older tokens.
+        if (requirement.Permission == PermissionCodes.StockCustodyManage && !context.User.IsInRole(RoleCodes.SystemAdmin) && !context.User.IsInRole(RoleCodes.Officer))
             return Task.CompletedTask;
         if (context.User.HasClaim(JwtTokenService.PermissionClaimType, requirement.Permission) ||
             (requirement.Permission == PermissionCodes.StockCustodyManage &&

@@ -13,6 +13,7 @@ public static class RoleCodes
     public const string UnitManager = "UNIT_MANAGER";
     public const string AdministrativeOfficer = "ADMINISTRATIVE_OFFICER";
     public const string DataEntry = "DATA_ENTRY";
+    public const string Officer = "OFFICER";
     public const string Viewer = "VIEWER";
 
     public static IReadOnlyList<(string Code, string Name, string Description)> All { get; } =
@@ -31,6 +32,7 @@ public static class RoleCodes
             "Yalnızca kendi birimindeki personelleri görür (ör. kütüphane); birim amiri olarak o birimde görünür; hassas bilgileri göremez."),
         (DataEntry, "Veri Giriş Personeli",
             "Personel ekler/günceller; yetkinlik ve eğitim girer; raporları sınırlı görür; özel durum ve yönetici notlarını göremez."),
+        (Officer, "Memur", "Personel ve tesisleri görüntüler; stok ve zimmet işlemlerini yönetir; bildirim ve mesajları kullanır. Etkinlik erişimi yoktur."),
         (Viewer, "Görüntüleme Kullanıcısı",
             "Yalnızca yetki verilen bilgileri görüntüler; veri değiştiremez; not ve hassas bilgileri göremez.")
     ];

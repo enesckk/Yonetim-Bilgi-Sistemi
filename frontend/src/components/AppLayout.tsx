@@ -71,6 +71,7 @@ export function AppLayout() {
   const admin = isSystemAdmin(user)
   const seesAllUnits = admin || hasPermission(PermissionCodes.EmployeesViewAllUnits)
   const showPersonnelModule = canUsePersonnelModule(user)
+  const canEvents = hasPermission(PermissionCodes.EventsView)
   const canNotifications = hasPermission(PermissionCodes.NotificationsView)
   const canMessages =
     hasPermission(PermissionCodes.MessagesUse) || hasPermission(PermissionCodes.NotificationsView)
@@ -160,11 +161,11 @@ export function AppLayout() {
     }
   }, [collapsed])
 
-  const moduleFromPath: AppModule = location.pathname.startsWith('/events') ? 'events' : 'personnel'
+  const moduleFromPath: AppModule = canEvents && location.pathname.startsWith('/events') ? 'events' : 'personnel'
   const [appModule, setAppModule] = useState<AppModule>(() => {
     try {
       const saved = localStorage.getItem(MODULE_KEY)
-      if (saved === 'events' || saved === 'personnel') return saved
+      if ((saved === 'events' && canEvents) || saved === 'personnel') return saved
     } catch {
       /* ignore */
     }
@@ -463,7 +464,7 @@ export function AppLayout() {
                 >
                   Müdürlük
                 </button>
-                <button
+                {canEvents && <button
                   type="button"
                   role="tab"
                   aria-selected={appModule === 'events'}
@@ -471,7 +472,7 @@ export function AppLayout() {
                   onClick={() => switchModule('events')}
                 >
                   Etkinlik
-                </button>
+                </button>}
               </div>
             ) : null}
           </div>
