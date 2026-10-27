@@ -84,8 +84,50 @@ export function AppLayout() {
     }
   })
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [compactMenu, setCompactMenu] = useState(() => window.matchMedia('(max-width: 860px)').matches)
+  const sidebarRef = useRef<HTMLElement>(null)
   const [globalSearch, setGlobalSearch] = useState('')
   const topbarRef = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 860px)')
+    const update = () => {
+      setCompactMenu(media.matches)
+      if (!media.matches) setMobileOpen(false)
+    }
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
+
+  useEffect(() => {
+    if (!mobileOpen || !compactMenu) return
+    const originalOverflow = document.body.style.overflow
+    const previouslyFocused = document.activeElement as HTMLElement | null
+    document.body.style.overflow = 'hidden'
+    sidebarRef.current?.querySelector<HTMLButtonElement>('.sidebar-close-btn')?.focus()
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setMobileOpen(false)
+      }
+      if (event.key !== 'Tab') return
+      const controls = Array.from(sidebarRef.current?.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input:not([disabled])') ?? [])
+        .filter(element => element.getClientRects().length > 0)
+      const first = controls[0]
+      const last = controls[controls.length - 1]
+      if (event.shiftKey && (document.activeElement === first || !sidebarRef.current?.contains(document.activeElement))) {
+        event.preventDefault(); last?.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault(); first?.focus()
+      }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.body.style.overflow = originalOverflow
+      document.removeEventListener('keydown', onKeyDown)
+      if (previouslyFocused?.isConnected) previouslyFocused.focus()
+    }
+  }, [mobileOpen, compactMenu])
 
   // Sayfa içi yapışkan başlıklar sabit topbar'ın altında kalmasın diye
   // gerçek yükseklik CSS değişkenine yazılır.
@@ -348,12 +390,13 @@ export function AppLayout() {
         <button
           type="button"
           className="sidebar-backdrop"
-          aria-label="Menüyü kapat"
+          aria-hidden="true"
+          tabIndex={-1}
           onClick={() => setMobileOpen(false)}
         />
       ) : null}
 
-      <aside className="sidebar" aria-label="Ana menü">
+      <aside id="app-sidebar" ref={sidebarRef} className="sidebar" role={compactMenu ? 'dialog' : undefined} aria-modal={compactMenu && mobileOpen ? true : undefined} aria-label="Ana menü" inert={compactMenu && !mobileOpen ? true : undefined} aria-hidden={compactMenu && !mobileOpen ? true : undefined}>
         <div className="sidebar-top">
           <Link to="/" className="sidebar-brand" title="Yönetim Bilgi Sistemi">
             <span className="sidebar-brand-mark">
@@ -364,6 +407,9 @@ export function AppLayout() {
               <span>Mahalle · etkinlik · tesis</span>
             </span>
           </Link>
+          <button type="button" className="sidebar-close-btn mobile-only" aria-label="Menüyü kapat" onClick={() => setMobileOpen(false)}>
+            <Icon d="M6 6l12 12M18 6 6 18" />
+          </button>
           <button
             type="button"
             className="sidebar-collapse-btn desktop-only"
@@ -446,6 +492,8 @@ export function AppLayout() {
               className="topbar-icon-btn mobile-only"
               onClick={() => setMobileOpen(true)}
               aria-label="Menüyü aç"
+              aria-expanded={mobileOpen}
+              aria-controls="app-sidebar"
             >
               <Icon d={I.menu} />
             </button>

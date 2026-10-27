@@ -498,7 +498,8 @@ export function StockPage() {
 
         {tab === 'items' ? (
           <div className="stock-items">
-            <div className="employees-table-wrap">
+            <p className="responsive-table-hint">Tüm sütunları görmek için tabloyu yana kaydırın.</p>
+        <div className="employees-table-wrap" role="region" aria-label="Stok listesi" tabIndex={0}>
               <table className="data-table">
                 <thead>
                   <tr>

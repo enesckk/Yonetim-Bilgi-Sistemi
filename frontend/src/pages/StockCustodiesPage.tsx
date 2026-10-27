@@ -155,7 +155,8 @@ export function StockCustodiesPanel({ employeeId }: { employeeId?: string }) {
         <label className="custody-search"><StockIcon name="search" /><input aria-label="Zimmetlerde ara" type="search" placeholder="Malzeme, personel veya seri numarası ara…" value={search} onChange={e => setSearch(e.target.value)} /></label>
         <label className="custody-place-filter"><span>Tesis</span><select aria-label="Tesis filtresi" value={placeFilter} onChange={e => setPlaceFilter(e.target.value)}><option value="">Tüm tesisler</option>{places.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label>
       </div>
-      <div className="custody-table-scroll"><table className="custody-table">
+      <p className="responsive-table-hint custody-table-hint">İşlemler dahil tüm sütunları görmek için tabloyu yana kaydırın.</p>
+      <div className="custody-table-scroll" role="region" aria-label="Zimmet listesi" tabIndex={0}><table className="custody-table">
         <thead><tr><th>Malzeme</th><th>Sorumlu personel</th><th>Tesis</th><th>Miktar</th><th>Teslim tarihi</th><th>Durum</th>{canManage && <th className="custody-action-heading">İşlemler</th>}</tr></thead>
         <tbody>{loading ? <tr><td className="custody-empty" colSpan={canManage ? 7 : 6}><StockIcon name="clock" /><strong>Zimmetler yükleniyor…</strong></td></tr> : filtered.length === 0 ?
           <tr><td className="custody-empty" colSpan={canManage ? 7 : 6}><StockIcon name="box" /><strong>{search || placeFilter ? 'Aramanıza uygun zimmet bulunamadı.' : 'Henüz zimmet kaydı yok.'}</strong><span>{search || placeFilter ? 'Aramayı veya tesis seçimini değiştirebilirsiniz.' : canManage ? 'Bir demirbaş seçip personele atayarak başlayın.' : 'Personellere yapılan zimmetler burada listelenir.'}</span></td></tr> :

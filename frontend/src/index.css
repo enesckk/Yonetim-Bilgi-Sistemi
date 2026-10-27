@@ -19313,3 +19313,34 @@ body { padding-bottom: var(--pwa-install-space, 0px); }
 @media (max-width: 1100px) { .employee-form-page .emp-form-layout { grid-template-columns: 1fr; } .employee-form-page .emp-form-nav { position: static; display: flex; flex-wrap: wrap; } }
 @media (max-width: 700px) { .employee-form-page .emp-form-hero { padding: 1rem; align-items: stretch; } .employee-form-page .emp-form-hero-main { flex-direction: row; align-items: flex-start; gap: .85rem; } .employee-form-page .emp-form-hero-meta { display: flex; align-items: center; justify-content: space-between; } .employee-form-page .emp-form-section { padding: 1.15rem 1rem; } .employee-form-page .form-grid { grid-template-columns: 1fr; gap: 1rem; } .employee-form-page .emp-form-actions { padding: 1rem; } .employee-form-page .emp-form-nav button { flex: 1 1 auto; text-align: center; padding: .55rem .4rem; } }
 @media (max-width: 420px) { .employee-form-page .emp-form-hero-main { flex-direction: column; } .employee-form-page .emp-form-actions > button { width: 100%; } .employee-form-page .emp-form-actions > a { width: 100%; } }
+
+/* Touch layouts: readable inputs, reliable hit areas and a reachable drawer close. */
+.sidebar-close-btn { flex: 0 0 44px; width: 44px; height: 44px; padding: 0; border: 1px solid #dbe4ec; border-radius: 10px; color: #43566a; background: #fff; align-items: center; justify-content: center; }
+@media (max-width: 860px) {
+  .sidebar-top { gap: .5rem; }
+  .sidebar-brand { min-width: 0; flex: 1 1 auto; }
+  .sidebar-brand-text { min-width: 0; }
+  .sidebar-brand-text strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sidebar { overscroll-behavior: contain; padding-bottom: max(.75rem, env(safe-area-inset-bottom)); }
+}
+@media (pointer: coarse), (any-pointer: coarse), (max-width: 1180px) {
+  :is(.app-shell, .org-modal, .account-pop, .row-actions-dropdown, .confirm-dialog, .notif-pop) :is(input:not([type='hidden']):not([type='checkbox']):not([type='radio']):not([type='file']):not([type='range']):not([type='color']), select, textarea),
+  .login-page input { font-size: 16px; }
+  :is(.app-shell, .org-modal, .account-pop, .row-actions-dropdown, .confirm-dialog, .notif-pop) :is(input:not([type='hidden']):not([type='checkbox']):not([type='radio']):not([type='file']):not([type='range']):not([type='color']), select),
+  .login-page input, .login-page button { min-height: 44px; }
+  .login-password-toggle { min-width: 44px; }
+  .login-password-field input { padding-right: 3.5rem; }
+  :is(.app-shell, .org-modal, .account-pop, .row-actions-dropdown, .confirm-dialog, .notif-pop) button:not(.sidebar-backdrop):not(.leaflet-marker-icon),
+  .app-shell :is(a.btn-primary, a.btn-secondary, .row-action) { min-height: 44px; }
+  .topbar-icon-btn, .sidebar-close-btn, .account-trigger, .stock-modal-close { min-width: 44px; }
+  .topbar-search { min-height: 44px; padding-top: 0; padding-bottom: 0; }
+  .org-modal, .stock-modal, .confirm-dialog { overscroll-behavior: contain; }
+  .stock-modal-backdrop, .org-modal-backdrop { padding-bottom: max(.75rem, env(safe-area-inset-bottom)); }
+}
+
+.responsive-table-hint { display: none; }
+@media (max-width: 1180px) {
+  .responsive-table-hint { display: block; margin: .2rem 0 .55rem; color: #718092; font-size: .75rem; line-height: 1.5; }
+  .custody-table-hint { padding: .5rem 1.1rem 0; }
+}
+@media (max-width: 760px) { .custody-table-hint { display: none; } }

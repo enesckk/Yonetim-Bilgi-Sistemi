@@ -73,9 +73,10 @@ function DistrictFit({ geo, resetToken }: { geo: BoundaryGeo | null; resetToken:
   }, [fit, resetToken])
 
   useEffect(() => {
+    let resizeTimers: number[] = []
     const bump = () => {
-      window.setTimeout(() => map.invalidateSize(), 60)
-      window.setTimeout(() => map.invalidateSize(), 280)
+      resizeTimers.forEach(id => window.clearTimeout(id))
+      resizeTimers = [60, 280].map(delay => window.setTimeout(() => map.invalidateSize(), delay))
     }
     window.addEventListener('resize', bump)
     window.addEventListener('sidebar:toggled', bump)
@@ -83,6 +84,7 @@ function DistrictFit({ geo, resetToken }: { geo: BoundaryGeo | null; resetToken:
     return () => {
       window.removeEventListener('resize', bump)
       window.removeEventListener('sidebar:toggled', bump)
+      resizeTimers.forEach(id => window.clearTimeout(id))
     }
   }, [map])
 

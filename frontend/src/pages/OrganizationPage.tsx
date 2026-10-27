@@ -1499,6 +1499,7 @@ function OrgFacilitiesGroupedView({
 
   return (
     <div className="org-facility-groups">
+      {layout === 'list' && <p className="responsive-table-hint">Tüm sütunları görmek için listeyi yana kaydırın.</p>}
       {restGroups.map(([key, group]) => (
         <section key={key} className="org-facility-group">
           <div className="org-card-section-head">
