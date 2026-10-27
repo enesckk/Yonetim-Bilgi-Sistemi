@@ -32,9 +32,11 @@ public sealed class CreateEmployeeRequest : IRequest<Guid>
     public Guid? FacilityId { get; set; }
     public Guid? EmploymentTypeId { get; set; }
     public Guid? JobTitleId { get; set; }
+    public string? JobTitleName { get; set; }
     public Guid? ManagerEmployeeId { get; set; }
     /// <summary>Fiili (ana) görev — verilirse birincil görev ataması oluşturulur.</summary>
     public Guid? PrimaryJobDutyId { get; set; }
+    public string? PrimaryJobDutyName { get; set; }
 
     public DateOnly? HireDate { get; set; }
     public DateOnly? DirectorateStartDate { get; set; }
@@ -68,9 +70,11 @@ public class UpdateEmployeeRequest
     public Guid? FacilityId { get; set; }
     public Guid? EmploymentTypeId { get; set; }
     public Guid? JobTitleId { get; set; }
+    public string? JobTitleName { get; set; }
     public Guid? ManagerEmployeeId { get; set; }
     /// <summary>Fiili (ana) görev — birincil görev ataması ile eşitlenir.</summary>
     public Guid? PrimaryJobDutyId { get; set; }
+    public string? PrimaryJobDutyName { get; set; }
 
     public DateOnly? HireDate { get; set; }
     public DateOnly? DirectorateStartDate { get; set; }

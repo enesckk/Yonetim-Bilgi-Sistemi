@@ -84,6 +84,8 @@ public sealed class CreateEmployeeHandler : IRequestHandler<CreateEmployeeReques
             throw new ForbiddenException("Personel durumunu değiştirme yetkiniz yok. Yeni kayıt Aktif olarak açılır.");
         }
 
+        request.JobTitleId = await EmployeeLookupWriter.ResolveTitleAsync(_db, request.JobTitleId, request.JobTitleName, cancellationToken);
+        request.PrimaryJobDutyId = await EmployeeLookupWriter.ResolveDutyAsync(_db, request.PrimaryJobDutyId, request.PrimaryJobDutyName, cancellationToken);
         var actor = _currentUser.UserName ?? "system";
         var employee = new Employee
         {
@@ -229,6 +231,8 @@ public sealed class UpdateEmployeeHandler : IRequestHandler<UpdateEmployeeComman
             await EmployeeWriteHelpers.EnsureNationalIdUniqueAsync(
                 _db, _nationalId, request.NationalId, excludeEmployeeId: request.Id, cancellationToken);
 
+        request.JobTitleId = await EmployeeLookupWriter.ResolveTitleAsync(_db, request.JobTitleId, request.JobTitleName, cancellationToken);
+        request.PrimaryJobDutyId = await EmployeeLookupWriter.ResolveDutyAsync(_db, request.PrimaryJobDutyId, request.PrimaryJobDutyName, cancellationToken);
         employee.FirstName = request.FirstName.Trim();
         employee.LastName = request.LastName.Trim();
         employee.EmployeeNumber = EmployeeWriteHelpers.NormalizeOptional(request.EmployeeNumber);

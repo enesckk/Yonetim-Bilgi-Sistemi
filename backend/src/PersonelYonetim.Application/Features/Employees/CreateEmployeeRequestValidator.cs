@@ -11,6 +11,11 @@ public sealed class CreateEmployeeRequestValidator : AbstractValidator<CreateEmp
 {
     public CreateEmployeeRequestValidator()
     {
+        RuleFor(x => x.JobTitleName).MaximumLength(150);
+        RuleFor(x => x.PrimaryJobDutyName).MaximumLength(200);
+        RuleFor(x => x.JobTitleName).Empty().When(x => x.JobTitleId.HasValue);
+        RuleFor(x => x.PrimaryJobDutyName).Empty().When(x => x.PrimaryJobDutyId.HasValue);
+
         RuleFor(x => x.FirstName)
             .NotEmpty().WithMessage("Ad zorunludur.")
             .MaximumLength(100);
@@ -96,6 +101,11 @@ public sealed class UpdateEmployeeRequestValidator : AbstractValidator<UpdateEmp
 {
     public UpdateEmployeeRequestValidator()
     {
+        RuleFor(x => x.JobTitleName).MaximumLength(150);
+        RuleFor(x => x.PrimaryJobDutyName).MaximumLength(200);
+        RuleFor(x => x.JobTitleName).Empty().When(x => x.JobTitleId.HasValue);
+        RuleFor(x => x.PrimaryJobDutyName).Empty().When(x => x.PrimaryJobDutyId.HasValue);
+
         RuleFor(x => x.FirstName)
             .NotEmpty().WithMessage("Ad zorunludur.")
             .MaximumLength(100);

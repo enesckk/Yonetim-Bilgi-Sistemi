@@ -44,8 +44,10 @@ type FormState = {
   facilityId: string
   employmentTypeId: string
   jobTitleId: string
+  jobTitleName: string
   managerEmployeeId: string
   primaryJobDutyId: string
+  primaryJobDutyName: string
   hireDate: string
   directorateStartDate: string
   unitStartDate: string
@@ -80,8 +82,10 @@ const emptyForm = (): FormState => ({
   facilityId: '',
   employmentTypeId: '',
   jobTitleId: '',
+  jobTitleName: '',
   managerEmployeeId: '',
   primaryJobDutyId: '',
+  primaryJobDutyName: '',
   hireDate: '',
   directorateStartDate: '',
   unitStartDate: '',
@@ -130,7 +134,7 @@ function estimateCompletion(form: FormState, canEditNationalId: boolean, canEdit
     Boolean(form.personalEmail.trim() || form.corporateEmail.trim()),
     Boolean(form.unitId),
     Boolean(form.employmentTypeId),
-    Boolean(form.jobTitleId),
+    Boolean(form.jobTitleId || form.jobTitleName.trim()),
     Boolean(form.hireDate),
   ]
   if (canEditNationalId) checks.push(Boolean(form.nationalId.trim()))
@@ -229,8 +233,10 @@ export function EmployeeFormPage() {
             facilityId: edit.facilityId ?? '',
             employmentTypeId: edit.employmentTypeId ?? '',
             jobTitleId: edit.jobTitleId ?? '',
+            jobTitleName: '',
             managerEmployeeId: edit.managerEmployeeId ?? '',
             primaryJobDutyId: edit.primaryJobDutyId ?? '',
+            primaryJobDutyName: '',
             hireDate: edit.hireDate ?? '',
             directorateStartDate: edit.directorateStartDate ?? '',
             unitStartDate: edit.unitStartDate ?? '',
@@ -459,8 +465,10 @@ export function EmployeeFormPage() {
       facilityId: guidOrNull(form.facilityId),
       employmentTypeId: guidOrNull(form.employmentTypeId),
       jobTitleId: guidOrNull(form.jobTitleId),
+      jobTitleName: emptyToNull(form.jobTitleName),
       managerEmployeeId: guidOrNull(form.managerEmployeeId),
       primaryJobDutyId: guidOrNull(form.primaryJobDutyId),
+      primaryJobDutyName: emptyToNull(form.primaryJobDutyName),
       hireDate: emptyToNull(form.hireDate),
       directorateStartDate: emptyToNull(form.directorateStartDate),
       unitStartDate: emptyToNull(form.unitStartDate),
@@ -575,7 +583,7 @@ export function EmployeeFormPage() {
   const statusLabel =
     options?.statuses.find((s) => s.value === form.status)?.label ?? 'Aktif'
   const jobTitleLabel =
-    options?.jobTitles.find((t) => t.id === form.jobTitleId)?.name ?? 'Unvan seçilmedi'
+    options?.jobTitles.find((t) => t.id === form.jobTitleId)?.name ?? (form.jobTitleName.trim() || 'Unvan seçilmedi')
   const unitLabel = options?.units.find((u) => u.id === form.unitId)?.name ?? 'Birim seçilmedi'
 
   if (denied) {
@@ -1011,32 +1019,38 @@ export function EmployeeFormPage() {
               </label>
               <label>
                 Resmi unvan
-                <select
-                  value={form.jobTitleId}
-                  onChange={(e) => setField('jobTitleId', e.target.value)}
-                >
-                  <option value="">Seçiniz</option>
-                  {options.jobTitles.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
+                <input
+                  list="employee-job-titles"
+                  value={options.jobTitles.find(t => t.id === form.jobTitleId)?.name ?? form.jobTitleName}
+                  maxLength={150}
+                  placeholder="Seçin veya unvan yazın"
+                  onChange={e => {
+                    const value = e.target.value
+                    const match = options.jobTitles.find(t => t.name.toLocaleLowerCase('tr-TR') === value.trim().toLocaleLowerCase('tr-TR'))
+                    setForm(f => ({ ...f, jobTitleId: match?.id ?? '', jobTitleName: match ? '' : value }))
+                  }}
+                />
+                <datalist id="employee-job-titles">{options.jobTitles.map(t => <option key={t.id} value={t.name} />)}</datalist>
+                <span className="muted small">Listeden seçebilir veya yeni bir unvan yazabilirsiniz.</span>
+                {fieldError('jobTitleName')}
                 {fieldError('jobTitleId')}
               </label>
               <label>
                 Fiili görev
-                <select
-                  value={form.primaryJobDutyId}
-                  onChange={(e) => setField('primaryJobDutyId', e.target.value)}
-                >
-                  <option value="">Seçiniz</option>
-                  {options.duties.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name}
-                    </option>
-                  ))}
-                </select>
+                <input
+                  list="employee-job-duties"
+                  value={options.duties.find(d => d.id === form.primaryJobDutyId)?.name ?? form.primaryJobDutyName}
+                  maxLength={200}
+                  placeholder="Seçin veya görev yazın"
+                  onChange={e => {
+                    const value = e.target.value
+                    const match = options.duties.find(d => d.name.toLocaleLowerCase('tr-TR') === value.trim().toLocaleLowerCase('tr-TR'))
+                    setForm(f => ({ ...f, primaryJobDutyId: match?.id ?? '', primaryJobDutyName: match ? '' : value }))
+                  }}
+                />
+                <datalist id="employee-job-duties">{options.duties.map(d => <option key={d.id} value={d.name} />)}</datalist>
+                <span className="muted small">Listeden seçebilir veya yeni bir görev yazabilirsiniz.</span>
+                {fieldError('primaryJobDutyName')}
                 {fieldError('primaryJobDutyId')}
               </label>
               <label className="span-2">

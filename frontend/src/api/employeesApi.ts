@@ -178,8 +178,10 @@ export interface EmployeeWritePayload {
   facilityId?: string | null
   employmentTypeId?: string | null
   jobTitleId?: string | null
+  jobTitleName?: string | null
   managerEmployeeId?: string | null
   primaryJobDutyId?: string | null
+  primaryJobDutyName?: string | null
   hireDate?: string | null
   directorateStartDate?: string | null
   unitStartDate?: string | null
