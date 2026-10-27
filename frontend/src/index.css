@@ -19344,3 +19344,19 @@ body { padding-bottom: var(--pwa-install-space, 0px); }
   .custody-table-hint { padding: .5rem 1.1rem 0; }
 }
 @media (max-width: 760px) { .custody-table-hint { display: none; } }
+
+/* A long unbroken link must wrap inside its bubble, not widen a hidden grid track. */
+.msg-bubbles { grid-template-columns: minmax(0, 1fr); }
+.msg-bubbles li, .msg-bubble { min-width: 0; }
+.msg-bubble { max-width: 100%; overflow-wrap: anywhere; }
+.msg-bubbles li > .msg-avatar { flex-shrink: 0; }
+.msg-bubble p, .msg-attach-file, .msg-file-chip { overflow-wrap: anywhere; }
+@media (max-height: 540px) and (min-width: 600px) {
+  .msg-shell { grid-template-columns: minmax(210px, 32%) minmax(0, 1fr); }
+  .msg-sidebar { height: 100%; max-height: none; border-right: 1px solid #e4eee8; border-bottom: 0; }
+  .msg-sidebar-head { padding: .65rem .85rem .25rem; }
+  .msg-sidebar-head h2 { font-size: 1.15rem; }
+  .msg-search { margin: .5rem .85rem .65rem; }
+  .msg-thread-head { padding: .6rem .8rem; }
+  .msg-compose { padding: .55rem .75rem; }
+}

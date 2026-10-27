@@ -46,6 +46,8 @@ Memur ekranlarında mevcut verilere yalnızca okuma istekleri yapıldı. Ekleme/
 | Personel satır işlemleri, bazı kart başlıkları ve zimmet işlemleri küçük dokunma alanlarına sahipti. | Normal işlem düğmeleri ve girişler en az 44 px yüksekliğe getirildi. Yakınlaştırılabilir organizasyon şemasındaki düğümler bu fiziksel boyut ölçümünden ayrı değerlendirildi. |
 | Hesap gibi sayfa dışına açılan pencereler genel mobil kuralları almıyordu. | Portal ile açılan hesap, onay, bildirim ve satır işlem pencereleri de boyut kurallarına dahil edildi. |
 | Yatay kaydırılabilen stok/zimmet/tesis listelerinde devam eden sütunlar kolay fark edilmiyordu. | İlgili telefon/tablet yerleşimlerine kaydırma açıklaması ve odaklanabilir tablo bölgeleri eklendi. Mobilde kartlara dönüşen zimmet listesinde gereksiz açıklama gösterilmiyor. |
+| Telefon yatayken mesaj listesi üstte kalıp konuşma alanını daraltıyordu. | Kısa yatay ekranlarda kişi listesi ve konuşma yan yana yerleştirildi. |
+| Uzun bağlantılar mesaj balonunu genişletip içeride kesilebiliyordu. | Mesaj ızgarası ve balonların minimum genişliği düzeltildi; uzun bağlantı ve dosya adları satıra bölünüyor. |
 | Haritanın gecikmeli boyutlandırma işlemleri ekran kapandıktan sonra çalışabiliyordu. | Bekleyen işlemler kapanışta temizleniyor; art arda boyut değişiklikleri birleştiriliyor. |
 
 ## Doğrulama sonuçları
@@ -54,6 +56,8 @@ Memur ekranlarında mevcut verilere yalnızca okuma istekleri yapıldı. Ekleme/
 - Müdür/admin için etkinlik, harita ve uzun mesaj verileriyle **60 durum** kontrol edildi; son turda taşma veya JavaScript çalışma hatası bulunmadı.
 - Dikey/yatay telefon ve tabletlerde **14 stok/zimmet pencere durumu** kontrol edildi: pencereler ekran içinde kaldı ve kaydetme düğmeleri kaydırılarak erişilebildi.
 - Hesap penceresi ve 1024 px tablet sorunlarından sonra **31 hedefli durum** yeniden kontrol edildi: küçük giriş yazısı, normal ekranlarda 32 px altında kalan düğme veya sayfa dışına taşma bulunmadı.
+- Uzun mesaj/bağlantı ve kısa yatay konuşma yerleşimi için **12 ek durum** kontrol edildi: balon içinde gizli yatay taşma yok; 844 × 390 görünümünde konuşma kaydırma alanı 177 px yüksekliğinde.
+- Giriş ekranı dört telefon/tablet genişliğinde, şifre göster/gizle düğmesiyle birlikte kontrol edildi.
 - Menüde Tab odağı, Escape ile kapatma, odağın geri dönüşü ve 820 → 1024 → 820 boyut değişiminde kaydırmanın serbest bırakılması doğrulandı.
 - Personel formlarında yeni değer yazma ve mevcut unvan/görev seçme istekleri korundu; alan yükseklikleri ve aynı satırdaki hizalar kontrol edildi.
 - Ön yüz derlemesi ve mevcut 59 birim testi başarılı.
