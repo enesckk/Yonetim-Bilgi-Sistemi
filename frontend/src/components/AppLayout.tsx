@@ -67,7 +67,6 @@ export function AppLayout() {
   const location = useLocation()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const [menuSearch, setMenuSearch] = useState('')
   const admin = isSystemAdmin(user)
   const seesAllUnits = admin || hasPermission(PermissionCodes.EmployeesViewAllUnits)
   const showPersonnelModule = canUsePersonnelModule(user)
@@ -380,10 +379,6 @@ export function AppLayout() {
             <Icon d={collapsed ? I.expand : I.collapse} size={16} />
           </button>
         </div>
-        {admin && navItems === personnelNav && !collapsed ? <label className="sidebar-menu-search">
-          <span className="sr-only">Menüde ara</span>
-          <input type="search" value={menuSearch} onChange={e => setMenuSearch(e.target.value)} placeholder="Menüde ara…" />
-        </label> : null}
         <nav className="sidebar-nav">
           {navItems.map((item) => {
             const allowed =
@@ -391,7 +386,6 @@ export function AppLayout() {
                 ? canMessages
                 : !item.permission || hasPermission(item.permission)
             if (!allowed || (item.to === '/admin/messages' && !admin)) return null
-            if (admin && navItems === personnelNav && !collapsed && !item.label.toLocaleLowerCase('tr-TR').includes(menuSearch.trim().toLocaleLowerCase('tr-TR'))) return null
 
             const group = admin && navItems === personnelNav ? ({
               '/employees': 'Personel ve görevler', '/stock': 'Malzeme yönetimi', '/units': 'Kurum yapısı',

@@ -554,6 +554,7 @@ public sealed class CreateOrganizationUnitHandler : IRequestHandler<CreateOrgani
     public async Task<Guid> Handle(CreateOrganizationUnitCommand request, CancellationToken cancellationToken)
     {
         EnsureManage();
+        FacilityWriteAccess.Ensure(_currentUser, request.Type);
         await OrgWriteRules.EnsureParentRulesAsync(_db, request.ParentId, request.Type, excludeId: null, cancellationToken);
         await OrgWriteRules.EnsureCodeUniqueAsync(_db, request.Code, excludeId: null, cancellationToken);
         await OrgWriteRules.EnsureManagerExistsAsync(_db, request.ManagerEmployeeId, cancellationToken);
@@ -617,6 +618,8 @@ public sealed class UpdateOrganizationUnitHandler : IRequestHandler<UpdateOrgani
         var entity = await _db.OrganizationUnits
             .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken)
             ?? throw new NotFoundException("Birim bulunamadı.");
+
+        FacilityWriteAccess.Ensure(_currentUser, entity.Type, request.Type);
 
         if (request.ParentId.HasValue)
         {
@@ -682,6 +685,8 @@ public sealed class DeleteOrganizationUnitHandler : IRequestHandler<DeleteOrgani
             .Include(x => x.Children)
             .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken)
             ?? throw new NotFoundException("Birim bulunamadı.");
+
+        FacilityWriteAccess.Ensure(_currentUser, entity.Type);
 
         if (entity.Children.Any(c => !c.IsDeleted))
             throw new ConflictException("Alt birimleri olan kayıt silinemez. Önce alt birimleri taşıyın veya silin.");
@@ -811,12 +816,13 @@ internal static class OrgWriteRules
             throw new AppValidationException("parentId", "Tesis altında birim açılamaz.");
 
         if (type == OrganizationUnitType.Facility
+            && parent.Type is not OrganizationUnitType.Directorate
             && parent.Type is not OrganizationUnitType.MainUnit
             && parent.Type is not OrganizationUnitType.SubUnit)
         {
             throw new AppValidationException(
                 "parentId",
-                "Tesis yalnızca bir ana birim veya alt birim altında açılabilir.");
+                "Tesis yalnızca müdürlük, ana birim veya alt birim altında açılabilir.");
         }
 
         if (excludeId.HasValue && parentId == excludeId)
@@ -1015,4 +1021,13 @@ internal static class OrgRoleTone
 
     private static bool Contains(string blob, string token) =>
         blob.Contains(token, StringComparison.OrdinalIgnoreCase);
+}
+
+internal static class FacilityWriteAccess
+{
+    public static void Ensure(ICurrentUserService user, params OrganizationUnitType[] types)
+    {
+        if (types.Contains(OrganizationUnitType.Facility) && !user.IsInRole(RoleCodes.SystemAdmin))
+            throw new ForbiddenException("Tesis ekleme, düzenleme ve silme işlemlerini yalnızca sistem yöneticisi yapabilir.");
+    }
 }

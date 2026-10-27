@@ -12,6 +12,7 @@ import {
 import type { FacilityCoordsImportResult } from '@/api/eventsApi'
 import { ApiClientError } from '@/api/client'
 import { useAuth } from '@/auth/AuthContext'
+import { isSystemAdmin } from '@/auth/roles'
 import { PermissionCodes } from '@/auth/permissionCodes'
 import { useAlert } from '@/components/ConfirmDialog'
 import { LocationPickerMap } from '@/components/LocationPickerMap'
@@ -34,10 +35,10 @@ function hasCoords(f: OrgNode) {
 }
 
 export function FacilityLocationsPage() {
-  const { hasPermission } = useAuth()
+  const { hasPermission, user } = useAuth()
   const canView =
     hasPermission(PermissionCodes.OrganizationView) || hasPermission(PermissionCodes.EventsView)
-  const canManage = hasPermission(PermissionCodes.OrganizationManage)
+  const canManage = isSystemAdmin(user) && hasPermission(PermissionCodes.OrganizationManage)
   const alert = useAlert()
 
   const [facilities, setFacilities] = useState<OrgNode[]>([])

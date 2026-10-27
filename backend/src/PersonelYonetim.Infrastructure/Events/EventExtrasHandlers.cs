@@ -120,7 +120,7 @@ public sealed class ImportFacilityCoordsHandler : IRequestHandler<ImportFacility
         ImportFacilityCoordsCommand request,
         CancellationToken cancellationToken)
     {
-        if (!_currentUser.HasPermission(PermissionCodes.OrganizationManage))
+        if (!_currentUser.IsInRole(RoleCodes.SystemAdmin) || !_currentUser.HasPermission(PermissionCodes.OrganizationManage))
             throw new ForbiddenException("Tesis koordinatı aktarma yetkiniz yok.");
 
         var ext = Path.GetExtension(request.FileName).ToLowerInvariant();

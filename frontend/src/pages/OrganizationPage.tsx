@@ -14,6 +14,7 @@ import {
 } from '@/api/organizationApi'
 import { ApiClientError } from '@/api/client'
 import { useAuth } from '@/auth/AuthContext'
+import { isSystemAdmin } from '@/auth/roles'
 import { PermissionCodes } from '@/auth/permissionCodes'
 import { useConfirm, useAlert } from '@/components/ConfirmDialog'
 import { OrgSchemeChart } from './organization/OrgSchemeChart'
@@ -73,12 +74,13 @@ function isYouthFacility(n: OrgNode, byId: Map<string, OrgNode>) {
 }
 
 export function OrganizationPage({ section = 'chart' }: { section?: OrganizationSection }) {
-  const { hasPermission } = useAuth()
+  const { hasPermission, user } = useAuth()
   const confirm = useConfirm()
   const alert = useAlert()
   const [searchParams] = useSearchParams()
   const canView = hasPermission(PermissionCodes.OrganizationView)
-  const canManage = hasPermission(PermissionCodes.OrganizationManage)
+  const facilityAdmin = isSystemAdmin(user)
+  const canManage = hasPermission(PermissionCodes.OrganizationManage) && (section !== 'facilities' || facilityAdmin)
 
   const [view, setView] = useState<ViewId>(section === 'chart' ? 'hierarchy' : 'cards')
   const [tree, setTree] = useState<OrgNode[]>([])
@@ -391,6 +393,7 @@ export function OrganizationPage({ section = 'chart' }: { section?: Organization
   }, [section, tree])
 
   function openCreate(parentId?: string | null, type = 4) {
+    if (type === 6 && !facilityAdmin) return;
     setSelectedId(null)
     // Çekmece kapanırken aynı tıklama forma düşmesin diye bir tick beklenir.
     window.setTimeout(() => {
@@ -468,6 +471,7 @@ export function OrganizationPage({ section = 'chart' }: { section?: Organization
   }
 
   function openEdit(node: OrgNode) {
+    if (node.type === 6 && !facilityAdmin) return;
     setSelectedId(null)
     window.setTimeout(() => {
       setFormMode('edit')
@@ -559,6 +563,7 @@ export function OrganizationPage({ section = 'chart' }: { section?: Organization
   }
 
   async function onDelete(node: OrgNode) {
+    if (node.type === 6 && !facilityAdmin) return;
     const ok = await confirm({
       title: isFacilityType(node.type) ? 'Tesisi sil' : 'Birimi sil',
       message: `“${node.name}” ${isFacilityType(node.type) ? 'tesisini' : 'birimini'} silmek istiyor musunuz?`,
@@ -875,7 +880,7 @@ export function OrganizationPage({ section = 'chart' }: { section?: Organization
               {!detailLoading && detail && (
                 <UnitDetailPanel
                   detail={detail}
-                  canManage={canManage}
+                  canManage={canManage && (detail.type !== 6 || facilityAdmin)}
                   onClose={() => setSelectedId(null)}
                   onEdit={() => {
                     const node = flat.find((n) => n.id === detail.id)
@@ -1541,6 +1546,8 @@ function OrgCardsView({
   onAddChild: (id: string) => void
   onDelete: (n: OrgNode) => void
 }) {
+  const { user } = useAuth()
+  const facilityAdmin = isSystemAdmin(user)
   if (nodes.length === 0) return <p className="muted">Kart gösterilecek birim yok.</p>
 
   const units = nodes.filter((n) => n.type !== 6)
@@ -1568,7 +1575,7 @@ function OrgCardsView({
             {(n.missingStaffCount ?? 0) > 0 ? ` · ${n.missingStaffCount} eksik` : ''}
           </p>
           <div className="org-card-actions" onClick={(e) => e.stopPropagation()}>
-            {canManage && (
+            {canManage && (n.type !== 6 || facilityAdmin) && (
               <>
                 <button type="button" className="org-card-btn" onClick={() => onEdit(n)}>
                   Düzenle
