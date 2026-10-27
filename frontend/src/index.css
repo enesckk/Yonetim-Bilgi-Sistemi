@@ -19263,3 +19263,18 @@ body { padding-bottom: var(--pwa-install-space, 0px); }
 @media (max-width: 1250px) { .is-facilities .org-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } .is-facilities .report-hero-side { flex-wrap: wrap; justify-content: flex-end; } }
 @media (max-width: 960px) { .is-facilities .org-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } .is-facilities .org-hero { gap: 1rem; } .is-facilities .org-filters { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .is-facilities .org-filters input { grid-column: 1 / -1; } }
 @media (max-width: 560px) { .is-facilities .org-hero { padding: 1rem; } .is-facilities .report-hero-side { width: 100%; justify-content: space-between; gap: .8rem; } .is-facilities .report-hero-stats { flex: 1; justify-content: space-between; gap: .5rem; } .is-facilities .report-hero-side > .btn-primary { width: 100%; min-height: 44px; } .is-facilities .org-toolbar { display: block; } .org-facility-result-count { display: block; margin-bottom: .6rem; } .is-facilities .org-cards { grid-template-columns: 1fr; } .is-facilities .org-facility-card h3 { min-height: 0; } .is-facilities .org-card-actions .org-card-btn { min-height: 44px; } }
+
+/* Facility list shares the card view's filters, groups and permissions. */
+.org-facility-view-controls { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
+.org-facility-view-controls .org-views { flex-wrap: nowrap; }
+.org-facility-view-controls .org-views button { white-space: nowrap; }
+.org-facility-table-wrap { overflow-x: auto; background: #fff; border: 1px solid #dfe7ef; border-radius: 10px; }
+.org-facility-table { width: 100%; border-collapse: collapse; min-width: 760px; text-align: left; font-size: .82rem; }
+.org-facility-table th { background: #f4f7fa; color: #64748b; font-size: .73rem; font-weight: 600; }
+.org-facility-table th, .org-facility-table td { padding: .8rem 1rem; border-bottom: 1px solid #e8edf2; vertical-align: middle; }
+.org-facility-table tr:last-child td { border-bottom: 0; }
+.org-facility-table tbody tr:hover, .org-facility-table tr.is-selected { background: #f1f8f5; }
+.org-facility-table td:first-child { min-width: 210px; font-weight: 600; }
+.org-facility-row-actions { display: flex; gap: .4rem; white-space: nowrap; }
+.org-facility-row-actions button { min-height: 36px; }
+@media (max-width: 560px) { .org-facility-view-controls { margin-bottom: .75rem; } .org-facility-view-controls .org-facility-result-count { margin: 0; } .org-facility-row-actions button { min-height: 44px; } }

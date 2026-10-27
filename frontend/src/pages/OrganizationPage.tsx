@@ -101,6 +101,7 @@ export function OrganizationPage({ section = 'chart' }: { section?: Organization
   const [formError, setFormError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({})
   const [expandedPersonnel, setExpandedPersonnel] = useState<Record<string, boolean>>({})
+  const [facilityLayout, setFacilityLayout] = useState<'cards' | 'list'>('cards')
   const [unitLayout, setUnitLayout] = useState<UnitLayout>('cards')
 
   const loadTree = useCallback(async (opts?: { silent?: boolean }) => {
@@ -713,7 +714,14 @@ export function OrganizationPage({ section = 'chart' }: { section?: Organization
             ))}
           </div>
         ) : (
-          <span className="org-facility-result-count">{filteredFlat.length} tesis</span>
+          <div className="org-facility-view-controls">
+            <div className="org-views" role="tablist" aria-label="Tesis görünümleri">
+              {([['cards', 'Kart görünümü'], ['list', 'Liste görünümü']] as const).map(([id, label]) => (
+                <button key={id} type="button" role="tab" className={facilityLayout === id ? 'is-active' : ''} aria-selected={facilityLayout === id} onClick={() => setFacilityLayout(id)}>{label}</button>
+              ))}
+            </div>
+            <span className="org-facility-result-count">{filteredFlat.length} tesis</span>
+          </div>
         )}
         <div className="org-filters">
           <input
@@ -806,6 +814,7 @@ export function OrganizationPage({ section = 'chart' }: { section?: Organization
             )}
             {view === 'cards' && section === 'facilities' && (
               <OrgFacilitiesGroupedView
+                layout={facilityLayout}
                 nodes={filteredFlat}
                 flat={flat}
                 selectedId={selectedId}
@@ -1374,6 +1383,7 @@ function OrgUnitsHierarchyView({
 }
 
 function OrgFacilitiesGroupedView({
+  layout,
   nodes,
   flat,
   selectedId,
@@ -1382,6 +1392,7 @@ function OrgFacilitiesGroupedView({
   onEdit,
   onDelete,
 }: {
+  layout: 'cards' | 'list'
   nodes: OrgNode[]
   flat: OrgNode[]
   selectedId: string | null
@@ -1456,6 +1467,31 @@ function OrgFacilitiesGroupedView({
     )
   }
 
+  function itemsView(items: OrgNode[], title: string) {
+    if (layout === 'cards') return <div className="org-cards">{items.map(card)}</div>
+    return (
+      <div className="org-facility-table-wrap" role="region" aria-label={`${title} tesis listesi`} tabIndex={0}>
+        <table className="org-facility-table">
+          <caption className="visually-hidden">{title} tesisleri</caption>
+          <thead><tr><th scope="col">Tesis adı</th><th scope="col">Tür</th><th scope="col">Tesis amiri</th><th scope="col">Aktif personel</th><th scope="col">Durum</th><th scope="col">İşlemler</th></tr></thead>
+          <tbody>{items.map(n => (
+            <tr key={n.id} className={selectedId === n.id ? 'is-selected' : undefined}>
+              <td><button type="button" className="org-facility-name" onClick={() => onSelect(n.id)}>{n.name}</button></td>
+              <td>{n.facilityCategoryName || 'Tesis'}</td>
+              <td>{n.managerName || 'Atanmadı'}</td>
+              <td>{n.activeEmployeeCount ?? n.employeeCount ?? 0}</td>
+              <td><span className={`org-status-pill status-${n.status}`}>{n.statusLabel}</span></td>
+              <td><div className="org-facility-row-actions">
+                <button type="button" className="org-card-btn" onClick={() => onSelect(n.id)}>İncele</button>
+                {canManage && <><button type="button" className="org-card-btn" onClick={() => onEdit(n)}>Düzenle</button><button type="button" className="org-card-btn danger" onClick={() => onDelete(n)}>Sil</button></>}
+              </div></td>
+            </tr>
+          ))}</tbody>
+        </table>
+      </div>
+    )
+  }
+
   return (
     <div className="org-facility-groups">
       {restGroups.map(([key, group]) => (
@@ -1466,7 +1502,7 @@ function OrgFacilitiesGroupedView({
             </div>
             <span>{group.items.length} tesis</span>
           </div>
-          <div className="org-cards">{group.items.map(card)}</div>
+          {itemsView(group.items, group.parentName)}
         </section>
       ))}
       {youthItems.length > 0 ? (
@@ -1477,7 +1513,7 @@ function OrgFacilitiesGroupedView({
             </div>
             <span>{youthItems.length} tesis</span>
           </div>
-          <div className="org-cards">{youthItems.map(card)}</div>
+          {itemsView(youthItems, 'Gençlik Kütüphaneleri')}
         </section>
       ) : null}
     </div>
