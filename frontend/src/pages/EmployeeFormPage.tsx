@@ -730,7 +730,7 @@ export function EmployeeFormPage() {
             </div>
             <div className="form-grid">
               <label>
-                Ad <span className="req">*</span>
+                <span className="emp-field-title">Ad <span className="req">*</span></span>
                 <input
                   value={form.firstName}
                   onChange={(e) => setField('firstName', e.target.value)}
@@ -740,7 +740,7 @@ export function EmployeeFormPage() {
                 {fieldError('firstName')}
               </label>
               <label>
-                Soyad <span className="req">*</span>
+                <span className="emp-field-title">Soyad <span className="req">*</span></span>
                 <input
                   value={form.lastName}
                   onChange={(e) => setField('lastName', e.target.value)}
@@ -750,7 +750,7 @@ export function EmployeeFormPage() {
                 {fieldError('lastName')}
               </label>
               <label>
-                Sicil no
+                <span className="emp-field-title">Sicil no</span>
                 <input
                   value={form.employeeNumber}
                   onChange={(e) => setField('employeeNumber', e.target.value)}
@@ -758,7 +758,7 @@ export function EmployeeFormPage() {
                 {fieldError('employeeNumber')}
               </label>
               <label>
-                Doğum tarihi
+                <span className="emp-field-title">Doğum tarihi</span>
                 <input
                   type="date"
                   value={form.birthDate}
@@ -767,7 +767,7 @@ export function EmployeeFormPage() {
                 {fieldError('birthDate')}
               </label>
               <label>
-                Cinsiyet
+                <span className="emp-field-title">Cinsiyet</span>
                 <select
                   value={form.gender}
                   onChange={(e) => setField('gender', Number(e.target.value))}
@@ -780,7 +780,7 @@ export function EmployeeFormPage() {
                 </select>
               </label>
               <label>
-                Durum
+                <span className="emp-field-title">Durum</span>
                 <select
                   value={form.status}
                   disabled={!canChangeStatus}
@@ -802,7 +802,7 @@ export function EmployeeFormPage() {
               </label>
               {canEditNationalId && (
                 <label>
-                  T.C. kimlik no
+                  <span className="emp-field-title">T.C. kimlik no</span>
                   <input
                     value={form.nationalId}
                     onChange={(e) =>
@@ -835,7 +835,7 @@ export function EmployeeFormPage() {
               {canEditPhone && (
                 <>
                   <label>
-                    Kişisel telefon
+                    <span className="emp-field-title">Kişisel telefon</span>
                     <input
                       value={form.personalPhone}
                       onChange={(e) => setField('personalPhone', e.target.value)}
@@ -844,7 +844,7 @@ export function EmployeeFormPage() {
                     {fieldError('personalPhone')}
                   </label>
                   <label>
-                    Kurumsal telefon
+                    <span className="emp-field-title">Kurumsal telefon</span>
                     <input
                       value={form.corporatePhone}
                       onChange={(e) => setField('corporatePhone', e.target.value)}
@@ -855,7 +855,7 @@ export function EmployeeFormPage() {
                 </>
               )}
               <label>
-                Kişisel e-posta
+                <span className="emp-field-title">Kişisel e-posta</span>
                 <input
                   type="email"
                   value={form.personalEmail}
@@ -865,7 +865,7 @@ export function EmployeeFormPage() {
                 {fieldError('personalEmail')}
               </label>
               <label>
-                Kurumsal e-posta
+                <span className="emp-field-title">Kurumsal e-posta</span>
                 <input
                   type="email"
                   value={form.corporateEmail}
@@ -875,7 +875,7 @@ export function EmployeeFormPage() {
               </label>
               {canEditAddress && (
                 <label className="span-2">
-                  Adres
+                  <span className="emp-field-title">Adres</span>
                   <textarea
                     rows={3}
                     value={form.address}
@@ -885,14 +885,14 @@ export function EmployeeFormPage() {
                 </label>
               )}
               <label>
-                Acil iletişim adı
+                <span className="emp-field-title">Acil iletişim adı</span>
                 <input
                   value={form.emergencyContactName}
                   onChange={(e) => setField('emergencyContactName', e.target.value)}
                 />
               </label>
               <label>
-                Acil iletişim telefon
+                <span className="emp-field-title">Acil iletişim telefon</span>
                 <input
                   value={form.emergencyContactPhone}
                   onChange={(e) => setField('emergencyContactPhone', e.target.value)}
@@ -911,11 +911,11 @@ export function EmployeeFormPage() {
           >
             <div className="emp-form-section-head">
               <h2>Kurumsal</h2>
-              <p className="muted small">Organizasyon, unvan ve yönetici — liste filtreleriyle aynı hiyerarşi</p>
+              <p className="muted small">Birim, çalışma yeri ve görev bilgileri</p>
             </div>
             <div className="form-grid">
               <label>
-                Müdürlük
+                <span className="emp-field-title">Müdürlük</span>
                 <select
                   value={orgCascade.directorateId}
                   onChange={(e) => setUnitFromCascade(e.target.value)}
@@ -929,7 +929,7 @@ export function EmployeeFormPage() {
                 </select>
               </label>
               <label>
-                Ana birim
+                <span className="emp-field-title">Ana birim</span>
                 <select
                   value={orgCascade.mainUnitId}
                   onChange={(e) =>
@@ -945,7 +945,7 @@ export function EmployeeFormPage() {
                 </select>
               </label>
               <label>
-                Alt birim
+                <span className="emp-field-title">Alt birim</span>
                 <select
                   value={orgCascade.subUnitId}
                   onChange={(e) =>
@@ -964,7 +964,7 @@ export function EmployeeFormPage() {
                 {fieldError('unitId')}
               </label>
               <label>
-                Tesis
+                <span className="emp-field-title">Tesis</span>
                 <select
                   value={form.facilityId}
                   onChange={(e) => setField('facilityId', e.target.value)}
@@ -1003,7 +1003,7 @@ export function EmployeeFormPage() {
                 {fieldError('facilityId')}
               </label>
               <label>
-                İstihdam türü
+                <span className="emp-field-title">İstihdam türü</span>
                 <select
                   value={form.employmentTypeId}
                   onChange={(e) => setField('employmentTypeId', e.target.value)}
@@ -1018,43 +1018,7 @@ export function EmployeeFormPage() {
                 {fieldError('employmentTypeId')}
               </label>
               <label>
-                Resmi unvan
-                <input
-                  list="employee-job-titles"
-                  value={options.jobTitles.find(t => t.id === form.jobTitleId)?.name ?? form.jobTitleName}
-                  maxLength={150}
-                  placeholder="Seçin veya unvan yazın"
-                  onChange={e => {
-                    const value = e.target.value
-                    const match = options.jobTitles.find(t => t.name.toLocaleLowerCase('tr-TR') === value.trim().toLocaleLowerCase('tr-TR'))
-                    setForm(f => ({ ...f, jobTitleId: match?.id ?? '', jobTitleName: match ? '' : value }))
-                  }}
-                />
-                <datalist id="employee-job-titles">{options.jobTitles.map(t => <option key={t.id} value={t.name} />)}</datalist>
-                <span className="muted small">Listeden seçebilir veya yeni bir unvan yazabilirsiniz.</span>
-                {fieldError('jobTitleName')}
-                {fieldError('jobTitleId')}
-              </label>
-              <label>
-                Fiili görev
-                <input
-                  list="employee-job-duties"
-                  value={options.duties.find(d => d.id === form.primaryJobDutyId)?.name ?? form.primaryJobDutyName}
-                  maxLength={200}
-                  placeholder="Seçin veya görev yazın"
-                  onChange={e => {
-                    const value = e.target.value
-                    const match = options.duties.find(d => d.name.toLocaleLowerCase('tr-TR') === value.trim().toLocaleLowerCase('tr-TR'))
-                    setForm(f => ({ ...f, primaryJobDutyId: match?.id ?? '', primaryJobDutyName: match ? '' : value }))
-                  }}
-                />
-                <datalist id="employee-job-duties">{options.duties.map(d => <option key={d.id} value={d.name} />)}</datalist>
-                <span className="muted small">Listeden seçebilir veya yeni bir görev yazabilirsiniz.</span>
-                {fieldError('primaryJobDutyName')}
-                {fieldError('primaryJobDutyId')}
-              </label>
-              <label className="span-2">
-                Bağlı yönetici
+                <span className="emp-field-title">Bağlı yönetici</span>
                 <select
                   value={form.managerEmployeeId}
                   onChange={(e) => setField('managerEmployeeId', e.target.value)}
@@ -1069,6 +1033,43 @@ export function EmployeeFormPage() {
                 </select>
                 {fieldError('managerEmployeeId')}
               </label>
+              <label>
+                <span className="emp-field-title">Resmi unvan</span>
+                <input
+                  list="employee-job-titles"
+                  value={options.jobTitles.find(t => t.id === form.jobTitleId)?.name ?? form.jobTitleName}
+                  maxLength={150}
+                  placeholder="Seçin veya unvan yazın"
+                  onChange={e => {
+                    const value = e.target.value
+                    const match = options.jobTitles.find(t => t.name.toLocaleLowerCase('tr-TR') === value.trim().toLocaleLowerCase('tr-TR'))
+                    setForm(f => ({ ...f, jobTitleId: match?.id ?? '', jobTitleName: match ? '' : value }))
+                  }}
+                />
+                <datalist id="employee-job-titles">{options.jobTitles.map(t => <option key={t.id} value={t.name} />)}</datalist>
+                <span className="muted small">Seçeneklerden seçin veya yeni bir unvan yazın.</span>
+                {fieldError('jobTitleName')}
+                {fieldError('jobTitleId')}
+              </label>
+              <label>
+                <span className="emp-field-title">Fiili görev</span>
+                <input
+                  list="employee-job-duties"
+                  value={options.duties.find(d => d.id === form.primaryJobDutyId)?.name ?? form.primaryJobDutyName}
+                  maxLength={200}
+                  placeholder="Seçin veya görev yazın"
+                  onChange={e => {
+                    const value = e.target.value
+                    const match = options.duties.find(d => d.name.toLocaleLowerCase('tr-TR') === value.trim().toLocaleLowerCase('tr-TR'))
+                    setForm(f => ({ ...f, primaryJobDutyId: match?.id ?? '', primaryJobDutyName: match ? '' : value }))
+                  }}
+                />
+                <datalist id="employee-job-duties">{options.duties.map(d => <option key={d.id} value={d.name} />)}</datalist>
+                <span className="muted small">Seçeneklerden seçin veya yeni bir görev yazın.</span>
+                {fieldError('primaryJobDutyName')}
+                {fieldError('primaryJobDutyId')}
+              </label>
+
             </div>
           </section>
 
@@ -1085,7 +1086,7 @@ export function EmployeeFormPage() {
             </div>
             <div className="form-grid">
               <label>
-                İşe giriş
+                <span className="emp-field-title">İşe giriş</span>
                 <input
                   type="date"
                   value={form.hireDate}
@@ -1094,7 +1095,7 @@ export function EmployeeFormPage() {
                 {fieldError('hireDate')}
               </label>
               <label>
-                Müdürlük başlangıç
+                <span className="emp-field-title">Müdürlük başlangıç</span>
                 <input
                   type="date"
                   value={form.directorateStartDate}
@@ -1102,7 +1103,7 @@ export function EmployeeFormPage() {
                 />
               </label>
               <label>
-                Birim başlangıç
+                <span className="emp-field-title">Birim başlangıç</span>
                 <input
                   type="date"
                   value={form.unitStartDate}
@@ -1110,7 +1111,7 @@ export function EmployeeFormPage() {
                 />
               </label>
               <label>
-                Görev başlangıç
+                <span className="emp-field-title">Görev başlangıç</span>
                 <input
                   type="date"
                   value={form.dutyStartDate}
