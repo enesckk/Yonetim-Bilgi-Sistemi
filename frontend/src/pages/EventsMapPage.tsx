@@ -784,9 +784,9 @@ function EventsMapPageInner() {
             role="group"
             aria-label="Kaplama renkleri"
           >
-            <p className="ops-colorbar-caption">Kaplama</p>
+            <p className="ops-colorbar-caption">Hizmet yararlanma oranı</p>
             <p className="ops-colorbar-meanings">
-              Açık yeşil: etkinlik yok · Kırmızı %20 altı · Sarı %20–50 · Yeşil %50 üzeri
+              Açık yeşil: etkinlik yok · Kırmızı %25 altı · Sarı %25–50 · Yeşil %50 ve üzeri
             </p>
             <div className="ops-colorbar-row">
               {COVERAGE_LEGEND.map((row) => (

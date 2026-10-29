@@ -12,10 +12,10 @@
   --brand-primary: #208B5F;
   --brand-primary-soft: #e7f5ee;
   --coverage-none: #E8F3EC;
-  --coverage-low: #E14B4B;
-  --coverage-medium: #F0C94D;
-  --coverage-good: #1FA97A;
-  --coverage-high: #1FA97A;
+  --coverage-low: #EB9794;
+  --coverage-medium: #EED38B;
+  --coverage-good: #99D3B6;
+  --coverage-high: #99D3B6;
   --danger: #b42318;
   --ok: #319D70;
   --sidebar: #ffffff;
@@ -19431,9 +19431,9 @@ body { padding-bottom: var(--pwa-install-space, 0px); }
 .settlement-service-heading p { margin: 0; font-weight: 600; font-size: .95rem; color: #374f60; }
 .settlement-service-rate { font-size: 1.8rem; color: #263b4c; }
 .settlement-service-track { height: 9px; border-radius: 12px; overflow: hidden; background: #e9eef2; }
-.settlement-service-track > span { display: block; height: 100%; border-radius: inherit; background: #dfae2b; }
-.settlement-service-card.is-good .settlement-service-track > span { background: #259c71; }
-.settlement-service-card.is-low .settlement-service-track > span { background: #dc6868; }
+.settlement-service-track > span { display: block; height: 100%; border-radius: inherit; background: var(--coverage-medium); }
+.settlement-service-card.is-good .settlement-service-track > span { background: var(--coverage-good); }
+.settlement-service-card.is-low .settlement-service-track > span { background: var(--coverage-low); }
 .settlement-service-meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 16px; font-size: .82rem; color: #687c8c; }
 .settlement-service-card > p { margin: 0; }
 .settlement-summary-actions { display: flex; justify-content: flex-end; }

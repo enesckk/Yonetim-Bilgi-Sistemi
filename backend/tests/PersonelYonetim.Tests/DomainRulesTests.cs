@@ -91,7 +91,10 @@ public class CoverageScaleTests
     {
         Assert.Equal("none", PersonelYonetim.Application.Features.Map.CoverageScale.Level(0, 80));
         Assert.Equal("low", PersonelYonetim.Application.Features.Map.CoverageScale.Level(1, 10));
-        Assert.Equal("medium", PersonelYonetim.Application.Features.Map.CoverageScale.Level(1, 20));
+        Assert.Equal("low", PersonelYonetim.Application.Features.Map.CoverageScale.Level(1, 20));
+        Assert.Equal("low", PersonelYonetim.Application.Features.Map.CoverageScale.Level(1, 24.99m));
+        Assert.Equal("medium", PersonelYonetim.Application.Features.Map.CoverageScale.Level(1, 25));
+        Assert.Equal("medium", PersonelYonetim.Application.Features.Map.CoverageScale.Level(1, 49.99m));
         Assert.Equal("good", PersonelYonetim.Application.Features.Map.CoverageScale.Level(1, 50));
     }
 }

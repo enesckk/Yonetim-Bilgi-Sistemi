@@ -12,7 +12,9 @@ describe('levelFromCoverage', () => {
   it('uses rate bands when activity exists', () => {
     expect(levelFromCoverage(1, null)).toBe('low')
     expect(levelFromCoverage(1, 19)).toBe('low')
-    expect(levelFromCoverage(1, 20)).toBe('medium')
+    expect(levelFromCoverage(1, 20)).toBe('low')
+    expect(levelFromCoverage(1, 24.99)).toBe('low')
+    expect(levelFromCoverage(1, 25)).toBe('medium')
     expect(levelFromCoverage(1, 49.9)).toBe('medium')
     expect(levelFromCoverage(1, 50)).toBe('good')
   })

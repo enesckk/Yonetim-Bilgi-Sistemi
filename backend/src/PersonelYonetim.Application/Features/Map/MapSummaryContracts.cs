@@ -217,11 +217,11 @@ public static class CoverageScale
     public const string Good = "good";
 
     /// <summary>
-    /// %20 altı kırmızı, %20–50 sarı, %50 üzeri yeşil. Etkinlik yok = none.
+    /// %25 altı kırmızı, %25–50 sarı, %50 ve üzeri yeşil. Etkinlik yok = none.
     /// </summary>
     public static string Level(int activityCount, decimal? ratePercent) =>
         activityCount <= 0 ? None
-        : ratePercent is null || ratePercent < 20 ? Low
+        : ratePercent is null || ratePercent < 25 ? Low
         : ratePercent < 50 ? Medium
         : Good;
 }
