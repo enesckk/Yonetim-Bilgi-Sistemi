@@ -35,6 +35,7 @@
   <ItemGroup>
     <EmbeddedResource Include="Persistence/Seed/sehitkamil-headmen-20261029.json" />
     <EmbeddedResource Include="Persistence/Seed/child-theatre-2026-user-import.json" />
+    <EmbeddedResource Include="Persistence/Seed/historical-events-2024-2025-user-import.json" />
   </ItemGroup>
 
 </Project>

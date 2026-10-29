@@ -997,7 +997,7 @@ export function EventDetailPage() {
                 {item.recurrenceLabel
                   ? `${item.recurrenceLabel}${item.seriesCount ? ` · ${item.seriesCount} kayıt` : ''}`
                   : item.seriesId
-                    ? `${item.title} ${istanbulDayKey(item.startAtUtc).slice(0, 4)}${item.seriesCount ? ` · ${item.seriesCount} kayıt` : ''}`
+                    ? `${item.title}${item.title.includes(istanbulDayKey(item.startAtUtc).slice(0, 4)) ? '' : ` ${istanbulDayKey(item.startAtUtc).slice(0, 4)}`}${item.seriesCount ? ` · ${item.seriesCount} kayıt` : ''}`
                     : 'Tek etkinlik'}
               </p>
             </article>
