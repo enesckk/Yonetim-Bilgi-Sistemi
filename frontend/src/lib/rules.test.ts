@@ -4,9 +4,9 @@ import { isLibraryVenue } from '@/lib/eventVenues'
 import { formatPhone } from '@/lib/phone'
 
 describe('levelFromCoverage', () => {
-  it('returns none when there is no activity', () => {
-    expect(levelFromCoverage(0, 80)).toBe('none')
-    expect(levelFromCoverage(null, 80)).toBe('none')
+  it('keeps neighborhoods without activity in the red band', () => {
+    expect(levelFromCoverage(0, 80)).toBe('low')
+    expect(levelFromCoverage(null, 80)).toBe('low')
   })
 
   it('uses rate bands when activity exists', () => {

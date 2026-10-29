@@ -40,8 +40,7 @@ function formatDay(iso?: string | null) {
 
 function formatWhen(iso: string, isDateOnly = false) { return formatEventWhen(iso, isDateOnly) }
 
-function coverageFact(detail: SettlementSummary, level: 'none' | 'low' | 'medium' | 'good') {
-  if (level === 'none') return 'Etkinlik yok'
+function coverageFact(detail: SettlementSummary, level: 'low' | 'medium' | 'good') {
   if (detail.coverageRate == null) return 'Oran hesaplanamıyor'
   if (level === 'low') return 'Hizmet oranı düşük'
   if (level === 'medium') return 'Hizmet oranı orta'
@@ -165,7 +164,7 @@ function SettlementDetailPageInner() {
           <p className="settlement-municipality">Şehitkamil Belediyesi</p>
           <div className="settlement-hero-title">
             <h1>{detail.name}</h1>
-            <span className={`settlement-cov-pill is-${level}`}>{legend?.label ?? 'Kaplama'}</span>
+            <span className={`settlement-cov-pill is-${level}`}>{legend?.label ?? 'Hizmet oranı'}</span>
           </div>
           <p className="settlement-hero-meta">
             <span>{schools.length} okul</span>
@@ -215,6 +214,21 @@ function SettlementDetailPageInner() {
               {detail.childCount != null ? ` · ${detail.childCount.toLocaleString('tr-TR')} çocuk` : ''}
             </p>
 
+            <article className={`settlement-service-card is-${level}`} aria-label="Hizmetten yararlanma oranı">
+              <div className="settlement-service-heading">
+                <div><h2>Hizmetten yararlanma oranı</h2><p>{coverageFact(detail, level)}</p></div>
+                <strong className="settlement-service-rate">{formatRate(detail.coverageRate)}</strong>
+              </div>
+              {detail.coverageRate != null ? <div className="settlement-service-track" role="progressbar" aria-label="Hizmetten yararlanma oranı" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(100, Math.max(0, detail.coverageRate))}><span style={{width: `${Math.min(100, Math.max(0, detail.coverageRate))}%`}} /></div> : null}
+              <div className="settlement-service-bands" aria-label="Hizmet oranı aralıkları">{COVERAGE_LEGEND.map(row => <span key={row.level} className={`is-${row.level}${row.level === level ? ' is-current' : ''}`}><i aria-hidden="true" />{row.label}</span>)}</div>
+              <dl className="settlement-service-stats">
+                <div><dt>Etkinlik</dt><dd>{detail.activityCount.toLocaleString('tr-TR')}</dd></div>
+                <div><dt>{detail.hasUniqueBeneficiaries ? 'Bildirilen yararlanıcı' : 'Toplam katılım'}</dt><dd>{(detail.hasUniqueBeneficiaries ? detail.uniqueBeneficiaryCount ?? 0 : detail.attendanceCount).toLocaleString('tr-TR')}</dd></div>
+                <div><dt>Mahalle nüfusu</dt><dd>{detail.population?.toLocaleString('tr-TR') ?? '—'}</dd></div>
+              </dl>
+              {detail.activityCount === 0 ? <p className="settlement-service-note">Henüz etkinlik kaydı girilmedi.{detail.coverageRate === 0 ? ' Hizmetten yararlanma oranı %0 olarak gösterilir.' : ''}</p> : !detail.hasUniqueBeneficiaries ? <p className="settlement-service-note">Oran toplam katılım sayısına dayanır; aynı kişi farklı etkinliklerde yer alabilir.</p> : null}
+            </article>
+
             <article className="settlement-contact-card" aria-label="Muhtar bilgisi">
               <div className="settlement-contact-person">
                 <span className="settlement-contact-avatar" aria-hidden="true">{detail.headmanName?.trim().charAt(0).toLocaleUpperCase('tr-TR') || '—'}</span>
@@ -226,18 +240,6 @@ function SettlementDetailPageInner() {
               </div>
             </article>
 
-            <article className={`settlement-service-card is-${level}`} aria-label="Hizmet oranı">
-              <div className="settlement-service-heading">
-                <div><h2>Hizmet oranı</h2><p>{detail.activityCount === 0 ? 'Henüz etkinlik kaydı yok' : coverageFact(detail, level)}</p></div>
-                <strong className="settlement-service-rate">{formatRate(detail.coverageRate)}</strong>
-              </div>
-              {detail.coverageRate != null ? <div className="settlement-service-track" role="progressbar" aria-label="Hizmet oranı" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(100, Math.max(0, detail.coverageRate))}><span style={{width: `${Math.min(100, Math.max(0, detail.coverageRate))}%`}} /></div> : null}
-              <div className="settlement-service-meta">
-                <span>{detail.activityCount.toLocaleString('tr-TR')} etkinlik</span>
-                <span>{detail.hasUniqueBeneficiaries ? `${(detail.uniqueBeneficiaryCount ?? 0).toLocaleString('tr-TR')} bildirilen yararlanıcı` : `${detail.attendanceCount.toLocaleString('tr-TR')} toplam katılım`}{detail.population != null ? ` / ${detail.population.toLocaleString('tr-TR')} nüfus` : ''}</span>
-              </div>
-              {!detail.hasUniqueBeneficiaries && detail.activityCount > 0 ? <p className="muted small">Oran katılım sayısına dayanır; aynı kişi farklı etkinliklerde yer alabilir.</p> : null}
-            </article>
             {canManage ? <div className="settlement-summary-actions"><button type="button" className="btn-secondary" onClick={() => setEditRecord(v => !v)}>{editRecord ? 'Düzenlemeyi kapat' : 'Nüfus ve muhtarı düzenle'}</button></div> : null}
           </section>
 

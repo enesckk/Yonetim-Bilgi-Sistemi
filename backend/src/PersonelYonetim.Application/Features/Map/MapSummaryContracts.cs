@@ -27,7 +27,7 @@ public sealed class SettlementSummaryDto
     /// <summary>true ise unique / nüfus; değilse katılım / nüfus (yoğunluk).</summary>
     public bool HasUniqueBeneficiaries { get; init; }
     public decimal? CoverageRate { get; init; }
-    public string CoverageLevel { get; init; } = "none";
+    public string CoverageLevel { get; init; } = "low";
     public string MetricLabel { get; init; } = string.Empty;
     public DateTime? LastActivityDate { get; init; }
     public string? HeadmanName { get; init; }
@@ -211,16 +211,15 @@ public sealed class DeleteSettlementAreaCommand : IRequest
 
 public static class CoverageScale
 {
-    public const string None = "none";
     public const string Low = "low";
     public const string Medium = "medium";
     public const string Good = "good";
 
     /// <summary>
-    /// %25 altı kırmızı, %25–50 sarı, %50 ve üzeri yeşil. Etkinlik yok = none.
+    /// %25 altı kırmızı, %25–50 sarı, %50 ve üzeri yeşil. Katılım/etkinlik girilmemiş mahalleler de kırmızı.
     /// </summary>
     public static string Level(int activityCount, decimal? ratePercent) =>
-        activityCount <= 0 ? None
+        activityCount <= 0 ? Low
         : ratePercent is null || ratePercent < 25 ? Low
         : ratePercent < 50 ? Medium
         : Good;

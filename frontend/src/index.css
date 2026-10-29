@@ -19456,3 +19456,25 @@ body { padding-bottom: var(--pwa-install-space, 0px); }
 .app-update-notice { position: fixed; z-index: 2100; right: max(16px, env(safe-area-inset-right)); bottom: calc(16px + env(safe-area-inset-bottom) + var(--pwa-install-space, 0px)); display: flex; align-items: center; gap: 16px; max-width: min(520px, calc(100vw - 32px)); padding: 14px 18px; border: 1px solid #bddbcc; border-radius: 14px; background: #fff; color: #243b32; box-shadow: 0 8px 28px #173c2926; font-size: .95rem; }
 .app-update-notice span { min-width: 0; }
 .app-update-notice button { flex-shrink: 0; min-height: 44px; }
+
+/* Service coverage stays visible and red at zero; three shared rate bands. */
+.settlement-service-card { --service-accent: #9b3737; border: 1px solid #ead4d4; border-left: 4px solid var(--coverage-low); background: linear-gradient(115deg, #fff8f7, #fff 65%); box-shadow: 0 5px 20px #223e3110; gap: 18px; }
+.settlement-service-card.is-medium { --service-accent: #88611c; border-color: #e8ddc5; border-left-color: var(--coverage-medium); background: linear-gradient(115deg, #fffcf2, #fff 65%); }
+.settlement-service-card.is-good { --service-accent: #287651; border-color: #cfe3d7; border-left-color: var(--coverage-good); background: linear-gradient(115deg, #f3fbf5, #fff 65%); }
+.settlement-service-heading h2 { font-size: .95rem; color: #344a59; text-transform: none; letter-spacing: 0; }
+.settlement-service-heading p { font-size: .82rem; color: var(--service-accent); }
+.settlement-service-rate { color: var(--service-accent); font-size: clamp(2.2rem, 4vw, 3rem); font-weight: 750; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.settlement-service-track { background: #e8e9ec; height: 10px; }
+.settlement-service-bands { display: flex; flex-wrap: wrap; gap: 8px 20px; }
+.settlement-service-bands > span { display: inline-flex; align-items: center; gap: 6px; font-size: .75rem; color: #687b86; }
+.settlement-service-bands > span.is-current { color: #304553; font-weight: 700; }
+.settlement-service-bands i { width: 10px; height: 10px; border-radius: 3px; background: var(--coverage-low); flex-shrink: 0; }
+.settlement-service-bands .is-medium i { background: var(--coverage-medium); }
+.settlement-service-bands .is-good i { background: var(--coverage-good); }
+.settlement-service-stats { margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid #dbe2e7; padding-top: 16px; gap: 12px; }
+.settlement-service-stats > div { min-width: 0; }
+.settlement-service-stats > div + div { border-left: 1px solid #dbe2e7; padding-left: 18px; }
+.settlement-service-stats dt { font-size: .76rem; color: #6b7d89; }
+.settlement-service-stats dd { margin: 5px 0 0; font-size: 1.2rem; font-weight: 700; color: #2a404f; font-variant-numeric: tabular-nums; }
+.settlement-service-note { margin: 0; color: #6b7b86; font-size: .76rem; line-height: 1.6; }
+@media (max-width: 600px) { .settlement-service-card { gap: 15px; } .settlement-service-stats { gap: 8px; } .settlement-service-stats > div + div { padding-left: 10px; } .settlement-service-stats dt { font-size: .7rem; } .settlement-service-stats dd { font-size: 1.1rem; } }

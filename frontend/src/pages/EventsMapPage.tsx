@@ -139,7 +139,7 @@ function escapeHtml(value: string) {
     .replaceAll("'", '&#39;')
 }
 
-function coverageRank(level: 'none' | 'low' | 'medium' | 'good') {
+function coverageRank(level: 'low' | 'medium' | 'good') {
   if (level === 'low') return 0
   if (level === 'medium') return 1
   if (level === 'good') return 2
@@ -147,8 +147,6 @@ function coverageRank(level: 'none' | 'low' | 'medium' | 'good') {
 }
 
 function coverageCaption(s: SettlementSummary) {
-  const level = levelFromCoverage(s.activityCount, s.coverageRate)
-  if (level === 'none') return 'Etkinlik yok'
   const rate = formatRate(s.coverageRate)
   return `${rate} · ${s.activityCount} etkinlik`
 }
@@ -275,7 +273,7 @@ function EventsMapPageInner() {
   }, [summaries])
 
   const coverageCounts = useMemo(() => {
-    const counts = { none: 0, low: 0, medium: 0, good: 0 }
+    const counts = { low: 0, medium: 0, good: 0 }
     for (const s of summaries) counts[levelFromCoverage(s.activityCount, s.coverageRate)] += 1
     return counts
   }, [summaries])
@@ -380,7 +378,7 @@ function EventsMapPageInner() {
         weight: selected ? 4 : dimmed ? 0.8 : isLow ? 2 : 1.15,
         opacity: dimmed ? 0.55 : 0.95,
         fillColor: selected ? '#F9D266' : dimmed ? '#0d0d0d' : coverageFill(level),
-        fillOpacity: selected ? 0.94 : dimmed ? 0.78 : level === 'none' ? 0.88 : 0.82,
+        fillOpacity: selected ? 0.94 : dimmed ? 0.78 : 0.82,
       }
     },
     [byCode, coverageFilter, focusedSummary],
@@ -427,7 +425,7 @@ function EventsMapPageInner() {
             color: selected ? '#173F8A' : dimmed ? '#2a2a2a' : isLow ? '#9B1C1C' : '#ffffff',
             weight: selected ? 4 : dimmed ? 0.8 : isLow ? 2 : 1.15,
             fillColor: selected ? '#F9D266' : dimmed ? '#0d0d0d' : coverageFill(level),
-            fillOpacity: selected ? 0.94 : dimmed ? 0.78 : level === 'none' ? 0.88 : 0.82,
+            fillOpacity: selected ? 0.94 : dimmed ? 0.78 : 0.82,
           })
           const tip = (path as Layer).getTooltip()?.getElement()
           if (tip) tip.classList.remove('is-force-show')
@@ -506,11 +504,11 @@ function EventsMapPageInner() {
             aria-label="Sıralama"
           >
             <option value="name">Ada göre</option>
-            <option value="coverage">Kaplamaya göre</option>
+            <option value="coverage">Hizmet oranına göre</option>
           </select>
         </div>
 
-        <div className="mahalle-cards-legend" role="group" aria-label="Kaplama renkleri">
+        <div className="mahalle-cards-legend" role="group" aria-label="Hizmetten yararlanma oranı renkleri">
           {COVERAGE_LEGEND.map((row) => (
             <button
               key={row.level}
@@ -782,11 +780,11 @@ function EventsMapPageInner() {
           <div
             className={`ops-colorbar${coverageFilter ? ' is-filtering' : ''}`}
             role="group"
-            aria-label="Kaplama renkleri"
+            aria-label="Hizmetten yararlanma oranı renkleri"
           >
             <p className="ops-colorbar-caption">Hizmet yararlanma oranı</p>
             <p className="ops-colorbar-meanings">
-              Açık yeşil: etkinlik yok · Kırmızı %25 altı · Sarı %25–50 · Yeşil %50 ve üzeri
+              Kırmızı %25 altı · Sarı %25–50 · Yeşil %50 ve üzeri
             </p>
             <div className="ops-colorbar-row">
               {COVERAGE_LEGEND.map((row) => (

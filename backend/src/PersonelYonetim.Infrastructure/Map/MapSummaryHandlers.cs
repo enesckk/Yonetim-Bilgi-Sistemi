@@ -114,7 +114,7 @@ public sealed class GetSettlementSummariesHandler
             int? unique = hasUnique ? agg!.UniqueSum : null;
             var population = s.Pop?.Population;
             decimal? rate = null;
-            if (population is > 0 && activityCount > 0)
+            if (population is > 0)
             {
                 var numerator = hasUnique ? unique!.Value : attendance;
                 rate = Math.Min(100m, Math.Round(numerator * 100m / population.Value, 1));
@@ -143,7 +143,7 @@ public sealed class GetSettlementSummariesHandler
                 HasUniqueBeneficiaries = hasUnique,
                 CoverageRate = rate,
                 CoverageLevel = CoverageScale.Level(activityCount, rate),
-                MetricLabel = "Kaplama",
+                MetricLabel = "Hizmetten yararlanma oranı",
                 LastActivityDate = agg?.LastActivityDate,
                 HeadmanName = s.HeadmanName,
                 HeadmanPhone = s.HeadmanPhone
@@ -298,7 +298,7 @@ public sealed class GetSettlementDetailHandler
         int? unique = hasUnique ? agg!.UniqueSum : null;
         var population = s.Pop?.Population;
         decimal? rate = null;
-        if (population is > 0 && activityCount > 0)
+        if (population is > 0)
         {
             var numerator = hasUnique ? unique!.Value : attendance;
             rate = Math.Min(100m, Math.Round(numerator * 100m / population.Value, 1));
@@ -327,7 +327,7 @@ public sealed class GetSettlementDetailHandler
             HasUniqueBeneficiaries = hasUnique,
             CoverageRate = rate,
             CoverageLevel = CoverageScale.Level(activityCount, rate),
-            MetricLabel = "Kaplama",
+            MetricLabel = "Hizmetten yararlanma oranı",
             LastActivityDate = agg?.LastActivityDate,
             HeadmanName = s.HeadmanName,
             HeadmanPhone = s.HeadmanPhone

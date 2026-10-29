@@ -1,7 +1,6 @@
-export type CoverageLevel = 'none' | 'low' | 'medium' | 'good' | 'high'
+export type CoverageLevel = 'low' | 'medium' | 'good' | 'high'
 
 export const COVERAGE_COLORS: Record<CoverageLevel, string> = {
-  none: '#E8F3EC',
   low: '#EB9794',
   medium: '#EED38B',
   good: '#99D3B6',
@@ -9,11 +8,10 @@ export const COVERAGE_COLORS: Record<CoverageLevel, string> = {
 }
 
 export const COVERAGE_LEGEND: {
-  level: 'none' | 'low' | 'medium' | 'good'
+  level: 'low' | 'medium' | 'good'
   label: string
   short: string
 }[] = [
-  { level: 'none', label: 'Etkinlik yok', short: 'Yok' },
   { level: 'low', label: '%25 altı (Kırmızı)', short: '%25−' },
   { level: 'medium', label: '%25–50 arası (Sarı)', short: '%25–50' },
   { level: 'good', label: '%50 ve üzeri (Yeşil)', short: '%50+' },
@@ -22,9 +20,9 @@ export const COVERAGE_LEGEND: {
 export function levelFromCoverage(
   activityCount: number | null | undefined,
   ratePercent: number | null | undefined,
-): 'none' | 'low' | 'medium' | 'good' {
+): 'low' | 'medium' | 'good' {
   const n = activityCount ?? 0
-  if (n <= 0) return 'none'
+  if (n <= 0) return 'low'
   if (ratePercent == null || ratePercent < 25) return 'low'
   if (ratePercent < 50) return 'medium'
   return 'good'
@@ -34,7 +32,7 @@ export function coverageFill(level: CoverageLevel | string | undefined): string 
   if (level === 'low') return COVERAGE_COLORS.low
   if (level === 'medium') return COVERAGE_COLORS.medium
   if (level === 'good' || level === 'high') return COVERAGE_COLORS.good
-  return COVERAGE_COLORS.none
+  return COVERAGE_COLORS.low
 }
 
 export function formatRate(rate: number | null | undefined): string {

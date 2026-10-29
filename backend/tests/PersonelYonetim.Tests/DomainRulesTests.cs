@@ -89,7 +89,8 @@ public class CoverageScaleTests
     [Fact]
     public void Matches_frontend_bands()
     {
-        Assert.Equal("none", PersonelYonetim.Application.Features.Map.CoverageScale.Level(0, 80));
+        Assert.Equal("low", PersonelYonetim.Application.Features.Map.CoverageScale.Level(0, 80));
+        Assert.Equal("low", PersonelYonetim.Application.Features.Map.CoverageScale.Level(0, null));
         Assert.Equal("low", PersonelYonetim.Application.Features.Map.CoverageScale.Level(1, 10));
         Assert.Equal("low", PersonelYonetim.Application.Features.Map.CoverageScale.Level(1, 20));
         Assert.Equal("low", PersonelYonetim.Application.Features.Map.CoverageScale.Level(1, 24.99m));
