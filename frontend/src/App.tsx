@@ -12,6 +12,7 @@ import { PermissionRoute } from '@/auth/PermissionRoute'
 import { LoginPage } from '@/pages/LoginPage'
 import { PermissionCodes } from '@/auth/permissionCodes'
 import { PwaInstallPrompt } from '@/components/PwaInstallPrompt'
+import { AppUpdateNotice } from '@/components/AppUpdateNotice'
 
 const EmployeesPage = lazy(() => import('@/pages/EmployeesPage').then((m) => ({ default: m.EmployeesPage })))
 const EmployeeDetailPage = lazy(() =>
@@ -144,6 +145,7 @@ export default function App() {
             </Routes>
           </Suspense>
           <PwaInstallPrompt />
+          <AppUpdateNotice />
         </BrowserRouter>
       </ConfirmProvider>
     </AuthProvider>

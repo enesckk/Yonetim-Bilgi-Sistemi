@@ -81,7 +81,7 @@ app.Use(async (context, next) =>
 app.UseDefaultFiles();
 var staticContentTypes = new FileExtensionContentTypeProvider();
 staticContentTypes.Mappings[".geojson"] = "application/geo+json";
-app.UseStaticFiles(new StaticFileOptions
+var appStaticFiles = new StaticFileOptions
 {
     ContentTypeProvider = staticContentTypes,
     OnPrepareResponse = context =>
@@ -92,7 +92,8 @@ app.UseStaticFiles(new StaticFileOptions
             || context.File.Name.Equals("registerSW.js", StringComparison.OrdinalIgnoreCase))
             context.Context.Response.Headers.CacheControl = "no-cache, max-age=0, must-revalidate";
     }
-});
+};
+app.UseStaticFiles(appStaticFiles);
 
 app.UseCors("Frontend");
 app.UseAuthentication();
@@ -109,6 +110,6 @@ app.MapGet("/geo/sehitkamil-mahalleler.geojson", () =>
     Results.File(Path.Combine(app.Environment.WebRootPath, "geo", "sehitkamil-mahalleler.geojson"), "application/geo+json"))
     .AllowAnonymous();
 app.MapFallback("/api/{**path}", () => Results.NotFound()).AllowAnonymous();
-app.MapFallbackToFile("index.html").AllowAnonymous();
+app.MapFallbackToFile("index.html", appStaticFiles).AllowAnonymous();
 
 app.Run();
