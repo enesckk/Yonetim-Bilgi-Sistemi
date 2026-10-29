@@ -125,6 +125,7 @@ internal static class EventConflictHelper
         Id = e.Id,
         Title = e.Title,
         Description = e.Description,
+        Requirements = e.Requirements,
         ParticipantNames = string.IsNullOrEmpty(e.ParticipantNamesJson) ? [] : JsonSerializer.Deserialize<List<string>>(e.ParticipantNamesJson) ?? [],
         Status = e.Status,
         StatusLabel = EventLabels.Status(e.Status),
@@ -435,6 +436,7 @@ public sealed class CreateEventHandler : IRequestHandler<CreateEventCommand, Gui
 
             var entity = new Event
             {
+                Requirements = request.Requirements?.Trim(),
                 Title = request.Title.Trim(),
                 ParticipantNamesJson = request.ParticipantNames is null ? null : JsonSerializer.Serialize(request.ParticipantNames.Select(x => x.Trim())),
                 Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),
@@ -590,6 +592,7 @@ public sealed class UpdateEventHandler : IRequestHandler<UpdateEventCommand>
         };
 
         entity.Title = request.Title.Trim();
+        if (request.Requirements is not null) entity.Requirements = request.Requirements.Trim();
         if (request.ParticipantNames is not null)
             entity.ParticipantNamesJson = JsonSerializer.Serialize(request.ParticipantNames.Select(x => x.Trim()));
         entity.Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();

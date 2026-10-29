@@ -1,3 +1,5 @@
+import { EventMediaPicker, EventMediaPanel } from '@/components/EventMedia'
+import { uploadEventMedia } from '@/api/eventMediaApi'
 import { EventInformationNotes } from '@/components/EventInformationNotes'
 import { istanbulDayKey } from '@/lib/trHolidays'
 import { formatEventWhen } from '@/lib/eventsDates'
@@ -69,7 +71,7 @@ function combineLocal(date: string, time: string) {
 }
 
 function formErrorMessage(err: unknown, fallback: string) {
-  if (!(err instanceof ApiClientError)) return fallback
+  if (!(err instanceof ApiClientError)) return err instanceof Error ? err.message : fallback
   const details = Object.values(err.validationErrors ?? {}).flat().filter(Boolean)
   return details.length ? [...new Set(details)].join(' ') : err.message
 }
@@ -79,6 +81,7 @@ function formatWhen(iso: string, isDateOnly = false) { return formatEventWhen(is
 type FormState = {
   title: string
   description: string
+  requirements: string
   startAtLocal: string
   isDateOnly: boolean
   endAtLocal: string
@@ -114,6 +117,7 @@ const EVENT_CATEGORY_OPTIONS = [
 const emptyForm = (): FormState => ({
   title: '',
   description: '',
+  requirements: '',
   startAtLocal: toLocalInput(new Date().toISOString()),
   isDateOnly: false,
   endAtLocal: '',
@@ -144,6 +148,16 @@ export function EventFormPage() {
   const [form, setForm] = useState<FormState>(() => ({ ...emptyForm(), category: searchParams.get('kind') === 'project' ? 'project' : '' }))
   const [participantNames, setParticipantNames] = useState<string[]>([])
   const [participantsLoading, setParticipantsLoading] = useState(false)
+  const savedId = useRef<string | null>(id ?? null)
+  const [poster, setPoster] = useState<File | null>(null)
+  const [photos, setPhotos] = useState<File[]>([])
+  const [mediaPending, setMediaPending] = useState(false)
+  useEffect(() => {
+    savedId.current = id ?? null
+    setPoster(null)
+    setPhotos([])
+    setMediaPending(false)
+  }, [id])
   const statusTouched = useRef(false)
   const [initialStatus, setInitialStatus] = useState<EventStatus>(1)
   const [tree, setTree] = useState<OrgNode[]>([])
@@ -207,6 +221,7 @@ export function EventFormPage() {
           setForm({
             title: ev.title,
             description: ev.description ?? '',
+            requirements: ev.requirements ?? '',
             startAtLocal: ev.isDateOnly ? combineLocal(istanbulDayKey(ev.startAtUtc), '00:00') : toLocalInput(ev.startAtUtc),
             isDateOnly: ev.isDateOnly ?? false,
             endAtLocal: ev.isDateOnly && ev.endAtUtc ? combineLocal(istanbulDayKey(ev.endAtUtc), '23:59') : toLocalInput(ev.endAtUtc),
@@ -340,6 +355,7 @@ export function EventFormPage() {
     return {
       title: form.title.trim(),
       description: form.description.trim() || null,
+      requirements: form.requirements.trim(),
       startAtUtc: form.isDateOnly ? new Date(`${datePart(form.startAtLocal)}T00:00:00+03:00`).toISOString() : fromLocalInput(form.startAtLocal),
       isDateOnly: form.isDateOnly,
       endAtUtc: form.endAtLocal ? (form.isDateOnly ? new Date(`${datePart(form.endAtLocal)}T23:59:59.999+03:00`).toISOString() : fromLocalInput(form.endAtLocal)) : null,
@@ -378,13 +394,17 @@ export function EventFormPage() {
 
   async function save(allowConflicts: boolean) {
     const payload = buildPayload(allowConflicts)
-    if (isEdit && id) {
-      await updateEvent(id, payload)
-      navigate(`/events/${id}`)
-    } else {
-      const created = await createEvent(payload)
-      navigate(`/events/${created.id}`)
+    let eventId = savedId.current
+    if (eventId) await updateEvent(eventId, payload)
+    else { const created = await createEvent(payload); eventId = created.id; savedId.current = eventId }
+    try {
+      if (poster) { await uploadEventMedia(eventId, 'poster', [poster]); setPoster(null) }
+      if (photos.length) { await uploadEventMedia(eventId, 'photo', photos); setPhotos([]) }
+    } catch (err) {
+      setMediaPending(true)
+      throw new Error(`Etkinlik kaydedildi; bazı görseller yüklenemedi. Seçili dosyalar korunuyor. Kaydet'e basarak tekrar deneyin. ${err instanceof Error ? err.message : ''}`)
     }
+    navigate(`/events/${eventId}`)
   }
 
   async function onSubmit(e: FormEvent) {
@@ -437,7 +457,7 @@ export function EventFormPage() {
               <h2>{isEdit ? 'Kayıt düzenle' : form.category === 'project' ? 'Proje ekle' : 'Etkinlik / gezi ekle'}</h2>
             </div>
             <p className="muted small employees-toolbar-lead">
-              Etkinliğin yerini, tarihini ve türünü seçerek kaydedin.
+              Etkinliğin bilgilerini, taleplerini, afişini ve fotoğraflarını tek kayıtta yönetin.
             </p>
           </div>
           <div className="employees-toolbar-actions">
@@ -455,308 +475,320 @@ export function EventFormPage() {
         ) : null}
 
         <form className="form-grid events-form" onSubmit={onSubmit}>
-          <label className="span-2">
-            Başlık *
-            <input
-              value={form.title}
-              onChange={(e) => setField('title', e.target.value)}
-              placeholder="Örn. Konser, kültür gezisi, bilim projesi"
-              required
-            />
-          </label>
-          <label className="span-2">
-            Tesis / salon
-            <select value={form.facilityId} onChange={(e) => onFacilityChange(e.target.value)}>
-              <option value="">Seçiniz</option>
-              {venueCatalog.groups.map((g) => (
-                <optgroup key={g.parent.id} label={g.label}>
-                  {g.halls.map((h) => (
-                    <option key={h.id} value={h.id}>
-                      {h.name}
-                      {h.capacity ? ` · ${h.capacity} kişilik` : ''}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-              {venueCatalog.others.length > 0 ? (
-                <optgroup label="Diğer tesisler">
-                  {venueCatalog.others.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.name}
-                    </option>
-                  ))}
-                </optgroup>
-              ) : null}
-            </select>
-          </label>
-          <label>
-            {form.category === 'trip' ? 'Hareket tarihi *' : 'Tarih *'}
-            <input
-              type="date"
-              value={datePart(form.startAtLocal)}
-              onChange={(e) => setStartAtLocal(combineLocal(e.target.value, timePart(form.startAtLocal)))}
-              required
-            />
-          </label>
-          <label>
-            {form.isDateOnly ? 'Saat bilgisi' : form.category === 'trip' ? 'Hareket saati *' : 'Saat *'}
-            <input
-              type="time"
-              disabled={form.isDateOnly}
-              value={form.isDateOnly ? '' : timePart(form.startAtLocal)}
-              onChange={(e) =>
-                setStartAtLocal(combineLocal(datePart(form.startAtLocal), e.target.value))
-              }
-              required={!form.isDateOnly}
-            />
-          </label>
-          <label className="span-2 event-date-only-choice"><input type="checkbox" checked={form.isDateOnly} onChange={e => setField('isDateOnly', e.target.checked)} />Saat bilgisi belirtilmemiş (yalnızca tarih)</label>
-          <label>
-            {form.category === 'trip' ? 'Dönüş tarihi' : 'Bitiş tarihi'}
-            <input
-              type="date"
-              value={datePart(form.endAtLocal)}
-              onChange={(e) =>
-                setField(
-                  'endAtLocal',
-                  e.target.value ? combineLocal(e.target.value, timePart(form.endAtLocal, '11:00')) : '',
-                )
-              }
-            />
-          </label>
-          <label>
-            {form.category === 'trip' ? 'Dönüş saati' : 'Bitiş saati'}
-            <input
-              type="time"
-              value={!form.isDateOnly && form.endAtLocal ? timePart(form.endAtLocal, '11:00') : ''}
-              disabled={form.isDateOnly}
-              onChange={(e) => {
-                const date = datePart(form.endAtLocal) || datePart(form.startAtLocal)
-                setField('endAtLocal', e.target.value && date ? combineLocal(date, e.target.value) : '')
-              }}
-            />
-          </label>
-          <label>
-            Kayıt türü
-            <select aria-label="Kayıt türü" value={form.category} onChange={(e) => setField('category', e.target.value)}>
-              {EVENT_CATEGORY_OPTIONS.map((c) => (
-                <option key={c.value || 'none'} value={c.value}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Beklenen katılımcı
-            <input
-              type="number"
-              min={1}
-              max={100000}
-              value={form.expectedAttendees}
-              onChange={(e) => setField('expectedAttendees', e.target.value)}
-              placeholder="Örn. 120"
-            />
-          </label>
-          <label>
-            Durum
-            <select
-              aria-label="Durum"
-              value={form.status}
-              onChange={(e) => {
-                statusTouched.current = true
-                setField('status', Number(e.target.value) as EventStatus)
-              }}
-            >
-              {statusOptions.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Gelen kişi
-            <input
-              type="number"
-              min={0}
-              max={100000}
-              value={form.actualAttendees}
-              onChange={(e) => setField('actualAttendees', e.target.value)}
-            />
-          </label>
-          <label className="span-2">
-            Açıklama
-            <textarea
-              rows={2}
-              value={form.description}
-              onChange={(e) => setField('description', e.target.value)}
-              placeholder={form.category === 'trip' ? 'Gidilecek yer, güzergâh ve gezi notları' : 'Kısa not (isteğe bağlı)'}
-            />
-          </label>
-          <details className="span-2 events-form-more">
-            <summary>Diğer alanlar</summary>
-            <div className="form-grid">
-              {directorateWide ? (
-              <div className="span-2 settlement-picker">
-                <p>Mahalle</p>
-                {linked.length > 0 ? (
-                  <div className="settlement-picker-head" aria-hidden>
-                    <span>Mahalle</span>
-                    <span>Katılım</span>
-                    <span>Ulaşılan kişi</span>
-                    <span />
-                  </div>
-                ) : null}
-                {linked.map((row, index) => (
-                  <div key={`${row.settlementId}-${index}`} className="settlement-picker-row">
-                    <select
-                      value={row.settlementId}
-                      aria-label="Mahalle"
-                      onChange={(e) =>
-                        setLinked((prev) =>
-                          prev.map((x, i) => (i === index ? { ...x, settlementId: e.target.value } : x)),
-                        )
-                      }
-                    >
-                      <option value="">Seçiniz</option>
-                      {settlements.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      type="number"
-                      min={0}
-                      placeholder="Katılım"
-                      aria-label="Katılım"
-                      value={row.attendanceCount}
-                      onChange={(e) =>
-                        setLinked((prev) =>
-                          prev.map((x, i) => (i === index ? { ...x, attendanceCount: e.target.value } : x)),
-                        )
-                      }
-                    />
-                    <input
-                      type="number"
-                      min={0}
-                      placeholder="Kişi"
-                      aria-label="Ulaşılan kişi"
-                      value={row.uniqueBeneficiaryCount}
-                      onChange={(e) =>
-                        setLinked((prev) =>
-                          prev.map((x, i) => (i === index ? { ...x, uniqueBeneficiaryCount: e.target.value } : x)),
-                        )
-                      }
-                    />
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      onClick={() => setLinked((prev) => prev.filter((_, i) => i !== index))}
-                    >
-                      Kaldır
-                    </button>
-                  </div>
+          <fieldset disabled={saving} className="event-form-fieldset">
+            <label className="span-2">
+              Başlık *
+              <input
+                value={form.title}
+                onChange={(e) => setField('title', e.target.value)}
+                placeholder="Örn. Konser, kültür gezisi, bilim projesi"
+                required
+              />
+            </label>
+            <label className="span-2">
+              Tesis / salon
+              <select value={form.facilityId} onChange={(e) => onFacilityChange(e.target.value)}>
+                <option value="">Seçiniz</option>
+                {venueCatalog.groups.map((g) => (
+                  <optgroup key={g.parent.id} label={g.label}>
+                    {g.halls.map((h) => (
+                      <option key={h.id} value={h.id}>
+                        {h.name}
+                        {h.capacity ? ` · ${h.capacity} kişilik` : ''}
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() =>
-                    setLinked((prev) => [
-                      ...prev,
-                      { settlementId: '', attendanceCount: '', uniqueBeneficiaryCount: '' },
-                    ])
-                  }
-                >
-                  Mahalle ekle
-                </button>
-              </div>
-              ) : null}
-              <label>
-                Düzenleyen birim
-                <select
-                  value={form.organizingUnitId}
-                  onChange={(e) => setField('organizingUnitId', e.target.value)}
-                >
-                  <option value="">Seçiniz</option>
-                  {units.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.name}
-                    </option>
+                {venueCatalog.others.length > 0 ? (
+                  <optgroup label="Diğer tesisler">
+                    {venueCatalog.others.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : null}
+              </select>
+            </label>
+            <label>
+              {form.category === 'trip' ? 'Hareket tarihi *' : 'Tarih *'}
+              <input
+                type="date"
+                value={datePart(form.startAtLocal)}
+                onChange={(e) => setStartAtLocal(combineLocal(e.target.value, timePart(form.startAtLocal)))}
+                required
+              />
+            </label>
+            <label>
+              {form.isDateOnly ? 'Saat bilgisi' : form.category === 'trip' ? 'Hareket saati *' : 'Saat *'}
+              <input
+                type="time"
+                disabled={form.isDateOnly}
+                value={form.isDateOnly ? '' : timePart(form.startAtLocal)}
+                onChange={(e) =>
+                  setStartAtLocal(combineLocal(datePart(form.startAtLocal), e.target.value))
+                }
+                required={!form.isDateOnly}
+              />
+            </label>
+            <label className="span-2 event-date-only-choice"><input type="checkbox" checked={form.isDateOnly} onChange={e => setField('isDateOnly', e.target.checked)} />Saat bilgisi belirtilmemiş (yalnızca tarih)</label>
+            <label>
+              {form.category === 'trip' ? 'Dönüş tarihi' : 'Bitiş tarihi'}
+              <input
+                type="date"
+                value={datePart(form.endAtLocal)}
+                onChange={(e) =>
+                  setField(
+                    'endAtLocal',
+                    e.target.value ? combineLocal(e.target.value, timePart(form.endAtLocal, '11:00')) : '',
+                  )
+                }
+              />
+            </label>
+            <label>
+              {form.category === 'trip' ? 'Dönüş saati' : 'Bitiş saati'}
+              <input
+                type="time"
+                value={!form.isDateOnly && form.endAtLocal ? timePart(form.endAtLocal, '11:00') : ''}
+                disabled={form.isDateOnly}
+                onChange={(e) => {
+                  const date = datePart(form.endAtLocal) || datePart(form.startAtLocal)
+                  setField('endAtLocal', e.target.value && date ? combineLocal(date, e.target.value) : '')
+                }}
+              />
+            </label>
+            <label>
+              Kayıt türü
+              <select aria-label="Kayıt türü" value={form.category} onChange={(e) => setField('category', e.target.value)}>
+                {EVENT_CATEGORY_OPTIONS.map((c) => (
+                  <option key={c.value || 'none'} value={c.value}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Beklenen katılımcı
+              <input
+                type="number"
+                min={1}
+                max={100000}
+                value={form.expectedAttendees}
+                onChange={(e) => setField('expectedAttendees', e.target.value)}
+                placeholder="Örn. 120"
+              />
+            </label>
+            <label>
+              Durum
+              <select
+                aria-label="Durum"
+                value={form.status}
+                onChange={(e) => {
+                  statusTouched.current = true
+                  setField('status', Number(e.target.value) as EventStatus)
+                }}
+              >
+                {statusOptions.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Gelen kişi
+              <input
+                type="number"
+                min={0}
+                max={100000}
+                value={form.actualAttendees}
+                onChange={(e) => setField('actualAttendees', e.target.value)}
+              />
+            </label>
+            <label className="span-2">
+              Açıklama
+              <textarea
+                rows={2}
+                value={form.description}
+                onChange={(e) => setField('description', e.target.value)}
+                placeholder={form.category === 'trip' ? 'Gidilecek yer, güzergâh ve gezi notları' : 'Kısa not (isteğe bağlı)'}
+              />
+            </label>
+            <section className="event-requirements span-2">
+              <h3>Talepler ve ihtiyaçlar</h3>
+              <p>Etkinliğin gerçekleşmesi için talep edilen hizmetleri, miktarları ve teslim tarihlerini yazın.</p>
+              <label>Talep detayları<textarea aria-label="Talep detayları" rows={5} maxLength={8000} value={form.requirements} onChange={e => setField('requirements', e.target.value)} placeholder="Örn. 2 kablosuz mikrofon, 100 kişilik ikram, 1 otobüs… Talep eden birim ve ihtiyaç tarihini de ekleyebilirsiniz." /></label>
+              <small>{form.requirements.length.toLocaleString('tr-TR')} / 8.000 karakter</small>
+            </section>
+            <details className="span-2 events-form-more">
+              <summary>Diğer alanlar</summary>
+              <div className="form-grid">
+                {directorateWide ? (
+                <div className="span-2 settlement-picker">
+                  <p>Mahalle</p>
+                  {linked.length > 0 ? (
+                    <div className="settlement-picker-head" aria-hidden>
+                      <span>Mahalle</span>
+                      <span>Katılım</span>
+                      <span>Ulaşılan kişi</span>
+                      <span />
+                    </div>
+                  ) : null}
+                  {linked.map((row, index) => (
+                    <div key={`${row.settlementId}-${index}`} className="settlement-picker-row">
+                      <select
+                        value={row.settlementId}
+                        aria-label="Mahalle"
+                        onChange={(e) =>
+                          setLinked((prev) =>
+                            prev.map((x, i) => (i === index ? { ...x, settlementId: e.target.value } : x)),
+                          )
+                        }
+                      >
+                        <option value="">Seçiniz</option>
+                        {settlements.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="number"
+                        min={0}
+                        placeholder="Katılım"
+                        aria-label="Katılım"
+                        value={row.attendanceCount}
+                        onChange={(e) =>
+                          setLinked((prev) =>
+                            prev.map((x, i) => (i === index ? { ...x, attendanceCount: e.target.value } : x)),
+                          )
+                        }
+                      />
+                      <input
+                        type="number"
+                        min={0}
+                        placeholder="Kişi"
+                        aria-label="Ulaşılan kişi"
+                        value={row.uniqueBeneficiaryCount}
+                        onChange={(e) =>
+                          setLinked((prev) =>
+                            prev.map((x, i) => (i === index ? { ...x, uniqueBeneficiaryCount: e.target.value } : x)),
+                          )
+                        }
+                      />
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={() => setLinked((prev) => prev.filter((_, i) => i !== index))}
+                      >
+                        Kaldır
+                      </button>
+                    </div>
                   ))}
-                </select>
-              </label>
-              <div className="events-person-picker">
-                <label>
-                  Personel ara
-                  <input
-                    type="search"
-                    value={personSearch}
-                    onChange={(e) => setPersonSearch(e.target.value)}
-                    placeholder="Ad veya soyad yazın…"
-                    autoComplete="off"
-                  />
-                </label>
-                <label>
-                  Sorumlu personel
-                  <select
-                    value={form.responsibleEmployeeId}
-                    onChange={(e) => setField('responsibleEmployeeId', e.target.value)}
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() =>
+                      setLinked((prev) => [
+                        ...prev,
+                        { settlementId: '', attendanceCount: '', uniqueBeneficiaryCount: '' },
+                      ])
+                    }
                   >
-                    <option value="">Seçiniz (opsiyonel)</option>
-                    {peopleLoading ? <option disabled>Personel listesi yükleniyor…</option> : null}
-                    {matchingPeople.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
+                    Mahalle ekle
+                  </button>
+                </div>
+                ) : null}
+                <label>
+                  Düzenleyen birim
+                  <select
+                    value={form.organizingUnitId}
+                    onChange={(e) => setField('organizingUnitId', e.target.value)}
+                  >
+                    <option value="">Seçiniz</option>
+                    {units.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.name}
                       </option>
                     ))}
                   </select>
                 </label>
-                {peopleError ? <small>Personel listesi yüklenemedi. Sayfayı yenileyin.</small> : null}
-                {personSearch && !peopleLoading && !peopleError && matchingPeople.length === 0
-                  ? <small>Eşleşen personel yok.</small>
-                  : null}
-              </div>
-              {!isEdit ? (
-                <>
+                <div className="events-person-picker">
                   <label>
-                    Tekrar
+                    Personel ara
+                    <input
+                      type="search"
+                      value={personSearch}
+                      onChange={(e) => setPersonSearch(e.target.value)}
+                      placeholder="Ad veya soyad yazın…"
+                      autoComplete="off"
+                    />
+                  </label>
+                  <label>
+                    Sorumlu personel
                     <select
-                      value={form.recurrenceFrequency}
-                      onChange={(e) =>
-                        setField('recurrenceFrequency', Number(e.target.value) as EventRecurrenceFrequency)
-                      }
+                      value={form.responsibleEmployeeId}
+                      onChange={(e) => setField('responsibleEmployeeId', e.target.value)}
                     >
-                      {EVENT_RECURRENCE.map((r) => (
-                        <option key={r.value} value={r.value}>
-                          {r.label}
+                      <option value="">Seçiniz (opsiyonel)</option>
+                      {peopleLoading ? <option disabled>Personel listesi yükleniyor…</option> : null}
+                      {matchingPeople.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
                         </option>
                       ))}
                     </select>
                   </label>
-                  {form.recurrenceFrequency !== 0 ? (
+                  {peopleError ? <small>Personel listesi yüklenemedi. Sayfayı yenileyin.</small> : null}
+                  {personSearch && !peopleLoading && !peopleError && matchingPeople.length === 0
+                    ? <small>Eşleşen personel yok.</small>
+                    : null}
+                </div>
+                {!isEdit ? (
+                  <>
                     <label>
-                      Tekrar sayısı (2–26)
-                      <input
-                        type="number"
-                        min={2}
-                        max={26}
-                        value={form.recurrenceOccurrences}
-                        onChange={(e) => setField('recurrenceOccurrences', e.target.value)}
-                      />
+                      Tekrar
+                      <select
+                        value={form.recurrenceFrequency}
+                        onChange={(e) =>
+                          setField('recurrenceFrequency', Number(e.target.value) as EventRecurrenceFrequency)
+                        }
+                      >
+                        {EVENT_RECURRENCE.map((r) => (
+                          <option key={r.value} value={r.value}>
+                            {r.label}
+                          </option>
+                        ))}
+                      </select>
                     </label>
-                  ) : null}
-                </>
-              ) : null}
+                    {form.recurrenceFrequency !== 0 ? (
+                      <label>
+                        Tekrar sayısı (2–26)
+                        <input
+                          type="number"
+                          min={2}
+                          max={26}
+                          value={form.recurrenceOccurrences}
+                          onChange={(e) => setField('recurrenceOccurrences', e.target.value)}
+                        />
+                      </label>
+                    ) : null}
+                  </>
+                ) : null}
+              </div>
+            </details>
+            <EventParticipants names={participantNames} onChange={setParticipantNames} onBusyChange={setParticipantsLoading} disabled={saving} />
+            {!isEdit && form.recurrenceFrequency !== 0 && participantNames.length > 0 ? <p className="span-2 muted small">Katılımcı listesi seride oluşturulan her kayda eklenir; daha sonra her kayıtta ayrı düzenlenebilir.</p> : null}
+            <EventMediaPicker poster={poster} photos={photos} onPoster={setPoster} onPhotos={setPhotos} disabled={saving} />
+            {isEdit ? <p className="span-2 muted small">Mevcut afişi ve fotoğrafları etkinlik detayından görüntüleyebilir ve yönetebilirsiniz.</p> : null}
+            {!isEdit && form.recurrenceFrequency !== 0 ? <p className="span-2 muted small">Afiş ve fotoğraflar serinin ilk kaydına eklenir.</p> : null}
+            {mediaPending && savedId.current ? <p className="span-2" role="status">Etkinlik kaydı oluşturuldu. Görselleri tekrar yüklemek için Kaydet'e basın veya <Link to={`/events/${savedId.current}`}>kaydı görüntüleyin</Link>.</p> : null}
+            <div className="form-actions span-2">
+              <button type="submit" className="btn-primary" disabled={saving || participantsLoading}>
+                {saving ? 'Kaydediliyor…' : isEdit ? 'Güncelle' : 'Kaydet'}
+              </button>
             </div>
-          </details>
-          <EventParticipants names={participantNames} onChange={setParticipantNames} onBusyChange={setParticipantsLoading} disabled={saving} />
-          {!isEdit && form.recurrenceFrequency !== 0 && participantNames.length > 0 ? <p className="span-2 muted small">Katılımcı listesi seride oluşturulan her kayda eklenir; daha sonra her kayıtta ayrı düzenlenebilir.</p> : null}
-          <div className="form-actions span-2">
-            <button type="submit" className="btn-primary" disabled={saving || participantsLoading}>
-              {saving ? 'Kaydediliyor…' : isEdit ? 'Güncelle' : 'Kaydet'}
-            </button>
-          </div>
+          </fieldset>
         </form>
       </section>
     </div>
@@ -934,6 +966,11 @@ export function EventDetailPage() {
 
         {error ? <p className="form-error">{error}</p> : null}
 
+        <section className="event-requirements">
+          <div className="event-assets-heading"><div><h3>Talepler ve ihtiyaçlar</h3><p>Etkinlik için talep edilen hizmet ve malzemeler</p></div>{canManage && <Link className="btn-secondary" to={`/events/${item.id}/edit`}>Talepleri düzenle</Link>}</div>
+          <p className="event-requirements-body">{item.requirements?.trim() || 'Henüz talep veya ihtiyaç eklenmedi.'}</p>
+        </section>
+        <EventMediaPanel eventId={item.id} canManage={canManage} />
         <EventParticipants names={item.participantNames ?? []} eventId={item.id} />
 
         {canManage && transitions.length > 0 ? (

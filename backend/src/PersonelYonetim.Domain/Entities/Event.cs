@@ -10,6 +10,7 @@ public class Event : AuditableEntity
 {
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
+    public string? Requirements { get; set; }
 
     /// <summary>Validated participant names in their original order; no automatic attendance count.</summary>
     public string? ParticipantNamesJson { get; set; }

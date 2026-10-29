@@ -37,6 +37,7 @@ public sealed class EventDetailDto
     public Guid Id { get; init; }
     public string Title { get; init; } = string.Empty;
     public string? Description { get; init; }
+    public string? Requirements { get; init; }
     public EventStatus Status { get; init; }
     public string StatusLabel { get; init; } = string.Empty;
     public DateTime StartAtUtc { get; init; }
@@ -128,6 +129,7 @@ public sealed class CreateEventCommand : IRequest<Guid>
 {
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
+    public string? Requirements { get; set; }
     public DateTime StartAtUtc { get; set; }
     public bool? IsDateOnly { get; set; }
     public DateTime? EndAtUtc { get; set; }
@@ -155,6 +157,7 @@ public sealed class UpdateEventCommand : IRequest
     public Guid Id { get; set; }
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
+    public string? Requirements { get; set; }
     public DateTime StartAtUtc { get; set; }
     public bool? IsDateOnly { get; set; }
     public DateTime? EndAtUtc { get; set; }
@@ -203,6 +206,7 @@ public sealed class CreateEventCommandValidator : AbstractValidator<CreateEventC
     {
         RuleFor(x => x.Title).NotEmpty().WithMessage("Etkinlik başlığı zorunludur.").MaximumLength(200);
         RuleFor(x => x.Description).MaximumLength(4000);
+        RuleFor(x => x.Requirements).MaximumLength(8000);
         RuleFor(x => x.ParticipantNames).Must(x => x == null || x.Count <= 5000).WithMessage("En fazla 5000 isim yüklenebilir.");
         RuleForEach(x => x.ParticipantNames).Must(x => !string.IsNullOrWhiteSpace(x) && x.Trim().Length <= 200 && !x.Any(char.IsControl)).WithMessage("Katılımcı adı boş olamaz ve en fazla 200 karakter olabilir.");
         RuleFor(x => x.Address).MaximumLength(500);
@@ -242,6 +246,7 @@ public sealed class UpdateEventCommandValidator : AbstractValidator<UpdateEventC
         RuleFor(x => x.Id).NotEmpty();
         RuleFor(x => x.Title).NotEmpty().WithMessage("Etkinlik başlığı zorunludur.").MaximumLength(200);
         RuleFor(x => x.Description).MaximumLength(4000);
+        RuleFor(x => x.Requirements).MaximumLength(8000);
         RuleFor(x => x.ParticipantNames).Must(x => x == null || x.Count <= 5000).WithMessage("En fazla 5000 isim yüklenebilir.");
         RuleForEach(x => x.ParticipantNames).Must(x => !string.IsNullOrWhiteSpace(x) && x.Trim().Length <= 200 && !x.Any(char.IsControl)).WithMessage("Katılımcı adı boş olamaz ve en fazla 200 karakter olabilir.");
         RuleFor(x => x.Address).MaximumLength(500);

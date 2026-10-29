@@ -1051,6 +1051,8 @@ namespace PersonelYonetim.PostgresMigrations.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<string>("Requirements").HasMaxLength(8000).HasColumnType("character varying(8000)");
+
                     b.Property<string>("Description")
                         .HasMaxLength(4000)
                         .HasColumnType("character varying(4000)");
@@ -1278,6 +1280,60 @@ namespace PersonelYonetim.PostgresMigrations.Migrations
                         .HasFilter("\"Code\" IS NOT NULL AND \"IsDeleted\" = FALSE");
 
                     b.ToTable("FacilityCategories", "personel_app");
+                });
+
+            modelBuilder.Entity("PersonelYonetim.Domain.Entities.EventMedia", b =>
+                {
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<byte[]>("FileData")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)");
+
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Kind").IsRequired().HasMaxLength(10).HasColumnType("character varying(10)");
+                    b.Property<int>("Size").HasColumnType("integer");
+                    b.HasKey("Id");
+                    b.HasIndex("EventId");
+                    b.ToTable("EventMedia", "personel_app");
                 });
 
             modelBuilder.Entity("PersonelYonetim.Domain.Entities.InformationNote", b =>
@@ -3431,6 +3487,16 @@ namespace PersonelYonetim.PostgresMigrations.Migrations
 
                     b.Navigation("Attachments");
                 });
+            modelBuilder.Entity("PersonelYonetim.Domain.Entities.EventMedia", b =>
+                {
+                    b.HasOne("PersonelYonetim.Domain.Entities.Event", "Event")
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                    b.Navigation("Event");
+                });
+
             modelBuilder.Entity("PersonelYonetim.Domain.Entities.InformationNote", b =>
                 {
                     b.HasOne("PersonelYonetim.Domain.Entities.Event", "Event")

@@ -97,6 +97,7 @@ export interface EventSettlementInput {
 export interface EventDetail extends EventListItem {
   participantNames?: string[]
   description?: string | null
+  requirements?: string | null
   organizingUnitId?: string | null
   facilityId?: string | null
   seriesCount?: number
@@ -162,6 +163,7 @@ export interface EventWritePayload {
   participantNames?: string[] | null
   title: string
   description?: string | null
+  requirements?: string | null
   startAtUtc: string
   isDateOnly?: boolean
   endAtUtc?: string | null
