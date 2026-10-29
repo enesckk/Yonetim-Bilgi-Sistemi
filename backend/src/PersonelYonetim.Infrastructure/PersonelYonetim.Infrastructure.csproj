@@ -32,4 +32,8 @@
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.19.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Persistence/Seed/sehitkamil-headmen-20261029.json" />
+  </ItemGroup>
+
 </Project>

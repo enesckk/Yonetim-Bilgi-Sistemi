@@ -98,6 +98,7 @@ internal static class SettlementSeeder
                 path, added, updated);
         }
 
+        await SettlementHeadmenUpdate.SeedAsync(db, ct);
         await SeedOfficialPopulationsAsync(db, environment, logger, ct);
         if (environment.IsDevelopment())
         {
@@ -136,7 +137,7 @@ internal static class SettlementSeeder
         foreach (var row in rows)
         {
             var hash = StableHash(row.OfficialCode + row.Name);
-            row.HeadmanName = $"{HeadmanFirstNames[hash % HeadmanFirstNames.Length]} {HeadmanLastNames[(hash / 17) % HeadmanLastNames.Length]}";
+            row.HeadmanName ??= $"{HeadmanFirstNames[hash % HeadmanFirstNames.Length]} {HeadmanLastNames[(hash / 17) % HeadmanLastNames.Length]}";
             var rest = (hash % 10_000_000).ToString("D7", CultureInfo.InvariantCulture);
             row.HeadmanPhone = "0532" + rest;
             row.UpdatedBy = "seed";

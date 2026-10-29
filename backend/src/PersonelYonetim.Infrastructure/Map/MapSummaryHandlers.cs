@@ -124,7 +124,7 @@ public sealed class GetSettlementSummariesHandler
             {
                 SettlementId = s.Id,
                 OfficialCode = s.OfficialCode,
-                Name = s.Name,
+                Name = s.DisplayName ?? s.Name,
                 DisplayName = s.DisplayName,
                 SettlementType = s.SettlementType,
                 IsRural = s.IsRural,
@@ -199,7 +199,7 @@ public sealed class GetSettlementLookupsHandler
             {
                 Id = s.Id,
                 OfficialCode = s.OfficialCode,
-                Name = s.Name,
+                Name = s.DisplayName ?? s.Name,
                 IsRural = s.IsRural,
                 HeadmanName = s.HeadmanName,
                 HeadmanPhone = s.HeadmanPhone
@@ -308,7 +308,7 @@ public sealed class GetSettlementDetailHandler
         {
             SettlementId = s.Id,
             OfficialCode = s.OfficialCode,
-            Name = s.Name,
+            Name = s.DisplayName ?? s.Name,
             DisplayName = s.DisplayName,
             SettlementType = s.SettlementType,
             IsRural = s.IsRural,
@@ -432,7 +432,7 @@ public sealed class GetSettlementDetailHandler
         {
             SettlementId = hit.SettlementId,
             OfficialCode = hit.OfficialCode,
-            Name = hit.Name,
+            Name = hit.DisplayName ?? hit.Name,
             DisplayName = hit.DisplayName,
             SettlementType = hit.SettlementType,
             IsRural = hit.IsRural,

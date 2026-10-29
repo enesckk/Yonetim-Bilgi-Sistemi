@@ -478,7 +478,7 @@ function EventsMapPageInner() {
       const selected = focusedSummary?.officialCode === String(props.id)
       const dimmed = !selected && coverageFilter != null && level !== coverageFilter
       layer.bindTooltip(
-        `<span class="settlement-label-name">${escapeHtml(props.name)}</span>`,
+        `<span class="settlement-label-name">${escapeHtml(summary?.displayName || props.name)}</span>`,
         {
           permanent: true,
           direction: 'center',
