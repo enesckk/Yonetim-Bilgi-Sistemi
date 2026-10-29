@@ -369,6 +369,8 @@ function EventsMapPageInner() {
     (feature?: GeoJSON.Feature) => {
       const id = String(feature?.properties?.id ?? '')
       const summary = byCode.get(id)
+      // Legacy polygons remain as context; only active catalog entries are selectable neighborhoods.
+      if (!summary) return { color: '#D8E2E9', weight: 0.5, fillColor: '#F1F5F4', fillOpacity: 0.45, interactive: false }
       const level = levelFromCoverage(summary?.activityCount, summary?.coverageRate)
       const selected = focusedSummary?.officialCode === id
       const dimmed = !selected && coverageFilter != null && level !== coverageFilter
@@ -389,6 +391,7 @@ function EventsMapPageInner() {
       const props = feature.properties as MahalleFeature['properties'] | null
       if (!props?.name) return
       const summary = byCode.get(String(props.id))
+      if (!summary) return
       const level = levelFromCoverage(summary?.activityCount, summary?.coverageRate)
       const selected = focusedSummary?.officialCode === String(props.id)
       const dimmed = !selected && coverageFilter != null && level !== coverageFilter

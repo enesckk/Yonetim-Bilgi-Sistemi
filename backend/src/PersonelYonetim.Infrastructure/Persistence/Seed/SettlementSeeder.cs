@@ -99,6 +99,7 @@ internal static class SettlementSeeder
         }
 
         await SettlementHeadmenUpdate.SeedAsync(db, ct);
+        await SettlementCatalog120Update.SeedAsync(db, ct);
         await SeedOfficialPopulationsAsync(db, environment, logger, ct);
         if (environment.IsDevelopment())
         {
