@@ -1,9 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
 import { canSeeAllUnits } from '@/auth/roles'
-import { GeoJSON, MapContainer, useMap } from 'react-leaflet'
-import L from 'leaflet'
-import 'leaflet/dist/leaflet.css'
 import {
   eventPhase,
   eventPhaseLabel,
@@ -20,9 +17,7 @@ import {
 import { ApiClientError } from '@/api/client'
 import { useAuth } from '@/auth/AuthContext'
 import { PermissionCodes } from '@/auth/permissionCodes'
-import { COVERAGE_LEGEND, coverageFill, formatRate, levelFromCoverage } from '@/lib/coverage'
-import { loadMahalleler } from '@/lib/geoCache'
-import { type MahalleFeature } from '@/lib/geo'
+import { COVERAGE_LEGEND, formatRate, levelFromCoverage } from '@/lib/coverage'
 import { PageBackLink } from '@/components/PageBackLink'
 import { formatPhone, telHref } from '@/lib/phone'
 import {
@@ -54,26 +49,10 @@ function formatWhen(iso: string) {
 
 function coverageFact(detail: SettlementSummary, level: 'none' | 'low' | 'medium' | 'good') {
   if (level === 'none') return 'Etkinlik yok'
-  if (detail.coverageRate != null) return `${formatRate(detail.coverageRate)} kaplama`
-  if (level === 'low') return 'Kapsama düşük'
-  if (level === 'medium') return 'Kapsama orta'
-  return 'Kapsama iyi'
-}
-
-function MiniFit({ feature }: { feature: MahalleFeature }) {
-  const map = useMap()
-  useEffect(() => {
-    const layer = L.geoJSON(feature as unknown as GeoJSON.Feature)
-    const bounds = layer.getBounds()
-    const fit = () => {
-      map.invalidateSize()
-      if (bounds.isValid()) map.fitBounds(bounds.pad(0.38), { animate: false })
-    }
-    fit()
-    const id = window.setTimeout(fit, 80)
-    return () => window.clearTimeout(id)
-  }, [feature, map])
-  return null
+  if (detail.coverageRate == null) return 'Oran hesaplanamıyor'
+  if (level === 'low') return 'Hizmet oranı düşük'
+  if (level === 'medium') return 'Hizmet oranı orta'
+  return 'Hizmet oranı yüksek'
 }
 
 export function SettlementDetailPage() {
@@ -92,7 +71,8 @@ function SettlementDetailPageInner() {
 
   const [detail, setDetail] = useState<SettlementSummary | null>(null)
   const [events, setEvents] = useState<EventListItem[]>([])
-  const [feature, setFeature] = useState<MahalleFeature | null>(null)
+  const loadSequence = useRef(0)
+  const [eventsError, setEventsError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [tab, setTab] = useState<'ozet' | 'okullar' | 'tesis' | 'etkinlikler'>('ozet')
@@ -103,22 +83,28 @@ function SettlementDetailPageInner() {
 
   const load = useCallback(async () => {
     if (!canView || !code) return
+    const sequence = ++loadSequence.current
     setLoading(true)
     setError(null)
+    setEventsError(null)
     try {
-      const [row, geo] = await Promise.all([fetchSettlementDetail(code), loadMahalleler()])
+      const row = await fetchSettlementDetail(code)
+      if (sequence !== loadSequence.current) return
       setDetail(row)
-      const match = geo?.features.find((f) => f.properties.id === row.officialCode) ?? null
-      setFeature(match)
-      const ev = await fetchEvents({
-        settlementId: row.settlementId,
-      })
-      setEvents(ev.items)
+      setEvents([])
+      try {
+        const ev = await fetchEvents({ settlementId: row.settlementId })
+        if (sequence === loadSequence.current) setEvents(ev.items)
+      } catch {
+        if (sequence === loadSequence.current) setEventsError('Etkinlik listesi yüklenemedi. Yeniden deneyin.')
+      }
     } catch (err) {
-      setError(err instanceof ApiClientError ? err.message : 'Mahalle bilgisi yüklenemedi.')
-      setDetail(null)
+      if (sequence === loadSequence.current) {
+        setError(err instanceof ApiClientError ? err.message : 'Mahalle bilgisi yüklenemedi.')
+        setDetail(null)
+      }
     } finally {
-      setLoading(false)
+      if (sequence === loadSequence.current) setLoading(false)
     }
   }, [canView, code])
 
@@ -146,19 +132,6 @@ function SettlementDetailPageInner() {
   const facilities = detail?.facilities ?? []
   const areas = detail?.areas ?? []
   const venueCount = facilities.length + areas.length
-
-  const categoryMix = useMemo(() => {
-    const counts = new Map<string, { label: string; n: number }>()
-    for (const e of events) {
-      if (e.status === 3) continue
-      const key = e.category || 'uncategorized'
-      const label = e.categoryLabel || 'Tür yok'
-      const row = counts.get(key) ?? { label, n: 0 }
-      row.n += 1
-      counts.set(key, row)
-    }
-    return [...counts.values()].sort((a, b) => b.n - a.n)
-  }, [events])
 
   if (!canView) {
     return (
@@ -192,20 +165,16 @@ function SettlementDetailPageInner() {
   const addEventTo = `/events/new?settlement=${encodeURIComponent(detail.settlementId)}`
 
   return (
-    <div className="settlement-page">
+    <div className="settlement-page settlement-page-simple">
       <header className="settlement-hero">
         <div>
           <PageBackLink to={backTo}>Mahallelere dön</PageBackLink>
+          <p className="settlement-municipality">Şehitkamil Belediyesi</p>
           <div className="settlement-hero-title">
             <h1>{detail.name}</h1>
             <span className={`settlement-cov-pill is-${level}`}>{legend?.label ?? 'Kaplama'}</span>
           </div>
           <p className="settlement-hero-meta">
-            {detail.population != null ? (
-              <span>{detail.population.toLocaleString('tr-TR')} kişi</span>
-            ) : (
-              <span>Nüfus yok</span>
-            )}
             <span>{schools.length} okul</span>
             <span>{venueCount} tesis / alan</span>
             {detail.lastActivityDate ? <span>Son {formatDay(detail.lastActivityDate)}</span> : null}
@@ -234,117 +203,49 @@ function SettlementDetailPageInner() {
         </button>
         <button type="button" className={tab === 'etkinlikler' ? 'is-on' : ''} onClick={() => setTab('etkinlikler')}>
           Etkinlikler
-          <em>{events.length}</em>
+          <em>{eventsError ? '—' : events.length}</em>
         </button>
       </nav>
 
+      {eventsError ? <div className="settlement-events-error" role="alert"><p>{eventsError}</p><button type="button" className="btn-secondary" onClick={() => void load()}>Yeniden dene</button></div> : null}
+
       {tab === 'ozet' ? (
         <>
-          <section className="settlement-overview">
-            <div className="settlement-sheet">
-              <article className="settlement-sheet-row">
-                <h2>Durum</h2>
-                <p className="settlement-stat">{coverageFact(detail, level)}</p>
-                {detail.coverageRate != null ? (
-                  <div className="settlement-bar" aria-hidden>
-                    <div
-                      className={`is-${level}`}
-                      style={{ width: `${Math.min(100, Math.max(0, detail.coverageRate ?? 0))}%` }}
-                    />
-                  </div>
-                ) : null}
-                {detail.activityCount > 0 ? (
-                  <p className="muted small">
-                    {detail.activityCount} etkinlik
-                    {detail.attendanceCount
-                      ? ` · ${detail.attendanceCount.toLocaleString('tr-TR')} katılım`
-                      : ''}
-                  </p>
-                ) : null}
-              </article>
-
-              <article className="settlement-sheet-row">
-                <h2>Nüfus</h2>
-                <p className="settlement-stat">{detail.population?.toLocaleString('tr-TR') ?? '—'}</p>
-                <p className="muted small">
-                  {detail.populationYear
-                    ? `${detail.populationYear}${detail.populationIsOfficial ? ' ADNKS' : ''}`
-                    : 'Resmi nüfus yok'}
-                </p>
-                <ul className="settlement-demo">
-                  {detail.maleCount != null ? <li>{detail.maleCount.toLocaleString('tr-TR')} erkek</li> : null}
-                  {detail.femaleCount != null ? <li>{detail.femaleCount.toLocaleString('tr-TR')} kadın</li> : null}
-                  {detail.childCount != null ? <li>{detail.childCount.toLocaleString('tr-TR')} çocuk</li> : null}
-                </ul>
-              </article>
-
-              <article className="settlement-sheet-row">
-                <h2>Muhtar</h2>
-                <p className="settlement-stat settlement-stat-name">{detail.headmanName || 'Kayıt yok'}</p>
-                {phoneLabel ? (
-                  <p className="settlement-sheet-contact">
-                    {call ? <a href={call}>{phoneLabel}</a> : phoneLabel}
-                    {call ? (
-                      <a className="settlement-call" href={call}>
-                        Ara
-                      </a>
-                    ) : null}
-                  </p>
-                ) : (
-                  <p className="muted small">Telefon yok</p>
-                )}
-              </article>
-
-              <article className="settlement-sheet-row is-last">
-                <h2>Yerleşim</h2>
-                <p className="settlement-sheet-links">
-                  <button type="button" onClick={() => setTab('okullar')}>
-                    {schools.length} okul
-                  </button>
-                  <button type="button" onClick={() => setTab('tesis')}>
-                    {venueCount} tesis / alan
-                  </button>
-                  <button type="button" onClick={() => setTab('etkinlikler')}>
-                    {events.length} etkinlik
-                  </button>
-                </p>
-                {canManage ? (
-                  <button type="button" className="settlement-sheet-edit" onClick={() => setEditRecord((v) => !v)}>
-                    {editRecord ? 'Düzenlemeyi kapat' : 'Nüfus ve muhtarı düzenle'}
-                  </button>
-                ) : null}
-              </article>
+          <section className="settlement-simple-overview" aria-label="Mahalle özeti">
+            <div className="settlement-population-cards">
+              <article><strong>{detail.population?.toLocaleString('tr-TR') ?? '—'}</strong><span>Toplam nüfus</span></article>
+              <article className="is-female"><strong>{detail.femaleCount?.toLocaleString('tr-TR') ?? '—'}</strong><span>Kadın nüfusu</span></article>
+              <article className="is-male"><strong>{detail.maleCount?.toLocaleString('tr-TR') ?? '—'}</strong><span>Erkek nüfusu</span></article>
             </div>
+            <p className="settlement-population-source">
+              {detail.population == null ? 'Nüfus bilgisi henüz eklenmemiş' : detail.populationYear ? `${detail.populationYear}${detail.populationIsOfficial ? ' ADNKS' : ''} nüfus verisi` : 'Nüfus yılı belirtilmemiş'}
+              {detail.childCount != null ? ` · ${detail.childCount.toLocaleString('tr-TR')} çocuk` : ''}
+            </p>
 
-            {feature ? (
-              <article className="settlement-map-card" aria-label="Mahalle konumu">
-                <MapContainer
-                  center={[37.17, 37.35]}
-                  zoom={13}
-                  zoomControl={false}
-                  attributionControl={false}
-                  dragging={false}
-                  scrollWheelZoom={false}
-                  doubleClickZoom={false}
-                  className="settlement-leaflet"
-                >
-                  <MiniFit feature={feature} />
-                  <GeoJSON
-                    data={feature as unknown as GeoJSON.GeoJsonObject}
-                    pathOptions={{
-                      color: level === 'none' ? '#208B5F' : '#ffffff',
-                      weight: level === 'none' ? 2.2 : 2,
-                      fillColor: coverageFill(level),
-                      fillOpacity: level === 'none' ? 0.86 : 0.78,
-                    }}
-                  />
-                </MapContainer>
-              </article>
-            ) : (
-              <article className="settlement-map-card is-empty">
-                <p className="muted">Harita sınırı yok.</p>
-              </article>
-            )}
+            <article className="settlement-contact-card" aria-label="Muhtar bilgisi">
+              <div className="settlement-contact-person">
+                <span className="settlement-contact-avatar" aria-hidden="true">{detail.headmanName?.trim().charAt(0).toLocaleUpperCase('tr-TR') || '—'}</span>
+                <div><h2>{detail.headmanName || 'Muhtar bilgisi eklenmemiş'}</h2><p>{detail.headmanName?.startsWith('Muhtarlık Yok') ? 'OSB bölge yönetimi' : 'Mahalle muhtarı'}</p></div>
+              </div>
+              <div className="settlement-contact-actions">
+                {phoneLabel ? <span className="settlement-contact-number">{call ? <a href={call}>{phoneLabel}</a> : phoneLabel}</span> : <span className="muted small">Telefon bilgisi eklenmemiş</span>}
+                {call ? <a href={call} className="btn-primary settlement-contact-call"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2A19.79 19.79 0 0 1 3.09 5.18 2 2 0 0 1 5.08 3h3a2 2 0 0 1 2 1.72c.12.96.35 1.9.69 2.79a2 2 0 0 1-.45 2.11L9.05 10.9a16 16 0 0 0 4.05 4.05l1.28-1.27a2 2 0 0 1 2.11-.45c.89.34 1.83.57 2.79.69A2 2 0 0 1 22 16.92Z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>Muhtarı ara</a> : null}
+              </div>
+            </article>
+
+            <article className={`settlement-service-card is-${level}`} aria-label="Hizmet oranı">
+              <div className="settlement-service-heading">
+                <div><h2>Hizmet oranı</h2><p>{detail.activityCount === 0 ? 'Henüz etkinlik kaydı yok' : coverageFact(detail, level)}</p></div>
+                <strong className="settlement-service-rate">{formatRate(detail.coverageRate)}</strong>
+              </div>
+              {detail.coverageRate != null ? <div className="settlement-service-track" role="progressbar" aria-label="Hizmet oranı" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(100, Math.max(0, detail.coverageRate))}><span style={{width: `${Math.min(100, Math.max(0, detail.coverageRate))}%`}} /></div> : null}
+              <div className="settlement-service-meta">
+                <span>{detail.activityCount.toLocaleString('tr-TR')} etkinlik</span>
+                <span>{detail.hasUniqueBeneficiaries ? `${(detail.uniqueBeneficiaryCount ?? 0).toLocaleString('tr-TR')} bildirilen yararlanıcı` : `${detail.attendanceCount.toLocaleString('tr-TR')} toplam katılım`}{detail.population != null ? ` / ${detail.population.toLocaleString('tr-TR')} nüfus` : ''}</span>
+              </div>
+              {!detail.hasUniqueBeneficiaries && detail.activityCount > 0 ? <p className="muted small">Oran katılım sayısına dayanır; aynı kişi farklı etkinliklerde yer alabilir.</p> : null}
+            </article>
+            {canManage ? <div className="settlement-summary-actions"><button type="button" className="btn-secondary" onClick={() => setEditRecord(v => !v)}>{editRecord ? 'Düzenlemeyi kapat' : 'Nüfus ve muhtarı düzenle'}</button></div> : null}
           </section>
 
           {canManage && editRecord ? (
@@ -362,41 +263,6 @@ function SettlementDetailPageInner() {
             </section>
           ) : null}
 
-          {upcoming.length > 0 || done.length > 0 ? (
-            <section className="settlement-follow">
-              <div className="settlement-section-head">
-                <h2>{upcoming.length > 0 ? 'Yaklaşan' : 'Son etkinlikler'}</h2>
-                <button type="button" className="skills-link-btn" onClick={() => setTab('etkinlikler')}>
-                  Tümü
-                </button>
-              </div>
-              <ul className="settlement-event-list">
-                {(upcoming.length > 0 ? upcoming : done).slice(0, 3).map((row) => (
-                  <li key={row.id}>
-                    <Link to={`/events/${row.id}`}>
-                      <strong>{row.title}</strong>
-                      <span>
-                        {formatWhen(row.startAtUtc)}
-                        {row.facilityName ? ` · ${row.facilityName}` : ''}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : categoryMix.length > 0 ? (
-            <section className="settlement-mix" aria-label="Etkinlik türleri">
-              <h2>Tür dağılımı</h2>
-              <ul>
-                {categoryMix.map((row) => (
-                  <li key={row.label}>
-                    <span>{row.label}</span>
-                    <strong>{row.n}</strong>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
         </>
       ) : null}
 
@@ -522,7 +388,7 @@ function SettlementDetailPageInner() {
               </Link>
             ) : null}
           </div>
-          {events.length === 0 ? (
+          {eventsError ? null : events.length === 0 ? (
             <div className="settlement-empty">
               <p>Bu mahallede henüz etkinlik yok.</p>
               {canManage ? <Link to={addEventTo}>İlk programı ekle</Link> : null}

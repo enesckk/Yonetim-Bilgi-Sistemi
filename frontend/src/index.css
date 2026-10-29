@@ -19405,3 +19405,53 @@ body { padding-bottom: var(--pwa-install-space, 0px); }
   .events-filters-top .events-segment { width: 100%; }
   .events-filters-top .events-segment button { flex: 1; }
 }
+
+/* Neighborhood detail: demographics, contact and service information without a secondary map. */
+.settlement-page-simple { gap: 16px; }
+.settlement-page-simple .settlement-hero { margin: 0; align-items: center; }
+.settlement-page-simple .settlement-hero h1 { font-size: clamp(1.7rem, 2.5vw, 2.2rem); }
+.settlement-municipality { margin: 14px 0 6px; color: var(--brand-primary); font-size: .72rem; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; }
+.settlement-page-simple .settlement-hero-meta { margin-top: 8px; }
+.settlement-page-simple .settlement-tabs { margin-bottom: 0; }
+.settlement-simple-overview { display: grid; gap: 16px; min-width: 0; }
+.settlement-population-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.settlement-population-cards > article { display: grid; justify-items: center; align-content: center; gap: 5px; min-width: 0; padding: 22px 12px; border: 1px solid #d6e2eb; border-radius: 14px; background: #fff; }
+.settlement-population-cards strong { font-size: clamp(1.6rem, 2.3vw, 2rem); font-weight: 750; color: #243746; }
+.settlement-population-cards span { font-size: .85rem; color: #687b8c; }
+.settlement-population-cards .is-female strong { color: #b95d91; }
+.settlement-population-cards .is-male strong { color: #447db6; }
+.settlement-population-source { margin: -7px 2px 0; color: #71818e; font-size: .76rem; }
+.settlement-contact-card { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 20px; padding: 26px; border: 1px solid #d6e2eb; border-radius: 16px; background: #fff; min-width: 0; }
+.settlement-contact-person { display: flex; align-items: center; gap: 16px; min-width: 0; flex: 1 1 280px; }
+.settlement-contact-person > div { min-width: 0; }
+.settlement-contact-avatar { display: grid; place-items: center; width: 58px; height: 58px; flex: 0 0 58px; border: 2px solid #63ae72; border-radius: 50%; background: #f0f8f1; color: #429356; font-weight: 700; font-size: 1.25rem; }
+.settlement-contact-person h2 { margin: 0; color: #243746; font-size: 1.05rem; font-weight: 700; line-height: 1.5; overflow-wrap: anywhere; }
+.settlement-contact-person p { margin: 3px 0 0; font-size: .85rem; color: #539367; }
+.settlement-contact-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; min-width: 0; }
+.settlement-contact-number { color: #5b6e81; font-size: .95rem; }
+.settlement-contact-number a { color: inherit; text-decoration: none; }
+.settlement-contact-call { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; }
+.settlement-service-card { display: grid; gap: 15px; padding: 24px 26px; border: 1px solid #d6e2eb; border-radius: 16px; background: #fff; min-width: 0; }
+.settlement-service-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.settlement-service-heading h2 { margin: 0 0 6px; font-size: .72rem; font-weight: 700; color: #6d7e8c; letter-spacing: .08em; text-transform: uppercase; }
+.settlement-service-heading p { margin: 0; font-weight: 600; font-size: .95rem; color: #374f60; }
+.settlement-service-rate { font-size: 1.8rem; color: #263b4c; }
+.settlement-service-track { height: 9px; border-radius: 12px; overflow: hidden; background: #e9eef2; }
+.settlement-service-track > span { display: block; height: 100%; border-radius: inherit; background: #dfae2b; }
+.settlement-service-card.is-good .settlement-service-track > span { background: #259c71; }
+.settlement-service-card.is-low .settlement-service-track > span { background: #dc6868; }
+.settlement-service-meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 16px; font-size: .82rem; color: #687c8c; }
+.settlement-service-card > p { margin: 0; }
+.settlement-summary-actions { display: flex; justify-content: flex-end; }
+.settlement-events-error { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border: 1px solid #f2caca; border-radius: 12px; color: #a23b3b; background: #fff5f5; }
+.settlement-events-error p { margin: 0; }
+@media (max-width: 600px) {
+  .settlement-population-cards { gap: 8px; }
+  .settlement-population-cards > article { padding: 18px 5px; border-radius: 11px; }
+  .settlement-population-cards span { font-size: .73rem; }
+  .settlement-contact-card, .settlement-service-card { padding: 18px; }
+  .settlement-contact-actions { width: 100%; justify-content: space-between; }
+  .settlement-summary-actions > button { width: 100%; }
+}
+.settlement-page-simple .settlement-tabs { overflow-x: auto; }
+.settlement-page-simple .settlement-tabs button { flex: 0 0 auto; white-space: nowrap; min-height: 44px; }
