@@ -202,7 +202,7 @@ export function AppLayout() {
     }
   }, [collapsed])
 
-  const moduleFromPath: AppModule = canEvents && location.pathname.startsWith('/events') ? 'events' : 'personnel'
+  const moduleFromPath: AppModule = canEvents && (location.pathname.startsWith('/events') || location.pathname === '/information-notes') ? 'events' : 'personnel'
   const [savedAppModule, setAppModule] = useState<AppModule>(() => {
     try {
       const saved = localStorage.getItem(MODULE_KEY)
@@ -275,7 +275,6 @@ export function AppLayout() {
     { to: '/custodies', label: 'Zimmetli malzemeler', icon: <Icon d={I.box} />, permission: PermissionCodes.StockView },
     { to: '/units', label: 'Birimler', icon: <Icon d={I.building} />, permission: PermissionCodes.OrganizationView },
     { to: '/facilities', label: 'Tesisler', icon: <Icon d={I.facility} />, permission: PermissionCodes.OrganizationView },
-    ...(hasPermission(PermissionCodes.EventsView) && seesAllUnits ? [{ to: '/information-notes', label: 'Bilgi notları', icon: <Icon d={I.catalog} />, permission: PermissionCodes.EventsView }] : []),
     { to: '/organization', label: 'Organizasyon şeması', icon: <Icon d={I.chart} />, permission: PermissionCodes.OrganizationView },
     { to: '/skills', label: 'Yetkinlikler', icon: <Icon d={I.skill} />, permission: PermissionCodes.EmployeesView },
     { to: '/certificates', label: 'Sertifikalar', icon: <Icon d={I.certificate} />, permission: PermissionCodes.EmployeesView },
@@ -295,7 +294,6 @@ export function AppLayout() {
     { to: '/custodies', label: 'Zimmetli malzemeler', icon: <Icon d={I.box} />, permission: PermissionCodes.StockView },
     { to: '/tasks', label: 'İş ataması', icon: <Icon d={I.history} />, permission: PermissionCodes.TasksView },
     { to: '/facilities', label: 'Tesisler', icon: <Icon d={I.facility} />, permission: PermissionCodes.OrganizationView },
-    ...(hasPermission(PermissionCodes.EventsView) && seesAllUnits ? [{ to: '/information-notes', label: 'Bilgi notları', icon: <Icon d={I.catalog} />, permission: PermissionCodes.EventsView }] : []),
     { to: '/organization', label: 'Organizasyon şeması', icon: <Icon d={I.chart} />, permission: PermissionCodes.OrganizationView },
     {
       to: '/notifications',
