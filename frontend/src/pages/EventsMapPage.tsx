@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { eventDateRange } from '@/lib/eventsDates'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { GeoJSON, MapContainer, useMap } from 'react-leaflet'
 import L, { type LatLngBoundsExpression, type Layer, type Path } from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { fetchSettlementSummaries, type SettlementSummary } from '@/api/mapApi'
-import { ApiClientError } from '@/api/client'
 import { useAuth } from '@/auth/AuthContext'
 import { PermissionCodes } from '@/auth/permissionCodes'
 import { canSeeAllUnits } from '@/auth/roles'
@@ -34,6 +34,7 @@ const EVENT_CATEGORIES = [
   { value: 'social_support', label: 'Sosyal Destek' },
   { value: 'culture', label: 'Kültür / Sanat' },
   { value: 'trip', label: 'Gezi' },
+  { value: 'project', label: 'Proje' },
   { value: 'sports', label: 'Spor' },
   { value: 'youth', label: 'Çocuk / Gençlik' },
   { value: 'women', label: 'Kadın' },
@@ -315,6 +316,11 @@ function EventsMapPageInner() {
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
   const [category, setCategory] = useState('')
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [activeHit, setActiveHit] = useState(0)
+  const summarySequence = useRef(0)
+  const searchRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
   const [filterOpen, setFilterOpen] = useState(false)
   const [coverageFilter, setCoverageFilter] = useState<(typeof COVERAGE_LEGEND)[number]['level'] | null>(
     null,
@@ -338,25 +344,23 @@ function EventsMapPageInner() {
 
   const loadSummary = useCallback(async () => {
     if (!canView) return
+    const sequence = ++summarySequence.current
     setLoading(true)
     setError(null)
     try {
       const range =
         preset === 'custom'
-          ? {
-              fromUtc: customFrom ? new Date(customFrom).toISOString() : undefined,
-              toUtc: customTo ? new Date(customTo).toISOString() : undefined,
-            }
+          ? eventDateRange(customFrom, customTo)
           : dateRangeForPreset(preset)
       const data = await fetchSettlementSummaries({
         ...range,
         category: category || undefined,
       })
-      setSummaries(data.items)
+      if (sequence === summarySequence.current) setSummaries(data.items)
     } catch (err) {
-      setError(err instanceof ApiClientError ? err.message : 'Harita özeti yüklenemedi.')
+      if (sequence === summarySequence.current) setError(err instanceof Error ? err.message : 'Harita özeti yüklenemedi.')
     } finally {
-      setLoading(false)
+      if (sequence === summarySequence.current) setLoading(false)
     }
   }, [canView, category, customFrom, customTo, preset])
 
@@ -400,17 +404,37 @@ function EventsMapPageInner() {
   )
 
   const searchHits = useMemo(() => {
-    const q = search.trim().toLocaleLowerCase('tr-TR')
-    if (!q) return []
+    const q = selectedCode ? '' : search.trim().toLocaleLowerCase('tr-TR')
     return summaries
-      .filter((s) => s.name.toLocaleLowerCase('tr-TR').includes(q))
-      .slice(0, 12)
-  }, [search, summaries])
+      .filter((s) => !q || s.name.toLocaleLowerCase('tr-TR').includes(q) || s.headmanName?.toLocaleLowerCase('tr-TR').includes(q))
+      .sort((a, b) => a.name.localeCompare(b.name, 'tr'))
+  }, [search, summaries, selectedCode])
+
+  useEffect(() => {
+    if (!pickerOpen) return
+    const closeOutside = (event: PointerEvent) => {
+      if (!searchRef.current?.contains(event.target as Node)) setPickerOpen(false)
+    }
+    const closeEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') setPickerOpen(false) }
+    document.addEventListener('pointerdown', closeOutside)
+    document.addEventListener('keydown', closeEscape)
+    return () => {
+      document.removeEventListener('pointerdown', closeOutside)
+      document.removeEventListener('keydown', closeEscape)
+    }
+  }, [pickerOpen])
+
+  function selectNeighborhood(row: SettlementSummary) {
+    setSearch(row.name)
+    setSelectedCode(row.officialCode)
+    setPickerOpen(false)
+    setActiveHit(0)
+  }
 
   const focusedSummary = useMemo(() => {
     if (selectedCode) return byCode.get(selectedCode) ?? null
-    return searchHits.length === 1 ? searchHits[0] : null
-  }, [byCode, searchHits, selectedCode])
+    return search.trim() && searchHits.length === 1 ? searchHits[0] : null
+  }, [byCode, searchHits, selectedCode, search])
 
   const focusedFeature = useMemo(() => {
     if (!focusedSummary) return null
@@ -571,8 +595,8 @@ function EventsMapPageInner() {
           </select>
           {preset === 'custom' ? (
             <>
-              <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
-              <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
+              <input type="date" aria-label="Harita başlangıç tarihi" max={customTo || undefined} value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
+              <input type="date" aria-label="Harita bitiş tarihi" min={customFrom || undefined} value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
             </>
           ) : null}
           <select value={category} onChange={(e) => setCategory(e.target.value)} aria-label="Etkinlik türü">
@@ -659,9 +683,9 @@ function EventsMapPageInner() {
         <div className="events-map-shell">
           {loading ? <div className="ops-map-loading">Harita özeti yükleniyor…</div> : null}
 
-          <div className="ops-map-float-search map-search-bar">
+          <div ref={searchRef} className={`ops-map-float-search map-search-bar${pickerOpen ? ' is-picker-open' : ''}`} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setPickerOpen(false) }}>
             <MahalleViewSwitch view={view} onChange={setView} />
-            <label className="ops-map-search-field">
+            <div className="ops-map-search-field">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path
                   d="M21 21l-4.35-4.35M19 11a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z"
@@ -671,36 +695,53 @@ function EventsMapPageInner() {
                 />
               </svg>
               <input
+                ref={inputRef}
+                role="combobox"
+                aria-expanded={pickerOpen}
+                aria-controls="map-neighborhood-options"
+                aria-autocomplete="list"
+                aria-activedescendant={pickerOpen && searchHits[activeHit] ? `map-neighborhood-${activeHit}` : undefined}
+                onFocus={() => setPickerOpen(true)}
+                onKeyDown={event => {
+                  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                    event.preventDefault()
+                    setPickerOpen(true)
+                    const next = Math.max(0, Math.min(searchHits.length - 1, pickerOpen ? activeHit + (event.key === 'ArrowDown' ? 1 : -1) : 0))
+                    setActiveHit(next)
+                    document.getElementById(`map-neighborhood-${next}`)?.scrollIntoView({ block: 'nearest' })
+                  } else if (event.key === 'Enter' && pickerOpen && searchHits[activeHit]) {
+                    event.preventDefault()
+                    selectNeighborhood(searchHits[activeHit])
+                  } else if (event.key === 'Escape') setPickerOpen(false)
+                }}
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value)
                   setSelectedCode(null)
+                  setPickerOpen(true)
+                  setActiveHit(0)
                 }}
                 placeholder="Mahalle ara veya seç…"
                 aria-label="Mahalle ara"
               />
-            </label>
-            {searchHits.length > 1 && search.trim() && !selectedCode ? (
-              <ul className="map-search-results" role="listbox">
-                {searchHits.map((s) => (
-                  <li key={s.settlementId}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSearch(s.name)
-                        setSelectedCode(s.officialCode)
-                      }}
-                    >
-                      <strong>{s.name}</strong>
-                      <span>
-                        {s.activityCount === 0
-                          ? 'Etkinlik yok'
-                          : `${s.activityCount} etkinlik${s.coverageRate != null ? ` · ${formatRate(s.coverageRate)}` : ''}`}
-                      </span>
+              <button type="button" className="map-neighborhood-toggle" aria-label={pickerOpen ? 'Mahalle listesini kapat' : 'Mahalle listesini aç'} aria-expanded={pickerOpen} aria-controls="map-neighborhood-options" onClick={() => setPickerOpen(open => !open)}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d={pickerOpen ? 'm6 15 6-6 6 6' : 'm6 9 6 6 6-6'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              </button>
+            </div>
+            {pickerOpen ? (
+              <section className="map-neighborhood-picker" aria-label="Mahalle seçimi">
+                <header><strong>MAHALLE SEÇİMİ</strong><span>{searchHits.length} mahalle</span></header>
+                <ul id="map-neighborhood-options" className="map-neighborhood-options" role="listbox" aria-label="Mahalleler">
+                  {searchHits.map((row, index) => <li key={row.settlementId} role="presentation">
+                    <button id={`map-neighborhood-${index}`} type="button" role="option" aria-selected={selectedCode === row.officialCode} className={selectedCode === row.officialCode || (!selectedCode && activeHit === index) ? 'is-highlighted' : ''} onClick={() => selectNeighborhood(row)}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z" stroke="currentColor" strokeWidth="1.8" /><circle cx="12" cy="10" r="3" stroke="currentColor" strokeWidth="1.8" /></svg>
+                      <span><strong>{row.name}</strong><small title={row.headmanName ?? undefined}>Muhtar: {row.headmanName || 'Bilgi girilmemiş'}</small></span>
                     </button>
-                  </li>
-                ))}
-              </ul>
+                  </li>)}
+                  {!loading && searchHits.length === 0 ? <li className="map-neighborhood-empty" role="presentation">Mahalle bulunamadı.</li> : null}
+                  {loading ? <li className="map-neighborhood-empty" role="presentation">Mahalleler yükleniyor…</li> : null}
+                </ul>
+              </section>
             ) : null}
             {focusedSummary ? (
               <div className="ops-map-search-selection" role="status">
@@ -766,8 +807,8 @@ function EventsMapPageInner() {
               </label>
               {preset === 'custom' ? (
                 <div className="ops-filter-dates">
-                  <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
-                  <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
+                  <input type="date" aria-label="Harita başlangıç tarihi" max={customTo || undefined} value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
+                  <input type="date" aria-label="Harita bitiş tarihi" min={customFrom || undefined} value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
                 </div>
               ) : null}
               <label>

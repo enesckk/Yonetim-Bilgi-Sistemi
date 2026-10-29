@@ -26,9 +26,11 @@ public sealed class EventsController : ControllerBase
         [FromQuery] DateTime? toUtc,
         [FromQuery] Guid? settlementId,
         [FromQuery] Guid? facilityId,
+        [FromQuery] string? category,
+        [FromQuery] string? kind,
         CancellationToken ct)
     {
-        var result = await _sender.Send(new GetEventsQuery(search, status, fromUtc, toUtc, settlementId, facilityId), ct);
+        var result = await _sender.Send(new GetEventsQuery(search, status, fromUtc, toUtc, settlementId, facilityId, category, kind), ct);
         return Ok(ApiResponse<EventListDto>.Ok(result, HttpContext.TraceIdentifier));
     }
 
@@ -106,6 +108,34 @@ public sealed class EventsController : ControllerBase
             new ImportEventsCommand { FileStream = stream, FileName = file.FileName },
             ct);
         return Ok(ApiResponse<EventImportResultDto>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
+    [HttpPost("participants/preview")]
+    [RequirePermission(PermissionCodes.EventsManage)]
+    [RequestSizeLimit(11 * 1024 * 1024)]
+    public async Task<ActionResult<ApiResponse<EventParticipantsPreview>>> PreviewParticipants(IFormFile file, CancellationToken ct)
+    {
+        if (file is null || file.Length == 0 || file.Length > 10 * 1024 * 1024)
+            return BadRequest(ApiResponse<EventParticipantsPreview>.Fail(new ApiError { Code = "VALIDATION", Message = "Boş olmayan, en fazla 10 MB büyüklüğünde bir Excel dosyası yükleyin." }, HttpContext.TraceIdentifier));
+        await using var stream = file.OpenReadStream();
+        var result = await _sender.Send(new PreviewEventParticipantsCommand(stream, file.FileName), ct);
+        return Ok(ApiResponse<EventParticipantsPreview>.Ok(result, HttpContext.TraceIdentifier));
+    }
+
+    [HttpGet("participants/template")]
+    [RequirePermission(PermissionCodes.EventsManage)]
+    public async Task<IActionResult> ParticipantsTemplate(CancellationToken ct)
+    {
+        var file = await _sender.Send(new GetEventParticipantsFileQuery(), ct);
+        return File(file.Content, file.ContentType, file.FileName);
+    }
+
+    [HttpGet("{id:guid}/participants/export")]
+    [RequirePermission(PermissionCodes.EventsView)]
+    public async Task<IActionResult> ExportParticipants(Guid id, CancellationToken ct)
+    {
+        var file = await _sender.Send(new GetEventParticipantsFileQuery(id), ct);
+        return File(file.Content, file.ContentType, file.FileName);
     }
 
     [HttpGet("{id:guid}")]

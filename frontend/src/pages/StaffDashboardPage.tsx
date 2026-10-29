@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchDashboardSummary, type DashboardCards, type DashboardSummary } from '@/api/dashboardApi'
-import { fetchStockSummary, fmtQty as fmtStock, type StockSummary } from '@/api/stockApi'
 import { ApiClientError } from '@/api/client'
 import { useAuth } from '@/auth/AuthContext'
 import { PermissionCodes } from '@/auth/permissionCodes'
@@ -30,9 +29,8 @@ function Icon({ d }: { d: string }) {
 export function StaffDashboardPage() {
   const { hasPermission } = useAuth()
   const canView = hasPermission(PermissionCodes.DashboardView)
-  const canStock = hasPermission(PermissionCodes.StockView) || hasPermission(PermissionCodes.StockManage)
+  const canEvents = hasPermission(PermissionCodes.EventsView)
   const [data, setData] = useState<DashboardSummary | null>(null)
-  const [stock, setStock] = useState<StockSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -46,13 +44,9 @@ export function StaffDashboardPage() {
       setLoading(true)
       setError(null)
       try {
-        const [summary, stockSummary] = await Promise.all([
-          fetchDashboardSummary(),
-          canStock ? fetchStockSummary().catch(() => null) : Promise.resolve(null),
-        ])
+        const summary = await fetchDashboardSummary()
         if (!cancelled) {
           setData(summary)
-          setStock(stockSummary)
         }
       } catch (err) {
         if (!cancelled) {
@@ -65,7 +59,7 @@ export function StaffDashboardPage() {
     return () => {
       cancelled = true
     }
-  }, [canView, canStock])
+  }, [canView])
 
   if (!canView) {
     return (
@@ -93,7 +87,7 @@ export function StaffDashboardPage() {
               </div>
             </div>
             <p className="muted small employees-toolbar-lead">
-              Kadro, tesis ve stok özeti. Kartlara tıklayınca ilgili liste açılır.
+              Personel, tesis, etkinlik ve proje özeti. Kartlara tıklayınca ilgili liste açılır.
             </p>
           </div>
           <div className="employees-toolbar-actions">
@@ -103,11 +97,7 @@ export function StaffDashboardPage() {
             <Link to="/employees" className="btn-secondary">
               Personeller
             </Link>
-            {canStock ? (
-              <Link to="/stock" className="btn-secondary">
-                Stok takip
-              </Link>
-            ) : null}
+            {canEvents ? <Link to="/events/list?kind=event" className="btn-secondary">Etkinlikler</Link> : null}
             <Link to="/organization" className="btn-secondary">
               Şema
             </Link>
@@ -144,56 +134,20 @@ export function StaffDashboardPage() {
               {loading ? 'Sayılar yükleniyor' : `${fmt(cards?.activeFacilities)} aktif tesiste faaliyet`}
             </small>
           </Link>
-          {canStock ? (
-            <Link to="/stock" className="staff-dash-card is-stock">
-              <span>
-                <Icon d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
-                Stok takip
-              </span>
-              <strong className={loading ? 'is-skeleton' : undefined}>
-                {loading ? '—' : fmtStock(stock?.catalogCount ?? 0)}
-              </strong>
-              <small>
-                {loading
-                  ? 'Sayılar yükleniyor'
-                  : stock
-                    ? `${fmtStock(stock.locationsWithStock)} tesiste malzeme`
-                    : 'Stok özetine geçin'}
-              </small>
-            </Link>
-          ) : (
-            <Link to="/organization" className="staff-dash-card is-units">
-              <span>
-                <Icon d="M4 21V6l8-3v18M4 9h8M15 21V10h5v11" />
-                Şema
-              </span>
-              <strong>Açık</strong>
-              <small>Organizasyon ve kadro</small>
-            </Link>
-          )}
-          {canStock ? (
-            <Link to="/stock" className="staff-dash-card is-stock-low">
-              <span>
-                <Icon d="M12 9v4M12 17h.01M10.3 4.3 2.8 17a2 2 0 0 0 1.7 3h15a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0Z" />
-                Kritik
-              </span>
-              <strong className={loading ? 'is-skeleton' : undefined}>
-                {loading ? '—' : fmtStock(stock?.lowCount ?? 0)}
-              </strong>
-              <small>Asgari miktarın altında</small>
-            </Link>
-          ) : (
-            <Link to="/units" className="staff-dash-card is-stock">
-              <span>
-                <Icon d="M4 21V6l8-3v18M4 9h8M15 21V10h5v11" />
-                Birimler
-              </span>
-              <strong className={loading ? 'is-skeleton' : undefined}>
-                {loading ? '—' : fmt(cards?.totalUnits)}
-              </strong>
-              <small>Ana ve alt birimler</small>
-            </Link>
-          )}
+          {canEvents ? (
+            <>
+              <Link to="/events/list?kind=event" className="staff-dash-card is-events">
+                <span><Icon d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2Z" />Etkinlik</span>
+                <strong className={loading ? 'is-skeleton' : undefined}>{loading ? '—' : fmt(cards?.totalEvents)}</strong>
+                <small>Gezi dahil tüm etkinlikler</small>
+              </Link>
+              <Link to="/events/list?kind=project" className="staff-dash-card is-projects">
+                <span><Icon d="M3 7h7l2 2h9v11H3V7ZM3 7V4h7l2 3" />Projeler</span>
+                <strong className={loading ? 'is-skeleton' : undefined}>{loading ? '—' : fmt(cards?.totalProjects)}</strong>
+                <small>Kayıtlı projeler</small>
+              </Link>
+            </>
+          ) : null}
         </div>
 
         <div className="staff-dash-grid">

@@ -1,4 +1,4 @@
-import { apiRequest } from './client'
+import { apiRequest, apiUploadJson, apiDownloadFile } from './client'
 import { invalidateCached } from '@/lib/lookupCache'
 
 export type EventStatus = 1 | 2 | 3 | 4
@@ -93,6 +93,7 @@ export interface EventSettlementInput {
 }
 
 export interface EventDetail extends EventListItem {
+  participantNames?: string[]
   description?: string | null
   organizingUnitId?: string | null
   facilityId?: string | null
@@ -156,6 +157,7 @@ export interface FacilityCoordsImportResult {
 }
 
 export interface EventWritePayload {
+  participantNames?: string[] | null
   title: string
   description?: string | null
   startAtUtc: string
@@ -222,6 +224,8 @@ export async function fetchEvents(params?: {
   toUtc?: string
   settlementId?: string
   facilityId?: string
+  category?: string
+  kind?: string
 }): Promise<EventListResult> {
   const q = new URLSearchParams()
   if (params?.search) q.set('search', params.search)
@@ -230,6 +234,8 @@ export async function fetchEvents(params?: {
   if (params?.toUtc) q.set('toUtc', params.toUtc)
   if (params?.settlementId) q.set('settlementId', params.settlementId)
   if (params?.facilityId) q.set('facilityId', params.facilityId)
+  if (params?.category) q.set('category', params.category)
+  if (params?.kind) q.set('kind', params.kind)
   const qs = q.toString()
   return apiRequest<EventListResult>(`/api/events${qs ? `?${qs}` : ''}`)
 }
@@ -367,3 +373,12 @@ export async function fetchMapPins(params?: {
   const qs = q.toString()
   return apiRequest<MapPinsResult>(`/api/map/pins${qs ? `?${qs}` : ''}`)
 }
+
+export interface ParticipantPreview { names: string[]; duplicateNameCount: number }
+export function previewEventParticipants(file: File): Promise<ParticipantPreview> {
+  const form = new FormData()
+  form.append('file', file)
+  return apiUploadJson('/api/events/participants/preview', form)
+}
+export function downloadParticipantsTemplate() { return apiDownloadFile('/api/events/participants/template') }
+export function downloadParticipants(id: string) { return apiDownloadFile(`/api/events/${id}/participants/export`) }

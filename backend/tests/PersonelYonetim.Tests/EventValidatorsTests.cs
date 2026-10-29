@@ -6,6 +6,16 @@ namespace PersonelYonetim.Tests;
 
 public class EventValidatorsTests
 {
+    [Fact]
+    public void List_date_range_rejects_reversed_dates_and_allows_single_day()
+    {
+        var start = DateTime.UtcNow;
+        var validator = new GetEventsQueryValidator();
+        Assert.False(validator.Validate(new GetEventsQuery(FromUtc: start, ToUtc: start.AddDays(-1))).IsValid);
+        Assert.True(validator.Validate(new GetEventsQuery(FromUtc: start, ToUtc: start)).IsValid);
+        Assert.False(new PersonelYonetim.Application.Features.Map.GetSettlementSummariesQueryValidator().Validate(new PersonelYonetim.Application.Features.Map.GetSettlementSummariesQuery(FromUtc: start, ToUtc: start.AddDays(-1))).IsValid);
+    }
+
     private static readonly DateTime PastDate = new(2024, 2, 10, 7, 0, 0, DateTimeKind.Utc);
 
     [Theory]

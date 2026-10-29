@@ -44,6 +44,21 @@ export function toDateInput(d: Date) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
+/** A date input represents a local calendar day, inclusive through its last millisecond. */
+export function eventDateRange(from: string, to: string): { fromUtc?: string; toUtc?: string } {
+  function parse(value: string): Date {
+    const date = new Date(`${value}T00:00:00`)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || !Number.isFinite(date.getTime()) || toDateInput(date) !== value)
+      throw new Error('Geçerli bir tarih seçin.')
+    return date
+  }
+  if (from && to && from > to) throw new Error('Bitiş tarihi başlangıç tarihinden önce olamaz.')
+  return {
+    fromUtc: from ? toIso(startOfDay(parse(from))) : undefined,
+    toUtc: to ? toIso(endOfDay(parse(to))) : undefined,
+  }
+}
+
 export type EventExportRow = {
   title: string
   statusLabel: string

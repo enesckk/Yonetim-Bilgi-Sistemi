@@ -11,6 +11,9 @@ public class Event : AuditableEntity
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
 
+    /// <summary>Validated participant names in their original order; no automatic attendance count.</summary>
+    public string? ParticipantNamesJson { get; set; }
+
     public DateTime StartAtUtc { get; set; }
     public DateTime? EndAtUtc { get; set; }
 

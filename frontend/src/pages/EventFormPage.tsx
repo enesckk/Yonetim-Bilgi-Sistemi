@@ -1,3 +1,4 @@
+import { EventParticipants } from '@/components/EventParticipants'
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { fetchOrganizationTree, type OrgNode } from '@/api/organizationApi'
@@ -105,6 +106,7 @@ const EVENT_CATEGORY_OPTIONS = [
   { value: 'social_support', label: 'Sosyal Destek' },
   { value: 'culture', label: 'Kültür / Sanat' },
   { value: 'trip', label: 'Gezi' },
+  { value: 'project', label: 'Proje' },
   { value: 'sports', label: 'Spor' },
   { value: 'youth', label: 'Çocuk / Gençlik' },
   { value: 'women', label: 'Kadın' },
@@ -141,7 +143,9 @@ export function EventFormPage() {
   const canManage = hasPermission(PermissionCodes.EventsManage)
   const directorateWide = canSeeAllUnits(user)
 
-  const [form, setForm] = useState<FormState>(emptyForm)
+  const [form, setForm] = useState<FormState>(() => ({ ...emptyForm(), category: searchParams.get('kind') === 'project' ? 'project' : '' }))
+  const [participantNames, setParticipantNames] = useState<string[]>([])
+  const [participantsLoading, setParticipantsLoading] = useState(false)
   const statusTouched = useRef(false)
   const [initialStatus, setInitialStatus] = useState<EventStatus>(1)
   const [tree, setTree] = useState<OrgNode[]>([])
@@ -200,6 +204,7 @@ export function EventFormPage() {
         if (isEdit && id) {
           const ev = await fetchEventById(id)
           if (cancelled) return
+          setParticipantNames(ev.participantNames ?? [])
           setInitialStatus(ev.status)
           setForm({
             title: ev.title,
@@ -352,6 +357,7 @@ export function EventFormPage() {
           : null,
       allowConflicts,
       category: form.category || null,
+      participantNames,
       settlements: directorateWide
         ? linked
             .filter((x) => x.settlementId)
@@ -380,7 +386,7 @@ export function EventFormPage() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
-    if (!canManage) return
+    if (!canManage || participantsLoading) return
     setSaving(true)
     setError(null)
     try {
@@ -425,7 +431,7 @@ export function EventFormPage() {
         <div className="employees-toolbar">
           <div className="employees-toolbar-title">
             <div className="employees-toolbar-title-row">
-              <h2>{isEdit ? 'Etkinlik düzenle' : 'Etkinlik ekle'}</h2>
+              <h2>{isEdit ? 'Kayıt düzenle' : form.category === 'project' ? 'Proje ekle' : 'Etkinlik / gezi ekle'}</h2>
             </div>
             <p className="muted small employees-toolbar-lead">
               Etkinliğin yerini, tarihini ve türünü seçerek kaydedin.
@@ -451,7 +457,7 @@ export function EventFormPage() {
             <input
               value={form.title}
               onChange={(e) => setField('title', e.target.value)}
-              placeholder="Örn. Konser, seminer, açılış"
+              placeholder="Örn. Konser, kültür gezisi, bilim projesi"
               required
             />
           </label>
@@ -481,7 +487,7 @@ export function EventFormPage() {
             </select>
           </label>
           <label>
-            Tarih *
+            {form.category === 'trip' ? 'Hareket tarihi *' : 'Tarih *'}
             <input
               type="date"
               value={datePart(form.startAtLocal)}
@@ -490,7 +496,7 @@ export function EventFormPage() {
             />
           </label>
           <label>
-            Saat *
+            {form.category === 'trip' ? 'Hareket saati *' : 'Saat *'}
             <input
               type="time"
               value={timePart(form.startAtLocal)}
@@ -501,7 +507,7 @@ export function EventFormPage() {
             />
           </label>
           <label>
-            Bitiş tarihi
+            {form.category === 'trip' ? 'Dönüş tarihi' : 'Bitiş tarihi'}
             <input
               type="date"
               value={datePart(form.endAtLocal)}
@@ -514,7 +520,7 @@ export function EventFormPage() {
             />
           </label>
           <label>
-            Bitiş saati
+            {form.category === 'trip' ? 'Dönüş saati' : 'Bitiş saati'}
             <input
               type="time"
               value={form.endAtLocal ? timePart(form.endAtLocal, '11:00') : ''}
@@ -525,8 +531,8 @@ export function EventFormPage() {
             />
           </label>
           <label>
-            Etkinlik türü
-            <select value={form.category} onChange={(e) => setField('category', e.target.value)}>
+            Kayıt türü
+            <select aria-label="Kayıt türü" value={form.category} onChange={(e) => setField('category', e.target.value)}>
               {EVENT_CATEGORY_OPTIONS.map((c) => (
                 <option key={c.value || 'none'} value={c.value}>
                   {c.label}
@@ -548,6 +554,7 @@ export function EventFormPage() {
           <label>
             Durum
             <select
+              aria-label="Durum"
               value={form.status}
               onChange={(e) => {
                 statusTouched.current = true
@@ -577,7 +584,7 @@ export function EventFormPage() {
               rows={2}
               value={form.description}
               onChange={(e) => setField('description', e.target.value)}
-              placeholder="Kısa not (isteğe bağlı)"
+              placeholder={form.category === 'trip' ? 'Gidilecek yer, güzergâh ve gezi notları' : 'Kısa not (isteğe bağlı)'}
             />
           </label>
           <details className="span-2 events-form-more">
@@ -737,8 +744,10 @@ export function EventFormPage() {
               ) : null}
             </div>
           </details>
+          <EventParticipants names={participantNames} onChange={setParticipantNames} onBusyChange={setParticipantsLoading} disabled={saving} />
+          {!isEdit && form.recurrenceFrequency !== 0 && participantNames.length > 0 ? <p className="span-2 muted small">Katılımcı listesi seride oluşturulan her kayda eklenir; daha sonra her kayıtta ayrı düzenlenebilir.</p> : null}
           <div className="form-actions span-2">
-            <button type="submit" className="btn-primary" disabled={saving}>
+            <button type="submit" className="btn-primary" disabled={saving || participantsLoading}>
               {saving ? 'Kaydediliyor…' : isEdit ? 'Güncelle' : 'Kaydet'}
             </button>
           </div>
@@ -918,6 +927,8 @@ export function EventDetailPage() {
         </div>
 
         {error ? <p className="form-error">{error}</p> : null}
+
+        <EventParticipants names={item.participantNames ?? []} eventId={item.id} />
 
         {canManage && transitions.length > 0 ? (
           <div className="events-status-flow" role="group" aria-label="Durum geçişleri">

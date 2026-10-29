@@ -58,6 +58,7 @@ public sealed class EventDetailDto
     public string? Category { get; init; }
     public string? CategoryLabel { get; init; }
     public IReadOnlyList<EventSettlementDto> Settlements { get; init; } = [];
+    public IReadOnlyList<string> ParticipantNames { get; init; } = [];
     public IReadOnlyList<EventStatus> AllowedTransitions { get; init; } = [];
 }
 
@@ -107,7 +108,9 @@ public sealed record GetEventsQuery(
     DateTime? FromUtc = null,
     DateTime? ToUtc = null,
     Guid? SettlementId = null,
-    Guid? FacilityId = null) : IRequest<EventListDto>;
+    Guid? FacilityId = null,
+    string? Category = null,
+    string? Kind = null) : IRequest<EventListDto>;
 
 public sealed record GetEventByIdQuery(Guid Id) : IRequest<EventDetailDto?>;
 
@@ -139,6 +142,7 @@ public sealed class CreateEventCommand : IRequest<Guid>
     public bool AllowConflicts { get; set; }
     public string? Category { get; set; }
     public List<EventSettlementInputDto> Settlements { get; set; } = [];
+    public List<string>? ParticipantNames { get; set; }
 }
 
 public sealed class UpdateEventCommand : IRequest
@@ -160,6 +164,7 @@ public sealed class UpdateEventCommand : IRequest
     public bool AllowConflicts { get; set; }
     public string? Category { get; set; }
     public List<EventSettlementInputDto> Settlements { get; set; } = [];
+    public List<string>? ParticipantNames { get; set; }
 }
 
 public sealed class ChangeEventStatusCommand : IRequest<EventDetailDto>
@@ -192,6 +197,8 @@ public sealed class CreateEventCommandValidator : AbstractValidator<CreateEventC
     {
         RuleFor(x => x.Title).NotEmpty().WithMessage("Etkinlik başlığı zorunludur.").MaximumLength(200);
         RuleFor(x => x.Description).MaximumLength(4000);
+        RuleFor(x => x.ParticipantNames).Must(x => x == null || x.Count <= 5000).WithMessage("En fazla 5000 isim yüklenebilir.");
+        RuleForEach(x => x.ParticipantNames).Must(x => !string.IsNullOrWhiteSpace(x) && x.Trim().Length <= 200 && !x.Any(char.IsControl)).WithMessage("Katılımcı adı boş olamaz ve en fazla 200 karakter olabilir.");
         RuleFor(x => x.Address).MaximumLength(500);
         RuleFor(x => x.Status).IsInEnum();
         RuleFor(x => x.StartAtUtc).NotEmpty().WithMessage("Başlangıç zamanı zorunludur.");
@@ -229,6 +236,8 @@ public sealed class UpdateEventCommandValidator : AbstractValidator<UpdateEventC
         RuleFor(x => x.Id).NotEmpty();
         RuleFor(x => x.Title).NotEmpty().WithMessage("Etkinlik başlığı zorunludur.").MaximumLength(200);
         RuleFor(x => x.Description).MaximumLength(4000);
+        RuleFor(x => x.ParticipantNames).Must(x => x == null || x.Count <= 5000).WithMessage("En fazla 5000 isim yüklenebilir.");
+        RuleForEach(x => x.ParticipantNames).Must(x => !string.IsNullOrWhiteSpace(x) && x.Trim().Length <= 200 && !x.Any(char.IsControl)).WithMessage("Katılımcı adı boş olamaz ve en fazla 200 karakter olabilir.");
         RuleFor(x => x.Address).MaximumLength(500);
         RuleFor(x => x.Status).IsInEnum();
         RuleFor(x => x.StartAtUtc).NotEmpty().WithMessage("Başlangıç zamanı zorunludur.");
@@ -447,3 +456,14 @@ public sealed class HallBoardDto
 }
 
 public sealed record GetHallBoardQuery(DateTime? FromUtc = null, DateTime? ToUtc = null) : IRequest<HallBoardDto>;
+
+public sealed class GetEventsQueryValidator : AbstractValidator<GetEventsQuery>
+{
+    public GetEventsQueryValidator()
+    {
+        RuleFor(x => x).Must(x => x.FromUtc == null || x.ToUtc == null || x.FromUtc <= x.ToUtc)
+            .WithMessage("Bitiş tarihi başlangıç tarihinden önce olamaz.");
+        RuleFor(x => x.Kind).Must(x => string.IsNullOrEmpty(x) || x is "event" or "project")
+            .WithMessage("Kayıt türü geçersiz.");
+    }
+}

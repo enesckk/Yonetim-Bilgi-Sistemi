@@ -225,3 +225,12 @@ public static class CoverageScale
         : ratePercent < 50 ? Medium
         : Good;
 }
+
+public sealed class GetSettlementSummariesQueryValidator : AbstractValidator<GetSettlementSummariesQuery>
+{
+    public GetSettlementSummariesQueryValidator()
+    {
+        RuleFor(x => x).Must(x => x.FromUtc == null || x.ToUtc == null || x.FromUtc <= x.ToUtc)
+            .WithMessage("Bitiş tarihi başlangıç tarihinden önce olamaz.");
+    }
+}

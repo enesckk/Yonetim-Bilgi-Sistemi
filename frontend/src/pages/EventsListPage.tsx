@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
   deleteEvent,
@@ -15,6 +15,7 @@ import { canImportEvents, isSystemAdmin } from '@/auth/roles'
 import { useAlert, useConfirm } from '@/components/ConfirmDialog'
 import {
   downloadEventsCsv,
+  eventDateRange,
   downloadEventsPdf,
   endOfDay,
   endOfWeek,
@@ -55,7 +56,10 @@ export function EventsListPage() {
   const alert = useAlert()
   const [searchParams, setSearchParams] = useSearchParams()
 
+  const kind = searchParams.get('kind') === 'project' ? 'project' : searchParams.get('kind') === 'event' ? 'event' : ''
+  const category = searchParams.get('category') ?? ''
   const initialPreset = (searchParams.get('preset') as Preset) || ''
+  const loadSequence = useRef(0)
   const [items, setItems] = useState<EventListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -81,6 +85,13 @@ export function EventsListPage() {
 
   const load = useCallback(async () => {
     if (!canView) return
+    const sequence = ++loadSequence.current
+    if (fromDate && toDate && fromDate > toDate) {
+      setError('Bitiş tarihi başlangıç tarihinden önce olamaz.')
+      setItems([])
+      setLoading(false)
+      return
+    }
     setLoading(true)
     setError(null)
     try {
@@ -88,22 +99,25 @@ export function EventsListPage() {
         preset === 'today' || preset === 'week'
           ? presetRange(preset)
           : {
-              from: fromDate ? toIso(startOfDay(new Date(fromDate))) : undefined,
-              to: toDate ? toIso(endOfDay(new Date(toDate))) : undefined,
+              from: eventDateRange(fromDate, toDate).fromUtc,
+              to: eventDateRange(fromDate, toDate).toUtc,
             }
       const data = await fetchEvents({
         search: search.trim() || undefined,
+        kind: kind || undefined,
+        category: category || undefined,
         fromUtc: range.from,
         toUtc: range.to,
       })
+      if (sequence !== loadSequence.current) return
       setItems(data.items)
       setPage(1)
     } catch (err) {
-      setError(err instanceof ApiClientError ? err.message : 'Etkinlikler yüklenemedi.')
+      if (sequence === loadSequence.current) setError(err instanceof Error ? err.message : 'Etkinlikler yüklenemedi.')
     } finally {
-      setLoading(false)
+      if (sequence === loadSequence.current) setLoading(false)
     }
-  }, [canView, fromDate, preset, search, toDate])
+  }, [canView, fromDate, preset, search, toDate, kind, category])
 
   useEffect(() => {
     void load()
@@ -194,7 +208,7 @@ export function EventsListPage() {
         <div className="employees-toolbar">
           <div className="employees-toolbar-title">
             <div className="employees-toolbar-title-row">
-              <h2>Etkinlikler</h2>
+              <h2>{kind === 'project' ? 'Projeler' : 'Etkinlikler'}</h2>
               <div className="stat-chip mobile-inline-chip">{filteredHint}</div>
             </div>
             <p className="muted small employees-toolbar-lead">
@@ -235,7 +249,7 @@ export function EventsListPage() {
                     Excel yükle
                   </Link>
                 ) : null}
-                <Link to="/events/new" className="btn-primary">
+                <Link to={kind === 'project' ? '/events/new?kind=project' : '/events/new'} className="btn-primary">
                   <span className="label-full">+ Yeni</span>
                   <span className="label-short">+ Yeni</span>
                 </Link>
@@ -246,6 +260,12 @@ export function EventsListPage() {
 
         <form className="employees-filters events-filters" onSubmit={onSearch}>
           <div className="events-filters-top">
+            <label>Kayıtlar<select aria-label="Kayıtlar" value={kind} onChange={e => { setPage(1); setSearchParams(prev => { const p = new URLSearchParams(prev); if (e.target.value) p.set('kind', e.target.value); else p.delete('kind'); p.delete('category'); return p }) }}>
+              <option value="">Tüm kayıtlar</option><option value="event">Etkinlikler ve geziler</option><option value="project">Projeler</option>
+            </select></label>
+            {kind !== 'project' ? <label>Tür<select aria-label="Tür" value={category} onChange={e => { setPage(1); setSearchParams(prev => { const p = new URLSearchParams(prev); if (e.target.value) p.set('category', e.target.value); else p.delete('category'); return p }) }}>
+              <option value="">Tüm türler</option><option value="trip">Gezi</option><option value="culture">Kültür / Sanat</option><option value="education">Eğitim</option><option value="health">Sağlık</option><option value="social_support">Sosyal Destek</option><option value="sports">Spor</option><option value="youth">Çocuk / Gençlik</option><option value="women">Kadın</option><option value="elderly">Yaşlı</option><option value="other">Diğer</option>
+            </select></label> : null}
             <div className="events-segment" role="group" aria-label="Hızlı dönem">
               <button
                 type="button"
@@ -289,7 +309,7 @@ export function EventsListPage() {
             </div>
           </div>
           <div className="employees-filters-row events-filters-row">
-            <select
+            <label className="event-date-filter">Durum<select
               value={phase}
               onChange={(e) => setPhase((e.target.value || '') as EventPhase | '')}
               aria-label="Planlanan veya yapılan"
@@ -297,30 +317,32 @@ export function EventsListPage() {
               <option value="">Tümü</option>
               <option value="planned">Planlanan</option>
               <option value="done">Yapılan</option>
-            </select>
-            <input
+            </select></label>
+            <label className="event-date-filter">Başlangıç tarihi<input
               type="date"
+              max={toDate || undefined}
               value={fromDate}
               onChange={(e) => {
                 setPreset('')
                 setFromDate(e.target.value)
               }}
               aria-label="Başlangıç tarihi"
-            />
-            <input
+            /></label>
+            <label className="event-date-filter">Bitiş tarihi<input
               type="date"
+              min={fromDate || undefined}
               value={toDate}
               onChange={(e) => {
                 setPreset('')
                 setToDate(e.target.value)
               }}
               aria-label="Bitiş tarihi"
-            />
-            <select value={sort} onChange={(e) => setSort(e.target.value as SortKey)} aria-label="Sıralama">
+            /></label>
+            <label className="event-date-filter">Sıralama<select value={sort} onChange={(e) => setSort(e.target.value as SortKey)} aria-label="Sıralama">
               <option value="startDesc">Tarih (yeni → eski)</option>
               <option value="startAsc">Tarih (eski → yeni)</option>
               <option value="titleAsc">Başlık (A → Z)</option>
-            </select>
+            </select></label>
             <div className="employees-filters-actions">
               <button
                 type="button"
@@ -343,7 +365,7 @@ export function EventsListPage() {
 
         {error ? <p className="form-error">{error}</p> : null}
 
-        <div className="employees-table-wrap">
+        <div className="employees-table-wrap" role="region" tabIndex={0} aria-label="Kayıt listesi, yatay kaydırılabilir">
           <table className="data-table employees-table">
             <thead>
               <tr>

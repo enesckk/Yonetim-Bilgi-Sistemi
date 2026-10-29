@@ -169,9 +169,22 @@ public sealed class GetDashboardSummaryHandler
             .Where(x => x.Count > 0)
             .ToList();
 
+        var totalEvents = 0;
+        var totalProjects = 0;
+        if (_currentUser.HasPermission(PermissionCodes.EventsView))
+        {
+            var events = _db.Events.AsNoTracking();
+            if (allowedUnits is not null)
+                events = events.Where(e => e.FacilityId != null && allowedUnits.Contains(e.FacilityId.Value));
+            totalProjects = await events.CountAsync(e => e.Category == EventCategories.Project, cancellationToken);
+            totalEvents = await events.CountAsync(e => e.Category == null || e.Category != EventCategories.Project, cancellationToken);
+        }
+
         var cards = new DashboardCardsDto
         {
             TotalEmployees = total,
+            TotalEvents = totalEvents,
+            TotalProjects = totalProjects,
             ActiveEmployees = active,
             PassiveEmployees = passive,
             TotalUnits = totalUnits,

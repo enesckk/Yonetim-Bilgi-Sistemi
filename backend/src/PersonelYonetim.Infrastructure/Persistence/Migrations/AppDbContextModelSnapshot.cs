@@ -998,6 +998,8 @@ namespace PersonelYonetim.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("PersonelYonetim.Domain.Entities.Event", b =>
                 {
+                    b.Property<string>("ParticipantNamesJson").HasColumnType("nvarchar(max)");
+
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");

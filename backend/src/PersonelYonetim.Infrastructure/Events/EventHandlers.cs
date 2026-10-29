@@ -122,6 +122,7 @@ internal static class EventConflictHelper
         Id = e.Id,
         Title = e.Title,
         Description = e.Description,
+        ParticipantNames = string.IsNullOrEmpty(e.ParticipantNamesJson) ? [] : JsonSerializer.Deserialize<List<string>>(e.ParticipantNamesJson) ?? [],
         Status = e.Status,
         StatusLabel = EventLabels.Status(e.Status),
         StartAtUtc = e.StartAtUtc,
@@ -212,6 +213,11 @@ public sealed class GetEventsHandler : IRequestHandler<GetEventsQuery, EventList
             var s = request.Search.Trim();
             q = q.Where(e => e.Title.Contains(s) || (e.Description != null && e.Description.Contains(s)));
         }
+
+        if (!string.IsNullOrWhiteSpace(request.Category))
+            q = q.Where(e => e.Category == request.Category);
+        if (request.Kind == "project") q = q.Where(e => e.Category == EventCategories.Project);
+        else if (request.Kind == "event") q = q.Where(e => e.Category == null || e.Category != EventCategories.Project);
 
         if (request.Status is EventStatus st)
             q = q.Where(e => e.Status == st);
@@ -424,6 +430,7 @@ public sealed class CreateEventHandler : IRequestHandler<CreateEventCommand, Gui
             var entity = new Event
             {
                 Title = request.Title.Trim(),
+                ParticipantNamesJson = request.ParticipantNames is null ? null : JsonSerializer.Serialize(request.ParticipantNames.Select(x => x.Trim())),
                 Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),
                 StartAtUtc = occStart,
                 EndAtUtc = occEnd,
@@ -576,6 +583,8 @@ public sealed class UpdateEventHandler : IRequestHandler<UpdateEventCommand>
         };
 
         entity.Title = request.Title.Trim();
+        if (request.ParticipantNames is not null)
+            entity.ParticipantNamesJson = JsonSerializer.Serialize(request.ParticipantNames.Select(x => x.Trim()));
         entity.Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
         entity.StartAtUtc = DateTime.SpecifyKind(request.StartAtUtc, DateTimeKind.Utc);
         entity.EndAtUtc = request.EndAtUtc is null

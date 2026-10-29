@@ -1018,6 +1018,8 @@ namespace PersonelYonetim.PostgresMigrations.Migrations
 
             modelBuilder.Entity("PersonelYonetim.Domain.Entities.Event", b =>
                 {
+                    b.Property<string>("ParticipantNamesJson").HasColumnType("text");
+
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
