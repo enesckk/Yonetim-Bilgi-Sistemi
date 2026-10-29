@@ -23,7 +23,8 @@ function addDays(d: Date, n: number) {
   return copy
 }
 
-function formatClock(iso: string) {
+function formatClock(iso: string, isDateOnly = false) {
+  if (isDateOnly) return 'Saat belirtilmemiş'
   return new Date(iso).toLocaleTimeString('tr-TR', {
     hour: '2-digit',
     minute: '2-digit',
@@ -31,7 +32,8 @@ function formatClock(iso: string) {
   })
 }
 
-function formatWhen(iso: string) {
+function formatWhen(iso: string, isDateOnly = false) {
+  if (isDateOnly) return new Date(iso).toLocaleDateString('tr-TR', {day:'numeric', month:'short', timeZone:'Europe/Istanbul'})
   return new Date(iso).toLocaleString('tr-TR', {
     day: 'numeric',
     month: 'short',
@@ -227,7 +229,7 @@ export function EventsHallsPage() {
                   {selected.lastDone ? (
                     <Link to={`/events/${selected.lastDone.id}`} className="halls-last">
                       <strong>{selected.lastDone.title}</strong>
-                      <span>{formatWhen(selected.lastDone.startAtUtc)}</span>
+                      <span>{formatWhen(selected.lastDone.startAtUtc, selected.lastDone.isDateOnly)}</span>
                       <em>{peopleLabel(selected.lastDone) ?? 'Katılım girilmedi'}</em>
                     </Link>
                   ) : (
@@ -241,7 +243,7 @@ export function EventsHallsPage() {
                     <Link to={`/events/${selected.next.id}`} className="halls-next">
                       <strong>{selected.next.title}</strong>
                       <span>
-                        {formatWhen(selected.next.startAtUtc)}
+                        {formatWhen(selected.next.startAtUtc, selected.next.isDateOnly)}
                         {selected.next.expectedAttendees
                           ? ` · ${selected.next.expectedAttendees.toLocaleString('tr-TR')} beklenen`
                           : ''}
@@ -302,7 +304,7 @@ function HallRow({
                 {items.map((b) => (
                   <li key={b.id}>
                     <Link to={`/events/${b.id}`} className={b.status === 4 ? 'is-done' : 'is-planned'}>
-                      <em>{formatClock(b.startAtUtc)}</em>
+                      <em>{formatClock(b.startAtUtc, b.isDateOnly)}</em>
                       {b.title}
                       {b.attendanceCount ? ` · ${b.attendanceCount}` : ''}
                     </Link>

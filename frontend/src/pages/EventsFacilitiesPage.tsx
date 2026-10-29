@@ -7,7 +7,8 @@ import { useAuth } from '@/auth/AuthContext'
 import { PermissionCodes } from '@/auth/permissionCodes'
 import { eventVenueCatalog, matchesVenue, venueCards, type VenueCard } from '@/lib/eventVenues'
 
-function clock(iso: string) {
+function clock(iso: string, isDateOnly = false) {
+  if (isDateOnly) return 'Saat belirtilmemiş'
   return new Date(iso).toLocaleTimeString('tr-TR', {
     hour: '2-digit',
     minute: '2-digit',
@@ -62,7 +63,7 @@ function VenueAgenda({
         <li key={e.id} className={markNext && i === 0 ? 'is-next' : ''}>
           <Link to={`/events/${e.id}`}>
             <span className="events-venue-when">
-              <time dateTime={e.startAtUtc}>{clock(e.startAtUtc)}</time>
+              <time dateTime={e.startAtUtc}>{clock(e.startAtUtc, e.isDateOnly)}</time>
               <span>{dayLabel(e.startAtUtc)}</span>
             </span>
             <span className="events-venue-agenda-body">

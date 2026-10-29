@@ -1,3 +1,5 @@
+import { istanbulDayKey } from '@/lib/trHolidays'
+import { formatEventWhen } from '@/lib/eventsDates'
 import { EventParticipants } from '@/components/EventParticipants'
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
@@ -71,19 +73,13 @@ function formErrorMessage(err: unknown, fallback: string) {
   return details.length ? [...new Set(details)].join(' ') : err.message
 }
 
-function formatWhen(iso: string) {
-  return new Date(iso).toLocaleString('tr-TR', {
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
+function formatWhen(iso: string, isDateOnly = false) { return formatEventWhen(iso, isDateOnly) }
 
 type FormState = {
   title: string
   description: string
   startAtLocal: string
+  isDateOnly: boolean
   endAtLocal: string
   status: EventStatus
   organizingUnitId: string
@@ -118,6 +114,7 @@ const emptyForm = (): FormState => ({
   title: '',
   description: '',
   startAtLocal: toLocalInput(new Date().toISOString()),
+  isDateOnly: false,
   endAtLocal: '',
   status: 2,
   organizingUnitId: '',
@@ -159,7 +156,7 @@ export function EventFormPage() {
   const [conflictHint, setConflictHint] = useState<string | null>(null)
   const [settlements, setSettlements] = useState<SettlementLookup[]>([])
   const [linked, setLinked] = useState<
-    { settlementId: string; attendanceCount: string; uniqueBeneficiaryCount: string }[]
+    { settlementId: string; attendanceCount: string; uniqueBeneficiaryCount: string; notes?: string | null }[]
   >([])
 
   const venueCatalog = useMemo(() => eventVenueCatalog(tree), [tree])
@@ -209,7 +206,8 @@ export function EventFormPage() {
           setForm({
             title: ev.title,
             description: ev.description ?? '',
-            startAtLocal: toLocalInput(ev.startAtUtc),
+            startAtLocal: ev.isDateOnly ? combineLocal(istanbulDayKey(ev.startAtUtc), '00:00') : toLocalInput(ev.startAtUtc),
+            isDateOnly: ev.isDateOnly ?? false,
             endAtLocal: toLocalInput(ev.endAtUtc),
             status: ev.status,
             organizingUnitId: ev.organizingUnitId ?? '',
@@ -227,6 +225,7 @@ export function EventFormPage() {
           setLinked(
             (ev.settlements ?? []).map((s) => ({
               settlementId: s.settlementId,
+              notes: s.notes,
               attendanceCount: String(s.attendanceCount),
               uniqueBeneficiaryCount:
                 s.uniqueBeneficiaryCount != null ? String(s.uniqueBeneficiaryCount) : '',
@@ -270,7 +269,7 @@ export function EventFormPage() {
   }, [canManage, directorateWide, id, isEdit, searchParams])
 
   useEffect(() => {
-    if (!form.facilityId || !form.startAtLocal) {
+    if (form.isDateOnly || !form.facilityId || !form.startAtLocal) {
       setConflictHint(null)
       return
     }
@@ -280,7 +279,8 @@ export function EventFormPage() {
         try {
           const result = await checkEventConflicts({
             facilityId: form.facilityId,
-            startAtUtc: fromLocalInput(form.startAtLocal),
+            startAtUtc: form.isDateOnly ? new Date(`${datePart(form.startAtLocal)}T00:00:00+03:00`).toISOString() : fromLocalInput(form.startAtLocal),
+            isDateOnly: form.isDateOnly,
             endAtUtc: form.endAtLocal ? fromLocalInput(form.endAtLocal) : null,
             excludeEventId: id ?? null,
           })
@@ -304,7 +304,7 @@ export function EventFormPage() {
       cancelled = true
       window.clearTimeout(timer)
     }
-  }, [form.facilityId, form.startAtLocal, form.endAtLocal, id])
+  }, [form.facilityId, form.startAtLocal, form.endAtLocal, form.isDateOnly, id])
 
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -339,7 +339,8 @@ export function EventFormPage() {
     return {
       title: form.title.trim(),
       description: form.description.trim() || null,
-      startAtUtc: fromLocalInput(form.startAtLocal),
+      startAtUtc: form.isDateOnly ? new Date(`${datePart(form.startAtLocal)}T00:00:00+03:00`).toISOString() : fromLocalInput(form.startAtLocal),
+      isDateOnly: form.isDateOnly,
       endAtUtc: form.endAtLocal ? fromLocalInput(form.endAtLocal) : null,
       status: form.status,
       organizingUnitId: form.organizingUnitId || null,
@@ -363,6 +364,7 @@ export function EventFormPage() {
             .filter((x) => x.settlementId)
             .map((x) => ({
               settlementId: x.settlementId,
+              notes: x.notes,
               attendanceCount: Number(x.attendanceCount) || 0,
               uniqueBeneficiaryCount: (() => {
                 const n = Number(x.uniqueBeneficiaryCount)
@@ -496,16 +498,18 @@ export function EventFormPage() {
             />
           </label>
           <label>
-            {form.category === 'trip' ? 'Hareket saati *' : 'Saat *'}
+            {form.isDateOnly ? 'Saat bilgisi' : form.category === 'trip' ? 'Hareket saati *' : 'Saat *'}
             <input
               type="time"
-              value={timePart(form.startAtLocal)}
+              disabled={form.isDateOnly}
+              value={form.isDateOnly ? '' : timePart(form.startAtLocal)}
               onChange={(e) =>
                 setStartAtLocal(combineLocal(datePart(form.startAtLocal), e.target.value))
               }
-              required
+              required={!form.isDateOnly}
             />
           </label>
+          <label className="span-2 event-date-only-choice"><input type="checkbox" checked={form.isDateOnly} onChange={e => setField('isDateOnly', e.target.checked)} />Saat bilgisi belirtilmemiş (yalnızca tarih)</label>
           <label>
             {form.category === 'trip' ? 'Dönüş tarihi' : 'Bitiş tarihi'}
             <input
@@ -895,8 +899,8 @@ export function EventDetailPage() {
               <span className={`event-status-pill status-${item.status}`}>{item.statusLabel}</span>
             </div>
             <p className="muted small employees-toolbar-lead">
-              {formatWhen(item.startAtUtc)}
-              {item.endAtUtc ? ` – ${formatWhen(item.endAtUtc)}` : ''}
+              {formatWhen(item.startAtUtc, item.isDateOnly)}{item.isDateOnly ? ' · Saat belirtilmemiş' : ''}
+              {item.endAtUtc ? ` – ${formatWhen(item.endAtUtc, item.isDateOnly)}` : ''}
             </p>
           </div>
           <div className="employees-toolbar-actions">
@@ -980,16 +984,20 @@ export function EventDetailPage() {
               </p>
             </article>
             <article>
+              <span>Gerçekleşen katılım</span>
+              <p>{item.actualAttendees != null ? `${item.actualAttendees.toLocaleString('tr-TR')} kişi` : '—'}</p>
+            </article>
+            <article>
               <span>Beklenen katılımcı</span>
               <p>{item.expectedAttendees != null ? item.expectedAttendees.toLocaleString('tr-TR') : '—'}</p>
             </article>
             <article>
-              <span>Tekrar / seri</span>
+              <span>{item.seriesId && !item.recurrenceLabel ? 'Program grubu' : 'Tekrar / seri'}</span>
               <p>
                 {item.recurrenceLabel
                   ? `${item.recurrenceLabel}${item.seriesCount ? ` · ${item.seriesCount} kayıt` : ''}`
                   : item.seriesId
-                    ? `Seri${item.seriesCount ? ` · ${item.seriesCount} kayıt` : ''}`
+                    ? `${item.title} ${istanbulDayKey(item.startAtUtc).slice(0, 4)}${item.seriesCount ? ` · ${item.seriesCount} kayıt` : ''}`
                     : 'Tek etkinlik'}
               </p>
             </article>
@@ -1026,11 +1034,11 @@ export function EventDetailPage() {
           <ol className="events-timeline-schedule">
             <li>
               <span>Başlangıç</span>
-              <strong>{formatWhen(item.startAtUtc)}</strong>
+              <strong>{formatWhen(item.startAtUtc, item.isDateOnly)}</strong>
             </li>
             <li>
               <span>Bitiş</span>
-              <strong>{item.endAtUtc ? formatWhen(item.endAtUtc) : '—'}</strong>
+              <strong>{item.endAtUtc ? formatWhen(item.endAtUtc, item.isDateOnly) : '—'}</strong>
             </li>
             <li>
               <span>Durum</span>

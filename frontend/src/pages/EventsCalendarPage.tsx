@@ -598,7 +598,7 @@ export function EventsCalendarPage() {
                   >
                     <Link to={`/events/${e.id}`}>
                       <time dateTime={e.startAtUtc}>
-                        {new Date(e.startAtUtc).toLocaleTimeString('tr-TR', {
+                        {e.isDateOnly ? 'Saat belirtilmemiş' : new Date(e.startAtUtc).toLocaleTimeString('tr-TR', {
                           hour: '2-digit',
                           minute: '2-digit',
                           timeZone: 'Europe/Istanbul',

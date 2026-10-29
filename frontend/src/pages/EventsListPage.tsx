@@ -1,3 +1,4 @@
+import { formatEventWhen } from '@/lib/eventsDates'
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
@@ -30,15 +31,7 @@ type Preset = '' | 'today' | 'week'
 
 const PAGE_SIZE = 15
 
-function formatWhen(iso: string) {
-  return new Date(iso).toLocaleString('tr-TR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
+function formatWhen(iso: string, isDateOnly = false) { return formatEventWhen(iso, isDateOnly) }
 
 function presetRange(preset: Preset): { from?: string; to?: string } {
   if (preset === 'today') return { from: toIso(startOfDay()), to: toIso(endOfDay()) }
@@ -402,8 +395,8 @@ export function EventsListPage() {
                         {eventPhaseLabel(item.status, item.startAtUtc)}
                       </span>
                     </td>
-                    <td>{formatWhen(item.startAtUtc)}</td>
-                    <td>{item.facilityName || item.address || '—'}</td>
+                    <td>{formatWhen(item.startAtUtc, item.isDateOnly)}</td>
+                    <td>{item.facilityName || item.address || '—'}{item.settlementNames?.length ? <small className="event-list-settlements">{item.settlementNames.join(', ')}</small> : null}</td>
                     <td>
                       {item.attendanceCount != null
                         ? `${item.attendanceCount.toLocaleString('tr-TR')} kişi`

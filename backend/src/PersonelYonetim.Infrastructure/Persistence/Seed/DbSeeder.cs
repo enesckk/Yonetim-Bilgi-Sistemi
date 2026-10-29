@@ -69,6 +69,7 @@ public static class DbSeeder
         {
             await DirectorateOrgChartSeeder.ImportHistoricalRosterAsync(db, logger, cancellationToken);
         }
+        await ChildTheatre2026Import.SeedAsync(db, logger, cancellationToken);
         await EmployeeMainUnitsUpdate.SeedAsync(db, cancellationToken);
         await SeedAppSettingsAsync(db, logger, cancellationToken);
 

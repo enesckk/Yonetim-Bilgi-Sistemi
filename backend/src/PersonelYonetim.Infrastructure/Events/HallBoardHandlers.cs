@@ -89,6 +89,7 @@ public sealed class GetHallBoardHandler : IRequestHandler<GetHallBoardQuery, Hal
                 e.Title,
                 e.Status,
                 e.StartAtUtc,
+                e.IsDateOnly,
                 e.EndAtUtc,
                 e.FacilityId,
                 e.ExpectedAttendees,
@@ -105,13 +106,15 @@ public sealed class GetHallBoardHandler : IRequestHandler<GetHallBoardQuery, Hal
             DateTime? end,
             int? expected,
             int? actual,
-            int settlementSum) => new()
+            int settlementSum,
+            bool isDateOnly) => new()
         {
             Id = id,
             Title = title,
             Status = status,
             StatusLabel = EventLabels.Status(status),
             StartAtUtc = start,
+            IsDateOnly = isDateOnly,
             EndAtUtc = end,
             ExpectedAttendees = expected,
             ActualAttendees = actual,
@@ -138,7 +141,7 @@ public sealed class GetHallBoardHandler : IRequestHandler<GetHallBoardQuery, Hal
                 .OrderBy(e => e.StartAtUtc)
                 .FirstOrDefault();
 
-            var occupied = mine.Any(e =>
+            var occupied = mine.Any(e => !e.IsDateOnly &&
                 e.Status is EventStatus.Published or EventStatus.Completed
                 && e.StartAtUtc <= now
                 && (e.EndAtUtc ?? e.StartAtUtc.AddHours(2)) >= now);
@@ -153,12 +156,12 @@ public sealed class GetHallBoardHandler : IRequestHandler<GetHallBoardQuery, Hal
                 OccupiedNow = occupied,
                 LastDone = lastDone is null
                     ? null
-                    : ToDto(lastDone.Id, lastDone.Title, lastDone.Status, lastDone.StartAtUtc, lastDone.EndAtUtc, lastDone.ExpectedAttendees, lastDone.ActualAttendees, lastDone.SettlementSum),
+                    : ToDto(lastDone.Id, lastDone.Title, lastDone.Status, lastDone.StartAtUtc, lastDone.EndAtUtc, lastDone.ExpectedAttendees, lastDone.ActualAttendees, lastDone.SettlementSum, lastDone.IsDateOnly),
                 Next = next is null
                     ? null
-                    : ToDto(next.Id, next.Title, next.Status, next.StartAtUtc, next.EndAtUtc, next.ExpectedAttendees, next.ActualAttendees, next.SettlementSum),
+                    : ToDto(next.Id, next.Title, next.Status, next.StartAtUtc, next.EndAtUtc, next.ExpectedAttendees, next.ActualAttendees, next.SettlementSum, next.IsDateOnly),
                 Bookings = inRange
-                    .Select(e => ToDto(e.Id, e.Title, e.Status, e.StartAtUtc, e.EndAtUtc, e.ExpectedAttendees, e.ActualAttendees, e.SettlementSum))
+                    .Select(e => ToDto(e.Id, e.Title, e.Status, e.StartAtUtc, e.EndAtUtc, e.ExpectedAttendees, e.ActualAttendees, e.SettlementSum, e.IsDateOnly))
                     .ToList()
             });
         }

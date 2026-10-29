@@ -52,11 +52,13 @@ export const EVENT_TRANSITION_LABELS: Partial<Record<EventStatus, string>> = {
 }
 
 export interface EventListItem {
+  settlementNames?: string[]
   id: string
   title: string
   status: EventStatus
   statusLabel: string
   startAtUtc: string
+  isDateOnly?: boolean
   endAtUtc?: string | null
   organizingUnitName?: string | null
   facilityId?: string | null
@@ -161,6 +163,7 @@ export interface EventWritePayload {
   title: string
   description?: string | null
   startAtUtc: string
+  isDateOnly?: boolean
   endAtUtc?: string | null
   status: EventStatus
   organizingUnitId?: string | null
@@ -189,6 +192,7 @@ export interface EventConflictItem {
   status: EventStatus
   statusLabel: string
   startAtUtc: string
+  isDateOnly?: boolean
   endAtUtc?: string | null
 }
 
@@ -258,6 +262,7 @@ export interface HallBooking {
   status: EventStatus
   statusLabel: string
   startAtUtc: string
+  isDateOnly?: boolean
   endAtUtc?: string | null
   expectedAttendees?: number | null
   actualAttendees?: number | null
@@ -293,6 +298,7 @@ export async function fetchHallBoard(params?: { fromUtc?: string; toUtc?: string
 export async function checkEventConflicts(params: {
   facilityId?: string | null
   startAtUtc: string
+  isDateOnly?: boolean
   endAtUtc?: string | null
   excludeEventId?: string | null
 }): Promise<EventConflictsResult> {

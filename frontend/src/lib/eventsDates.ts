@@ -59,22 +59,27 @@ export function eventDateRange(from: string, to: string): { fromUtc?: string; to
   }
 }
 
+export function formatEventWhen(iso: string, isDateOnly = false): string {
+  const date = new Date(iso)
+  if (isDateOnly) return date.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Istanbul' })
+  return date.toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Istanbul' })
+}
+
 export type EventExportRow = {
   title: string
   statusLabel: string
   startAtUtc: string
+  isDateOnly?: boolean
   endAtUtc?: string | null
   facilityName?: string | null
   address?: string | null
   organizingUnitName?: string | null
   responsibleEmployeeName?: string | null
   expectedAttendees?: number | null
+  actualAttendees?: number | null
+  attendanceCount?: number | null
   latitude?: number | null
   longitude?: number | null
-}
-
-function formatWhen(iso: string) {
-  return new Date(iso).toLocaleString('tr-TR')
 }
 
 export function downloadEventsCsv(rows: EventExportRow[], filename = 'etkinlikler.csv') {
@@ -98,13 +103,13 @@ export function downloadEventsCsv(rows: EventExportRow[], filename = 'etkinlikle
       [
         r.title,
         r.statusLabel,
-        formatWhen(r.startAtUtc),
-        r.endAtUtc ? formatWhen(r.endAtUtc) : '',
+        formatEventWhen(r.startAtUtc, r.isDateOnly),
+        r.endAtUtc ? formatEventWhen(r.endAtUtc, r.isDateOnly) : '',
         r.facilityName ?? '',
         r.address ?? '',
         r.organizingUnitName ?? '',
         r.responsibleEmployeeName ?? '',
-        r.expectedAttendees != null ? String(r.expectedAttendees) : '',
+        (r.actualAttendees ?? r.attendanceCount ?? r.expectedAttendees) != null ? String(r.actualAttendees ?? r.attendanceCount ?? r.expectedAttendees) : '',
         r.latitude != null ? String(r.latitude) : '',
         r.longitude != null ? String(r.longitude) : '',
       ]
@@ -184,11 +189,11 @@ export async function downloadEventsPdf(
     const cells = [
       r.title,
       r.statusLabel,
-      formatWhen(r.startAtUtc),
+      formatEventWhen(r.startAtUtc, r.isDateOnly),
       r.facilityName ?? '',
       r.organizingUnitName ?? '',
       r.responsibleEmployeeName ?? '',
-      r.expectedAttendees != null ? String(r.expectedAttendees) : '',
+      (r.actualAttendees ?? r.attendanceCount ?? r.expectedAttendees) != null ? String(r.actualAttendees ?? r.attendanceCount ?? r.expectedAttendees) : '',
     ]
     let x = margin
     cells.forEach((text, i) => {

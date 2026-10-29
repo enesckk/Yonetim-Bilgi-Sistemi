@@ -19449,3 +19449,6 @@ body { padding-bottom: var(--pwa-install-space, 0px); }
 }
 .settlement-page-simple .settlement-tabs { overflow-x: auto; }
 .settlement-page-simple .settlement-tabs button { flex: 0 0 auto; white-space: nowrap; min-height: 44px; }
+.event-list-settlements { display: block; margin-top: 4px; color: var(--muted); }
+.events-form .event-date-only-choice { display: flex; align-items: center; gap: 9px; }
+.events-form .event-date-only-choice input { width: auto; min-height: 0; }

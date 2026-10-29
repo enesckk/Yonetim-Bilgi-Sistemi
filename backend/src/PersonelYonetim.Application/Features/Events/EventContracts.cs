@@ -6,11 +6,13 @@ namespace PersonelYonetim.Application.Features.Events;
 
 public sealed class EventListItemDto
 {
+    public IReadOnlyList<string> SettlementNames { get; init; } = [];
     public Guid Id { get; init; }
     public string Title { get; init; } = string.Empty;
     public EventStatus Status { get; init; }
     public string StatusLabel { get; init; } = string.Empty;
     public DateTime StartAtUtc { get; init; }
+    public bool IsDateOnly { get; init; }
     public DateTime? EndAtUtc { get; init; }
     public string? OrganizingUnitName { get; init; }
     public Guid? FacilityId { get; init; }
@@ -38,6 +40,7 @@ public sealed class EventDetailDto
     public EventStatus Status { get; init; }
     public string StatusLabel { get; init; } = string.Empty;
     public DateTime StartAtUtc { get; init; }
+    public bool IsDateOnly { get; init; }
     public DateTime? EndAtUtc { get; init; }
     public Guid? OrganizingUnitId { get; init; }
     public string? OrganizingUnitName { get; init; }
@@ -75,6 +78,7 @@ public sealed class EventConflictItemDto
     public EventStatus Status { get; init; }
     public string StatusLabel { get; init; } = string.Empty;
     public DateTime StartAtUtc { get; init; }
+    public bool IsDateOnly { get; init; }
     public DateTime? EndAtUtc { get; init; }
 }
 
@@ -125,6 +129,7 @@ public sealed class CreateEventCommand : IRequest<Guid>
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
     public DateTime StartAtUtc { get; set; }
+    public bool? IsDateOnly { get; set; }
     public DateTime? EndAtUtc { get; set; }
     public EventStatus Status { get; set; } = EventStatus.Draft;
     public Guid? OrganizingUnitId { get; set; }
@@ -151,6 +156,7 @@ public sealed class UpdateEventCommand : IRequest
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
     public DateTime StartAtUtc { get; set; }
+    public bool? IsDateOnly { get; set; }
     public DateTime? EndAtUtc { get; set; }
     public EventStatus Status { get; set; } = EventStatus.Draft;
     public Guid? OrganizingUnitId { get; set; }
@@ -429,6 +435,7 @@ public sealed class HallBookingDto
     public EventStatus Status { get; init; }
     public string StatusLabel { get; init; } = string.Empty;
     public DateTime StartAtUtc { get; init; }
+    public bool IsDateOnly { get; init; }
     public DateTime? EndAtUtc { get; init; }
     public int? ExpectedAttendees { get; init; }
     public int? ActualAttendees { get; init; }

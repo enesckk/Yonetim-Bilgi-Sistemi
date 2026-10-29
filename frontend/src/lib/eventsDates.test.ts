@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { eventDateRange } from './eventsDates'
+import { eventDateRange, formatEventWhen } from './eventsDates'
 
 describe('event date filtering', () => {
   it('uses local midnight through the last millisecond of the selected day', () => {
@@ -19,4 +19,9 @@ describe('event date filtering', () => {
     expect(() => eventDateRange('2026-02-30', '')).toThrow('Geçerli bir tarih')
     expect(() => eventDateRange('', 'not-a-date')).toThrow('Geçerli bir tarih')
   })
+})
+
+it('shows the supplied Istanbul date without inventing a time', () => {
+  expect(formatEventWhen('2026-04-16T21:00:00Z', true)).toBe('17.04.2026')
+  expect(formatEventWhen('2026-04-17T07:00:00Z', false)).toContain('10:00')
 })

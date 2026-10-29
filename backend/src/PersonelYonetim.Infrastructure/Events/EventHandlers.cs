@@ -47,9 +47,10 @@ internal static class EventConflictHelper
         DateTime? endAtUtc,
         Guid? excludeEventId,
         bool allowConflicts,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool isDateOnly = false)
     {
-        if (allowConflicts || facilityId is null)
+        if (allowConflicts || isDateOnly || facilityId is null)
             return;
 
         var conflicts = await FindConflictsAsync(db, facilityId, startAtUtc, endAtUtc, excludeEventId, ct);
@@ -77,7 +78,7 @@ internal static class EventConflictHelper
         var end = EffectiveEnd(start, endAtUtc is null ? null : DateTime.SpecifyKind(endAtUtc.Value, DateTimeKind.Utc));
 
         var candidates = await db.Events.AsNoTracking()
-            .Where(e => e.FacilityId == facilityId
+            .Where(e => !e.IsDateOnly && e.FacilityId == facilityId
                 && e.Status != EventStatus.Cancelled
                 && (excludeEventId == null || e.Id != excludeEventId))
             .Select(e => new
@@ -86,6 +87,7 @@ internal static class EventConflictHelper
                 e.Title,
                 e.Status,
                 e.StartAtUtc,
+                e.IsDateOnly,
                 e.EndAtUtc
             })
             .ToListAsync(ct);
@@ -105,6 +107,7 @@ internal static class EventConflictHelper
                 Status = e.Status,
                 StatusLabel = EventLabels.Status(e.Status),
                 StartAtUtc = e.StartAtUtc,
+                IsDateOnly = e.IsDateOnly,
                 EndAtUtc = e.EndAtUtc
             })
             .ToList();
@@ -126,6 +129,7 @@ internal static class EventConflictHelper
         Status = e.Status,
         StatusLabel = EventLabels.Status(e.Status),
         StartAtUtc = e.StartAtUtc,
+        IsDateOnly = e.IsDateOnly,
         EndAtUtc = e.EndAtUtc,
         OrganizingUnitId = e.OrganizingUnitId,
         OrganizingUnitName = e.OrganizingUnit?.Name,
@@ -265,7 +269,9 @@ public sealed class GetEventsHandler : IRequestHandler<GetEventsQuery, EventList
                 Status = e.Status,
                 StatusLabel = EventLabels.Status(e.Status),
                 StartAtUtc = e.StartAtUtc,
+                IsDateOnly = e.IsDateOnly,
                 EndAtUtc = e.EndAtUtc,
+                SettlementNames = e.Settlements.Select(s => s.Settlement.DisplayName ?? s.Settlement.Name).ToList(),
                 OrganizingUnitName = e.OrganizingUnit != null ? e.OrganizingUnit.Name : null,
                 FacilityId = e.FacilityId,
                 FacilityName = e.Facility != null ? e.Facility.Name : null,
@@ -425,7 +431,7 @@ public sealed class CreateEventHandler : IRequestHandler<CreateEventCommand, Gui
                 occEnd,
                 null,
                 request.AllowConflicts,
-                cancellationToken);
+                cancellationToken, request.IsDateOnly == true);
 
             var entity = new Event
             {
@@ -433,6 +439,7 @@ public sealed class CreateEventHandler : IRequestHandler<CreateEventCommand, Gui
                 ParticipantNamesJson = request.ParticipantNames is null ? null : JsonSerializer.Serialize(request.ParticipantNames.Select(x => x.Trim())),
                 Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),
                 StartAtUtc = occStart,
+                IsDateOnly = request.IsDateOnly ?? false,
                 EndAtUtc = occEnd,
                 Status = request.Status,
                 ExpectedAttendees = request.ExpectedAttendees,
@@ -569,7 +576,7 @@ public sealed class UpdateEventHandler : IRequestHandler<UpdateEventCommand>
             request.EndAtUtc,
             request.Id,
             request.AllowConflicts,
-            cancellationToken);
+            cancellationToken, request.IsDateOnly ?? entity.IsDateOnly);
 
         var oldSnapshot = new
         {
@@ -587,6 +594,7 @@ public sealed class UpdateEventHandler : IRequestHandler<UpdateEventCommand>
             entity.ParticipantNamesJson = JsonSerializer.Serialize(request.ParticipantNames.Select(x => x.Trim()));
         entity.Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
         entity.StartAtUtc = DateTime.SpecifyKind(request.StartAtUtc, DateTimeKind.Utc);
+        if (request.IsDateOnly.HasValue) entity.IsDateOnly = request.IsDateOnly.Value;
         entity.EndAtUtc = request.EndAtUtc is null
             ? null
             : DateTime.SpecifyKind(request.EndAtUtc.Value, DateTimeKind.Utc);
@@ -693,7 +701,7 @@ public sealed class ChangeEventStatusHandler : IRequestHandler<ChangeEventStatus
                 entity.EndAtUtc,
                 entity.Id,
                 request.AllowConflicts,
-                cancellationToken);
+                cancellationToken, entity.IsDateOnly);
         }
 
         var from = entity.Status;

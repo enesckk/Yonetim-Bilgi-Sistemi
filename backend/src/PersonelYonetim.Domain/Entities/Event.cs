@@ -15,6 +15,8 @@ public class Event : AuditableEntity
     public string? ParticipantNamesJson { get; set; }
 
     public DateTime StartAtUtc { get; set; }
+    /// <summary>Only a calendar date was provided; the UTC value encodes Istanbul midnight, not a known event time.</summary>
+    public bool IsDateOnly { get; set; }
     public DateTime? EndAtUtc { get; set; }
 
     public EventStatus Status { get; set; } = EventStatus.Draft;

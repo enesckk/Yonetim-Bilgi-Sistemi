@@ -1,3 +1,4 @@
+import { formatEventWhen } from '@/lib/eventsDates'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
 import { canSeeAllUnits } from '@/auth/roles'
@@ -37,15 +38,7 @@ function formatDay(iso?: string | null) {
   })
 }
 
-function formatWhen(iso: string) {
-  return new Date(iso).toLocaleString('tr-TR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
+function formatWhen(iso: string, isDateOnly = false) { return formatEventWhen(iso, isDateOnly) }
 
 function coverageFact(detail: SettlementSummary, level: 'none' | 'low' | 'medium' | 'good') {
   if (level === 'none') return 'Etkinlik yok'
@@ -548,7 +541,7 @@ function EventGroup({
               <Link to={`/events/${item.id}`}>
                 <strong>{item.title}</strong>
                 <span>
-                  {formatWhen(item.startAtUtc)}
+                  {formatWhen(item.startAtUtc, item.isDateOnly)}
                   {item.categoryLabel ? ` · ${item.categoryLabel}` : ''}
                   {item.facilityName ? ` · ${item.facilityName}` : ''}
                 </span>

@@ -26,7 +26,7 @@ function flattenFacilities(nodes: OrgNode[], acc: OrgNode[] = []): OrgNode[] {
   return acc
 }
 
-function formatFeedWhen(iso: string) {
+function formatFeedWhen(iso: string, isDateOnly = false) {
   const d = new Date(iso)
   const now = new Date()
   const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
@@ -40,7 +40,7 @@ function formatFeedWhen(iso: string) {
   return {
     day: d.toLocaleDateString('tr-TR', { day: '2-digit' }),
     month: d.toLocaleDateString('tr-TR', { month: 'short' }),
-    time: d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
+    time: isDateOnly ? 'Saat belirtilmemiş' : d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
     relative,
   }
 }
@@ -312,7 +312,7 @@ export function EventsHomePage() {
               ) : (
                 <ul className="events-home-feed">
                   {stats.upcomingList.map((e) => {
-                    const when = formatFeedWhen(e.startAtUtc)
+                    const when = formatFeedWhen(e.startAtUtc, e.isDateOnly)
                     return (
                       <li key={e.id}>
                         <Link to={`/events/${e.id}`}>

@@ -53,7 +53,7 @@ export function EventParticipants({ names, onChange, onBusyChange, eventId, disa
   return (
     <section className="event-participants span-2" aria-label="Katılımcı isim listesi">
       <header>
-        <div><h3>Katılımcı isim listesi</h3><p className="muted small">{names.length.toLocaleString('tr-TR')} kişi kayıtlı</p></div>
+        <div><h3>Katılımcı isim listesi</h3><p className="muted small">{names.length.toLocaleString('tr-TR')} isim kayıtlı</p></div>
         <div className="event-participants-actions">
           {onChange ? <button type="button" className="btn-secondary" disabled={disabled || busy || !!preview} onClick={() => void download(true)}>Excel şablonu</button> : null}
           {eventId && names.length > 0 ? <button type="button" className="btn-secondary" onClick={() => void download(false)}>İsim listesini indir</button> : null}
