@@ -1,3 +1,4 @@
+import { EventInformationNotes } from '@/components/EventInformationNotes'
 import { istanbulDayKey } from '@/lib/trHolidays'
 import { formatEventWhen } from '@/lib/eventsDates'
 import { EventParticipants } from '@/components/EventParticipants'
@@ -208,7 +209,7 @@ export function EventFormPage() {
             description: ev.description ?? '',
             startAtLocal: ev.isDateOnly ? combineLocal(istanbulDayKey(ev.startAtUtc), '00:00') : toLocalInput(ev.startAtUtc),
             isDateOnly: ev.isDateOnly ?? false,
-            endAtLocal: toLocalInput(ev.endAtUtc),
+            endAtLocal: ev.isDateOnly && ev.endAtUtc ? combineLocal(istanbulDayKey(ev.endAtUtc), '23:59') : toLocalInput(ev.endAtUtc),
             status: ev.status,
             organizingUnitId: ev.organizingUnitId ?? '',
             facilityId: ev.facilityId ?? '',
@@ -281,7 +282,7 @@ export function EventFormPage() {
             facilityId: form.facilityId,
             startAtUtc: form.isDateOnly ? new Date(`${datePart(form.startAtLocal)}T00:00:00+03:00`).toISOString() : fromLocalInput(form.startAtLocal),
             isDateOnly: form.isDateOnly,
-            endAtUtc: form.endAtLocal ? fromLocalInput(form.endAtLocal) : null,
+            endAtUtc: form.endAtLocal ? (form.isDateOnly ? new Date(`${datePart(form.endAtLocal)}T23:59:59.999+03:00`).toISOString() : fromLocalInput(form.endAtLocal)) : null,
             excludeEventId: id ?? null,
           })
           if (cancelled) return
@@ -341,7 +342,7 @@ export function EventFormPage() {
       description: form.description.trim() || null,
       startAtUtc: form.isDateOnly ? new Date(`${datePart(form.startAtLocal)}T00:00:00+03:00`).toISOString() : fromLocalInput(form.startAtLocal),
       isDateOnly: form.isDateOnly,
-      endAtUtc: form.endAtLocal ? fromLocalInput(form.endAtLocal) : null,
+      endAtUtc: form.endAtLocal ? (form.isDateOnly ? new Date(`${datePart(form.endAtLocal)}T23:59:59.999+03:00`).toISOString() : fromLocalInput(form.endAtLocal)) : null,
       status: form.status,
       organizingUnitId: form.organizingUnitId || null,
       facilityId: form.facilityId || null,
@@ -527,7 +528,8 @@ export function EventFormPage() {
             {form.category === 'trip' ? 'Dönüş saati' : 'Bitiş saati'}
             <input
               type="time"
-              value={form.endAtLocal ? timePart(form.endAtLocal, '11:00') : ''}
+              value={!form.isDateOnly && form.endAtLocal ? timePart(form.endAtLocal, '11:00') : ''}
+              disabled={form.isDateOnly}
               onChange={(e) => {
                 const date = datePart(form.endAtLocal) || datePart(form.startAtLocal)
                 setField('endAtLocal', e.target.value && date ? combineLocal(date, e.target.value) : '')
@@ -1025,6 +1027,8 @@ export function EventDetailPage() {
             </div>
           ) : null}
         </div>
+
+        <EventInformationNotes eventId={item.id} />
 
         <section className="events-timeline" aria-label="Zaman çizelgesi">
           <header className="events-timeline-head">

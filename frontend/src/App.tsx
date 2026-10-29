@@ -14,6 +14,8 @@ import { PermissionCodes } from '@/auth/permissionCodes'
 import { PwaInstallPrompt } from '@/components/PwaInstallPrompt'
 import { AppUpdateNotice } from '@/components/AppUpdateNotice'
 
+const InformationNotesPage = lazy(() => import('@/pages/InformationNotesPage').then(m => ({default:m.InformationNotesPage})))
+
 const EmployeesPage = lazy(() => import('@/pages/EmployeesPage').then((m) => ({ default: m.EmployeesPage })))
 const EmployeeDetailPage = lazy(() =>
   import('@/pages/EmployeeDetailPage').then((m) => ({ default: m.EmployeeDetailPage })),
@@ -128,6 +130,7 @@ export default function App() {
                 <Route path="settings" element={<AdminOnlyRoute><SettingsPage /></AdminOnlyRoute>} />
                 <Route path="users" element={<AdminOnlyRoute><UsersAdminPage /></AdminOnlyRoute>} />
                 <Route path="roles" element={<AdminOnlyRoute><RolesMatrixPage /></AdminOnlyRoute>} />
+                <Route path="information-notes" element={<PermissionRoute permission={PermissionCodes.EventsView}><PermissionRoute permission={PermissionCodes.EmployeesViewAllUnits}><InformationNotesPage /></PermissionRoute></PermissionRoute>} />
                 <Route path="events" element={<PermissionRoute permission={PermissionCodes.EventsView}><EventsHomePage /></PermissionRoute>} />
                 <Route path="events/list" element={<PermissionRoute permission={PermissionCodes.EventsView}><EventsListPage /></PermissionRoute>} />
                 <Route path="events/calendar" element={<PermissionRoute permission={PermissionCodes.EventsView}><EventsCalendarPage /></PermissionRoute>} />

@@ -61,6 +61,7 @@ public static class DependencyInjection
             services.AddSingleton(postgresDataSource);
         }
 
+        services.AddScoped<PersonelYonetim.Infrastructure.InformationNotes.InformationNoteService>();
         services.AddScoped<AuditingSaveChangesInterceptor>();
         services.AddDbContext<AppDbContext>((sp, options) =>
         {

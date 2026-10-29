@@ -25,7 +25,8 @@ public sealed class AuditingSaveChangesInterceptor : SaveChangesInterceptor
     {
         "NationalIdEncrypted",
         "PasswordHash",
-        "TokenHash"
+        "TokenHash",
+        "FileData"
     };
 
     private readonly ICurrentUserService _currentUser;
