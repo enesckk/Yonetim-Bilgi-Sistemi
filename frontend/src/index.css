@@ -15467,10 +15467,6 @@ button:hover > .dq-row-arrow {
   opacity: 0.35 !important;
 }
 
-.leaflet-tooltip.settlement-label.is-hidden-overlap:not(.is-force-show):not(.is-selected) {
-  display: none !important;
-}
-
 .leaflet-tooltip.settlement-label.is-selected {
   display: block !important;
   z-index: 750 !important;
@@ -15489,9 +15485,7 @@ button:hover > .dq-row-arrow {
 
 .settlement-label-name {
   display: block;
-  max-width: 5.1rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ops-detail-hero {

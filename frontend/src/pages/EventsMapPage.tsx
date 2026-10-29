@@ -104,115 +104,6 @@ function FocusSettlement({ feature, boundary }: { feature: MahalleFeature | null
   return null
 }
 
-function boxesOverlap(a: DOMRect, b: DOMRect, pad: number) {
-  return !(a.right + pad <= b.left || b.right + pad <= a.left || a.bottom + pad <= b.top || b.bottom + pad <= a.top)
-}
-
-function pruneSettlementLabels(map: L.Map) {
-  type Candidate = {
-    el: HTMLElement
-    rank: number
-    area: number
-    point: L.Point
-    pxW: number
-    pxH: number
-  }
-
-  const zoom = map.getZoom()
-  const filtering = Boolean(map.getContainer().closest('.is-filtering'))
-  const items: Candidate[] = []
-  const containerBox = map.getContainer().getBoundingClientRect()
-
-  map.eachLayer((layer) => {
-    const tooltip = layer.getTooltip?.()
-    const el = tooltip?.getElement() as HTMLElement | undefined
-    if (!el?.classList.contains('settlement-label')) return
-    const bounded = layer as Layer & { getBounds?: () => L.LatLngBounds }
-    if (!bounded.getBounds) return
-    const bounds = bounded.getBounds()
-    if (!bounds.isValid()) return
-    const sw = map.latLngToContainerPoint(bounds.getSouthWest())
-    const ne = map.latLngToContainerPoint(bounds.getNorthEast())
-    const pxW = Math.abs(ne.x - sw.x)
-    const pxH = Math.abs(ne.y - sw.y)
-    const rank = el.classList.contains('is-low')
-      ? 0
-      : el.classList.contains('is-medium')
-        ? 1
-        : el.classList.contains('is-good')
-          ? 2
-          : 3
-    items.push({
-      el,
-      rank,
-      area: pxW * pxH,
-      point: map.latLngToContainerPoint(bounds.getCenter()),
-      pxW,
-      pxH,
-    })
-  })
-
-  for (const it of items) it.el.classList.remove('is-hidden-overlap')
-
-  const minW = filtering ? 18 : zoom >= 14 ? 14 : zoom >= 13.1 ? 22 : zoom >= 12.3 ? 32 : 40
-  const minH = minW * 0.42
-  const pad = filtering ? 8 : zoom >= 14 ? 8 : zoom >= 13.1 ? 11 : zoom >= 12.3 ? 13 : 15
-
-  items.sort((a, b) => a.rank - b.rank || b.area - a.area)
-
-  const measurable: Candidate[] = []
-  for (const it of items) {
-    const hideNone = !filtering && zoom < 13.15 && it.rank === 3
-    const tooSmall = it.pxW < minW || it.pxH < minH
-    if (hideNone || tooSmall) {
-      it.el.classList.add('is-hidden-overlap')
-      continue
-    }
-    measurable.push(it)
-  }
-
-  void map.getContainer().offsetHeight
-
-  const kept: DOMRect[] = []
-  for (const it of measurable) {
-    const live = it.el.getBoundingClientRect()
-    const box =
-      live.width >= 2 && live.height >= 2
-        ? live
-        : new DOMRect(
-            containerBox.left + it.point.x - 41,
-            containerBox.top + it.point.y - 8,
-            82,
-            16,
-          )
-    const gap = pad + (it.rank === 0 ? 6 : 0)
-    if (kept.some((other) => boxesOverlap(box, other, gap))) {
-      it.el.classList.add('is-hidden-overlap')
-    } else {
-      kept.push(box)
-    }
-  }
-}
-
-function MapLabelController({ nonce }: { nonce: string }) {
-  const map = useMap()
-
-  useEffect(() => {
-    const apply = () => pruneSettlementLabels(map)
-    map.on('zoomend', apply)
-    map.on('moveend', apply)
-    const timers = [80, 280, 700].map((ms) => window.setTimeout(apply, ms))
-    apply()
-    return () => {
-      map.off('zoomend', apply)
-      map.off('moveend', apply)
-      timers.forEach((id) => window.clearTimeout(id))
-    }
-  }, [map, nonce])
-
-  return null
-}
-
 function invertBoundary(geo: BoundaryGeo | null): GeoJSON.Feature | null {
   if (!geo || Array.isArray(geo) || geo.type !== 'FeatureCollection') return null
   const first = (geo as GeoJSON.FeatureCollection).features[0]
@@ -502,7 +393,7 @@ function EventsMapPageInner() {
       const selected = focusedSummary?.officialCode === String(props.id)
       const dimmed = !selected && coverageFilter != null && level !== coverageFilter
       layer.bindTooltip(
-        `<span class="settlement-label-name">${escapeHtml(summary?.displayName || props.name)}</span>`,
+        `<span class="settlement-label-name">${escapeHtml(summary?.displayName || summary?.name || props.name)}</span>`,
         {
           permanent: true,
           direction: 'center',
@@ -857,9 +748,6 @@ function EventsMapPageInner() {
           >
             <DistrictFit geo={boundary} resetToken={resetToken} />
             <FocusSettlement feature={focusedFeature} boundary={boundary} />
-            <MapLabelController
-              nonce={`${preset}-${category}-${summaries.length}-${coverageFilter ?? 'all'}-${focusedSummary?.officialCode ?? ''}`}
-            />
             {mask ? (
               <GeoJSON
                 data={mask}
