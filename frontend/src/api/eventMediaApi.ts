@@ -5,6 +5,7 @@ export type EventMedia = {
   fileName: string
   contentType: string
   size: number
+  includeInReport: boolean
 }
 const root = (id: string) => `/api/events/${id}/media`
 export const fetchEventMedia = (id: string) => apiRequest<EventMedia[]>(root(id))
@@ -28,3 +29,6 @@ export function mediaSelectionError(files: File[]) {
     return 'Bir yüklemenin toplamı en fazla 40 MB olabilir. Görselleri gruplar halinde yükleyin.'
   return null
 }
+
+export const selectEventMediaForReport = (id: string, mediaId: string, selected: boolean) =>
+  apiRequest(`${root(id)}/${mediaId}/report-selection`, { method: 'PATCH', body: { selected } })

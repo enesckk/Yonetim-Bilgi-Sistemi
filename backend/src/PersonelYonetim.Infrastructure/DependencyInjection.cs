@@ -63,6 +63,7 @@ public static class DependencyInjection
 
         services.AddScoped<PersonelYonetim.Infrastructure.InformationNotes.InformationNoteService>();
         services.AddScoped<PersonelYonetim.Infrastructure.Events.EventMediaService>();
+        services.AddScoped<PersonelYonetim.Infrastructure.Reports.ActivityReportService>();
         services.AddScoped<AuditingSaveChangesInterceptor>();
         services.AddDbContext<AppDbContext>((sp, options) =>
         {

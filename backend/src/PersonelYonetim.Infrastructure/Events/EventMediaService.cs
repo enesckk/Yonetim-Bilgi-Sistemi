@@ -8,7 +8,7 @@ using PersonelYonetim.Infrastructure.Persistence;
 using PersonelYonetim.Infrastructure.Security;
 namespace PersonelYonetim.Infrastructure.Events;
 
-public sealed record EventMediaDto(Guid Id, string Kind, string FileName, string ContentType, int Size);
+public sealed record EventMediaDto(Guid Id, string Kind, string FileName, string ContentType, int Size, bool IncludeInReport);
 public sealed record EventMediaUpload(string Name, byte[] Data);
 public sealed class EventMediaService(AppDbContext db, ICurrentUserService user)
 {
@@ -41,7 +41,7 @@ public sealed class EventMediaService(AppDbContext db, ICurrentUserService user)
         await Ensure(eventId, false, ct);
         return await db.EventMedia.AsNoTracking().Where(x => x.EventId == eventId)
             .OrderBy(x => x.CreatedAtUtc).ThenBy(x => x.Id)
-            .Select(x => new EventMediaDto(x.Id, x.Kind, x.FileName, x.ContentType, x.Size)).ToListAsync(ct);
+            .Select(x => new EventMediaDto(x.Id, x.Kind, x.FileName, x.ContentType, x.Size, x.IncludeInReport)).ToListAsync(ct);
     }
     public async Task SaveAsync(Guid eventId, string kind, IReadOnlyList<EventMediaUpload> files, CancellationToken ct = default)
     {
@@ -61,7 +61,7 @@ public sealed class EventMediaService(AppDbContext db, ICurrentUserService user)
                 // The event ID is reserved for its poster: concurrent uploads cannot create two posters.
                 var row = kind == "poster" ? await db.EventMedia.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == eventId, ct) : null;
                 if (row is null) { row = new EventMedia { Id = kind == "poster" ? eventId : ids[i], EventId = eventId, Kind = kind, CreatedBy = user.UserName }; db.EventMedia.Add(row); }
-                row.IsDeleted = false; row.DeletedAtUtc = null; row.DeletedBy = null;
+                row.IncludeInReport = false; row.IsDeleted = false; row.DeletedAtUtc = null; row.DeletedBy = null;
                 row.FileName = Path.GetFileName(files[i].Name.Replace('\\', '/'));
                 row.ContentType = types[i]; row.FileData = files[i].Data; row.Size = files[i].Data.Length;
             }
@@ -76,6 +76,12 @@ public sealed class EventMediaService(AppDbContext db, ICurrentUserService user)
             .Select(x => new { x.FileData, x.ContentType, x.FileName }).FirstOrDefaultAsync(ct)
             ?? throw new NotFoundException("Görsel bulunamadı.");
         return (row.FileData, row.ContentType, row.FileName);
+    }
+    public async Task SelectForReportAsync(Guid eventId, Guid id, bool selected, CancellationToken ct = default)
+    {
+        await Ensure(eventId, true, ct);
+        var row = await db.EventMedia.FirstOrDefaultAsync(x => x.EventId == eventId && x.Id == id, ct) ?? throw new NotFoundException("Görsel bulunamadı.");
+        row.IncludeInReport = selected; await db.SaveChangesAsync(ct);
     }
     public async Task DeleteAsync(Guid eventId, Guid id, CancellationToken ct = default)
     {

@@ -42,6 +42,8 @@ public class AppDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<SettlementArea> SettlementAreas => Set<SettlementArea>();
     public DbSet<EventSettlement> EventSettlements => Set<EventSettlement>();
     public DbSet<DirectMessage> DirectMessages => Set<DirectMessage>();
+    public DbSet<ActivityReport> ActivityReports => Set<ActivityReport>();
+    public DbSet<ActivityReportAsset> ActivityReportAssets => Set<ActivityReportAsset>();
     public DbSet<EventMedia> EventMedia => Set<EventMedia>();
     public DbSet<InformationNote> InformationNotes => Set<InformationNote>();
 

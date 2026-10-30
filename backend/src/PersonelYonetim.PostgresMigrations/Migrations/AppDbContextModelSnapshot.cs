@@ -23,6 +23,44 @@ namespace PersonelYonetim.PostgresMigrations.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("PersonelYonetim.Domain.Entities.ActivityReport", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                    b.Property<DateTime>("CreatedAtUtc").HasColumnType("timestamp with time zone");
+                    b.Property<string>("CreatedBy").HasMaxLength(100).HasColumnType("character varying(100)");
+                    b.Property<DateTime?>("UpdatedAtUtc").HasColumnType("timestamp with time zone");
+                    b.Property<string>("UpdatedBy").HasMaxLength(100).HasColumnType("character varying(100)");
+                    b.Property<bool>("IsDeleted").HasColumnType("boolean");
+                    b.Property<DateTime?>("DeletedAtUtc").HasColumnType("timestamp with time zone");
+                    b.Property<string>("DeletedBy").HasMaxLength(100).HasColumnType("character varying(100)");
+                    b.Property<string>("Title").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)");
+                    b.Property<DateOnly>("FromDate").HasColumnType("date");
+                    b.Property<DateOnly>("ToDate").HasColumnType("date");
+                    b.Property<string>("DateBasis").IsRequired().HasMaxLength(10).HasColumnType("character varying(10)");
+                    b.Property<string>("Kind").IsRequired().HasMaxLength(10).HasColumnType("character varying(10)");
+                    b.Property<int>("Revision").IsConcurrencyToken().HasColumnType("integer");
+                    b.Property<int>("SourceCount").HasColumnType("integer");
+                    b.Property<long>("SourceAttendance").HasColumnType("bigint");
+                    b.Property<string>("BodyJson").IsRequired().HasColumnType("text");
+                    b.HasKey("Id"); b.ToTable("ActivityReports", "personel_app");
+                });
+            modelBuilder.Entity("PersonelYonetim.Domain.Entities.ActivityReportAsset", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                    b.Property<DateTime>("CreatedAtUtc").HasColumnType("timestamp with time zone");
+                    b.Property<string>("CreatedBy").HasMaxLength(100).HasColumnType("character varying(100)");
+                    b.Property<DateTime?>("UpdatedAtUtc").HasColumnType("timestamp with time zone");
+                    b.Property<string>("UpdatedBy").HasMaxLength(100).HasColumnType("character varying(100)");
+                    b.Property<bool>("IsDeleted").HasColumnType("boolean");
+                    b.Property<DateTime?>("DeletedAtUtc").HasColumnType("timestamp with time zone");
+                    b.Property<string>("DeletedBy").HasMaxLength(100).HasColumnType("character varying(100)");
+                    b.Property<Guid>("ReportId").HasColumnType("uuid");
+                    b.Property<Guid?>("SourceMediaId").HasColumnType("uuid");
+                    b.Property<string>("FileName").IsRequired().HasMaxLength(250).HasColumnType("character varying(250)");
+                    b.Property<string>("ContentType").IsRequired().HasMaxLength(100).HasColumnType("character varying(100)");
+                    b.Property<byte[]>("FileData").IsRequired().HasColumnType("bytea");
+                    b.HasKey("Id"); b.HasIndex("ReportId"); b.ToTable("ActivityReportAssets", "personel_app");
+                });
             modelBuilder.Entity("Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey", b =>
                 {
                     b.Property<int>("Id")
@@ -1284,6 +1322,8 @@ namespace PersonelYonetim.PostgresMigrations.Migrations
 
             modelBuilder.Entity("PersonelYonetim.Domain.Entities.EventMedia", b =>
                 {
+                    b.Property<bool>("IncludeInReport").HasColumnType("boolean");
+
                     b.Property<string>("ContentType")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -3497,6 +3537,11 @@ namespace PersonelYonetim.PostgresMigrations.Migrations
                     b.Navigation("Event");
                 });
 
+            modelBuilder.Entity("PersonelYonetim.Domain.Entities.ActivityReportAsset", b =>
+                {
+                    b.HasOne("PersonelYonetim.Domain.Entities.ActivityReport", "Report").WithMany().HasForeignKey("ReportId").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.Navigation("Report");
+                });
             modelBuilder.Entity("PersonelYonetim.Domain.Entities.InformationNote", b =>
                 {
                     b.HasOne("PersonelYonetim.Domain.Entities.Event", "Event")

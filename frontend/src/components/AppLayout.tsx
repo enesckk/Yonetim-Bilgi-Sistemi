@@ -318,6 +318,7 @@ export function AppLayout() {
     { to: '/events/calendar', label: 'Takvim', icon: <Icon d={I.calendar} />, permission: PermissionCodes.EventsView },
     { to: '/events/facilities', label: 'Tesisler', icon: <Icon d={I.building} />, permission: PermissionCodes.EventsView },
     { to: '/events/list', label: 'Etkinlik ve projeler', icon: <Icon d={I.catalog} />, permission: PermissionCodes.EventsView },
+    ...(seesAllUnits ? [{ to: '/events/reports', label: 'Raporlar', icon: <Icon d={I.reports} />, permission: PermissionCodes.EventsView }] : []),
     ...(seesAllUnits ? [{ to: '/information-notes', label: 'Bilgi notları', icon: <Icon d={I.catalog} />, permission: PermissionCodes.EventsView }] : []),
     {
       to: '/messages',
@@ -336,6 +337,7 @@ export function AppLayout() {
     { to: '/events/calendar', label: 'Takvim', icon: <Icon d={I.calendar} />, permission: PermissionCodes.EventsView },
     { to: '/events/facilities', label: 'Tesisler', icon: <Icon d={I.building} />, permission: PermissionCodes.EventsView },
     { to: '/events/list', label: 'Etkinlik ve projeler', icon: <Icon d={I.catalog} />, permission: PermissionCodes.EventsView },
+    ...(seesAllUnits ? [{ to: '/events/reports', label: 'Raporlar', icon: <Icon d={I.reports} />, permission: PermissionCodes.EventsView }] : []),
     ...(seesAllUnits ? [{ to: '/information-notes', label: 'Bilgi notları', icon: <Icon d={I.catalog} />, permission: PermissionCodes.EventsView }] : []),
     {
       to: '/messages',
@@ -367,6 +369,7 @@ export function AppLayout() {
 
   const showTopbarSearch = (() => {
     const path = location.pathname
+    if (path.startsWith('/events/reports')) return false
     if (path === '/events/map' || path === '/messages' || path.startsWith('/events/settlements')) return false
     if (path === '/employees' || path === '/units' || path === '/facilities' || path === '/organization' || path === '/stock' || path.startsWith('/stock/') || path === '/custodies' || path === '/tasks') {
       return false
@@ -459,7 +462,9 @@ export function AppLayout() {
                       path === '/events/new' ||
                       path === '/events/import' ||
                       (Boolean(seg) &&
-                        !['map', 'list', 'calendar', 'halls', 'facilities', 'import', 'new', 'settlements'].includes(seg))
+                        !['map', 'list', 'calendar', 'halls', 'facilities', 'import', 'new', 'settlements', 'reports'].includes(seg))
+                  } else if (item.to === '/events/reports') {
+                    active = path === '/events/reports' || path.startsWith('/events/reports/')
                   } else if (item.to === '/employees') {
                     active = path === '/employees' || path.startsWith('/employees/')
                   } else if (item.to === '/stock') {

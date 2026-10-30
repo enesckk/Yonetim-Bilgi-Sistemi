@@ -41,6 +41,13 @@ public sealed class EventMediaController(EventMediaService service) : Controller
         await service.SaveAsync(eventId, kind, uploads, ct);
         return Ok(ApiResponse.Ok(HttpContext.TraceIdentifier));
     }
+    [HttpPatch("{id:guid}/report-selection")]
+    [RequirePermission(PermissionCodes.EventsManage)]
+    public async Task<IActionResult> SelectForReport(Guid eventId, Guid id, [FromBody] ReportImageSelection body, CancellationToken ct)
+    {
+        await service.SelectForReportAsync(eventId, id, body.Selected, ct);
+        return Ok(ApiResponse.Ok(HttpContext.TraceIdentifier));
+    }
     [HttpDelete("{id:guid}")]
     [RequirePermission(PermissionCodes.EventsManage)]
     public async Task<IActionResult> Delete(Guid eventId, Guid id, CancellationToken ct)
@@ -48,3 +55,5 @@ public sealed class EventMediaController(EventMediaService service) : Controller
         await service.DeleteAsync(eventId, id, ct); return Ok(ApiResponse.Ok(HttpContext.TraceIdentifier));
     }
 }
+
+public sealed record ReportImageSelection(bool Selected);

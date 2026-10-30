@@ -22,6 +22,44 @@ namespace PersonelYonetim.Infrastructure.Persistence.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("PersonelYonetim.Domain.Entities.ActivityReport", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uniqueidentifier");
+                    b.Property<DateTime>("CreatedAtUtc").HasColumnType("datetime2");
+                    b.Property<string>("CreatedBy").HasMaxLength(100).HasColumnType("nvarchar(100)");
+                    b.Property<DateTime?>("UpdatedAtUtc").HasColumnType("datetime2");
+                    b.Property<string>("UpdatedBy").HasMaxLength(100).HasColumnType("nvarchar(100)");
+                    b.Property<bool>("IsDeleted").HasColumnType("bit");
+                    b.Property<DateTime?>("DeletedAtUtc").HasColumnType("datetime2");
+                    b.Property<string>("DeletedBy").HasMaxLength(100).HasColumnType("nvarchar(100)");
+                    b.Property<string>("Title").IsRequired().HasMaxLength(200).HasColumnType("nvarchar(200)");
+                    b.Property<DateOnly>("FromDate").HasColumnType("date");
+                    b.Property<DateOnly>("ToDate").HasColumnType("date");
+                    b.Property<string>("DateBasis").IsRequired().HasMaxLength(10).HasColumnType("nvarchar(10)");
+                    b.Property<string>("Kind").IsRequired().HasMaxLength(10).HasColumnType("nvarchar(10)");
+                    b.Property<int>("Revision").IsConcurrencyToken().HasColumnType("int");
+                    b.Property<int>("SourceCount").HasColumnType("int");
+                    b.Property<long>("SourceAttendance").HasColumnType("bigint");
+                    b.Property<string>("BodyJson").IsRequired().HasColumnType("nvarchar(max)");
+                    b.HasKey("Id"); b.ToTable("ActivityReports", (string)null);
+                });
+            modelBuilder.Entity("PersonelYonetim.Domain.Entities.ActivityReportAsset", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uniqueidentifier");
+                    b.Property<DateTime>("CreatedAtUtc").HasColumnType("datetime2");
+                    b.Property<string>("CreatedBy").HasMaxLength(100).HasColumnType("nvarchar(100)");
+                    b.Property<DateTime?>("UpdatedAtUtc").HasColumnType("datetime2");
+                    b.Property<string>("UpdatedBy").HasMaxLength(100).HasColumnType("nvarchar(100)");
+                    b.Property<bool>("IsDeleted").HasColumnType("bit");
+                    b.Property<DateTime?>("DeletedAtUtc").HasColumnType("datetime2");
+                    b.Property<string>("DeletedBy").HasMaxLength(100).HasColumnType("nvarchar(100)");
+                    b.Property<Guid>("ReportId").HasColumnType("uniqueidentifier");
+                    b.Property<Guid?>("SourceMediaId").HasColumnType("uniqueidentifier");
+                    b.Property<string>("FileName").IsRequired().HasMaxLength(250).HasColumnType("nvarchar(250)");
+                    b.Property<string>("ContentType").IsRequired().HasMaxLength(100).HasColumnType("nvarchar(100)");
+                    b.Property<byte[]>("FileData").IsRequired().HasColumnType("varbinary(max)");
+                    b.HasKey("Id"); b.HasIndex("ReportId"); b.ToTable("ActivityReportAssets", (string)null);
+                });
             modelBuilder.Entity("PersonelYonetim.Domain.Entities.AppSetting", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1264,6 +1302,8 @@ namespace PersonelYonetim.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("PersonelYonetim.Domain.Entities.EventMedia", b =>
                 {
+                    b.Property<bool>("IncludeInReport").HasColumnType("bit");
+
                     b.Property<string>("ContentType")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -3477,6 +3517,11 @@ namespace PersonelYonetim.Infrastructure.Persistence.Migrations
                     b.Navigation("Event");
                 });
 
+            modelBuilder.Entity("PersonelYonetim.Domain.Entities.ActivityReportAsset", b =>
+                {
+                    b.HasOne("PersonelYonetim.Domain.Entities.ActivityReport", "Report").WithMany().HasForeignKey("ReportId").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.Navigation("Report");
+                });
             modelBuilder.Entity("PersonelYonetim.Domain.Entities.InformationNote", b =>
                 {
                     b.HasOne("PersonelYonetim.Domain.Entities.Event", "Event")

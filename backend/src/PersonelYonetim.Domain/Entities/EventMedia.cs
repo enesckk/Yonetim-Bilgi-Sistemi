@@ -8,5 +8,6 @@ public sealed class EventMedia : AuditableEntity
     public string FileName { get; set; } = "";
     public string ContentType { get; set; } = "";
     public int Size { get; set; }
+    public bool IncludeInReport { get; set; }
     public byte[] FileData { get; set; } = [];
 }

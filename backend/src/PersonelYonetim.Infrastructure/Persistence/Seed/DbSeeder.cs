@@ -72,6 +72,7 @@ public static class DbSeeder
         await ChildTheatre2026Import.SeedAsync(db, logger, cancellationToken);
         await HistoricalEvents2024And2025Import.SeedAsync(db, logger, cancellationToken);
         await Bilimfest2026Import.SeedAsync(db, logger, cancellationToken);
+        await ActivityReport2026Seed.SeedAsync(db, cancellationToken);
         await EmployeeMainUnitsUpdate.SeedAsync(db, cancellationToken);
         await SeedAppSettingsAsync(db, logger, cancellationToken);
 

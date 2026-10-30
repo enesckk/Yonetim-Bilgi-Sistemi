@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   fetchEventMedia,
+  selectEventMediaForReport,
   fetchEventMediaBlob,
   mediaSelectionError,
   removeEventMedia,
@@ -239,6 +240,25 @@ export function EventMediaPanel({ eventId, canManage }: { eventId: string; canMa
       setBusy(false)
     }
   }
+  async function selectForReport(file: EventMedia, selected: boolean) {
+    setBusy(true)
+    setError('')
+    setItems((rows) =>
+      rows.map((row) => (row.id === file.id ? { ...row, includeInReport: selected } : row)),
+    )
+    try {
+      await selectEventMediaForReport(eventId, file.id, selected)
+    } catch (e) {
+      setItems((rows) =>
+        rows.map((row) =>
+          row.id === file.id ? { ...row, includeInReport: file.includeInReport } : row,
+        ),
+      )
+      setError(e instanceof Error ? e.message : 'Rapor seçimi kaydedilemedi.')
+    } finally {
+      setBusy(false)
+    }
+  }
   async function remove(file: EventMedia) {
     if (
       !(await confirm({
@@ -337,6 +357,20 @@ export function EventMediaPanel({ eventId, canManage }: { eventId: string; canMa
                             </button>
                           )}
                         </figcaption>
+                        {canManage ? (
+                          <label className="event-report-image-choice">
+                            <input
+                              type="checkbox"
+                              checked={file.includeInReport ?? false}
+                              disabled={busy}
+                              onChange={(e) => void selectForReport(file, e.target.checked)}
+                              aria-label={`${file.fileName} faaliyet raporunda kullan`}
+                            />{' '}
+                            Faaliyet raporunda kullan
+                          </label>
+                        ) : file.includeInReport ? (
+                          <p className="event-report-image-badge">Faaliyet raporu için seçildi</p>
+                        ) : null}
                       </figure>
                     ))}
                 </div>

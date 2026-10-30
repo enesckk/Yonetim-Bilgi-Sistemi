@@ -14,6 +14,9 @@ import { PermissionCodes } from '@/auth/permissionCodes'
 import { PwaInstallPrompt } from '@/components/PwaInstallPrompt'
 import { AppUpdateNotice } from '@/components/AppUpdateNotice'
 
+const EventReportsPage = lazy(() => import('@/pages/EventReportsPage').then(m => ({ default: m.EventReportsPage })))
+const ActivityReportEditorPage = lazy(() => import('@/pages/EventReportsPage').then(m => ({ default: m.ActivityReportEditorPage })))
+
 const InformationNotesPage = lazy(() => import('@/pages/InformationNotesPage').then(m => ({default:m.InformationNotesPage})))
 
 const EmployeesPage = lazy(() => import('@/pages/EmployeesPage').then((m) => ({ default: m.EmployeesPage })))
@@ -141,6 +144,8 @@ export default function App() {
                 <Route path="events/facilities-locations" element={<PermissionRoute permission={PermissionCodes.EventsView}><PermissionRoute permission={PermissionCodes.OrganizationView} message="Tesis konumlarını görüntüleme yetkiniz yok."><FacilityLocationsPage /></PermissionRoute></PermissionRoute>} />
                 <Route path="events/import" element={<PermissionRoute permission={PermissionCodes.EventsView}><EventImportPage /></PermissionRoute>} />
                 <Route path="events/new" element={<PermissionRoute permission={PermissionCodes.EventsView}><EventFormPage /></PermissionRoute>} />
+                <Route path="events/reports" element={<PermissionRoute permission={PermissionCodes.EventsView}><PermissionRoute permission={PermissionCodes.EmployeesViewAllUnits}><EventReportsPage /></PermissionRoute></PermissionRoute>} />
+                <Route path="events/reports/:reportId" element={<PermissionRoute permission={PermissionCodes.EventsView}><PermissionRoute permission={PermissionCodes.EmployeesViewAllUnits}><ActivityReportEditorPage /></PermissionRoute></PermissionRoute>} />
                 <Route path="events/:id/edit" element={<PermissionRoute permission={PermissionCodes.EventsView}><EventFormPage /></PermissionRoute>} />
                 <Route path="events/:id" element={<PermissionRoute permission={PermissionCodes.EventsView}><EventDetailPage /></PermissionRoute>} />
               </Route>
