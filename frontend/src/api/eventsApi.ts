@@ -68,6 +68,7 @@ export interface EventListItem {
   address?: string | null
   expectedAttendees?: number | null
   actualAttendees?: number | null
+  recordedAttendanceCount?: number | null
   attendanceCount?: number | null
   seriesId?: string | null
   recurrenceFrequency?: EventRecurrenceFrequency

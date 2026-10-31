@@ -22,6 +22,7 @@ public sealed class EventListItemDto
     public string? Address { get; init; }
     public int? ExpectedAttendees { get; init; }
     public int? ActualAttendees { get; init; }
+    public int? RecordedAttendanceCount { get; init; }
     public int? AttendanceCount { get; set; }
     public Guid? SeriesId { get; init; }
     public EventRecurrenceFrequency RecurrenceFrequency { get; init; }

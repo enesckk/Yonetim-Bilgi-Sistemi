@@ -1,3 +1,4 @@
+import { groupEvents, recordedAttendance } from '@/lib/eventGroups'
 import { EventYearOverview } from '@/components/EventYearOverview'
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
@@ -143,8 +144,9 @@ export function EventsListPage() {
           : Date.parse(b.startAtUtc) - Date.parse(a.startAtUtc),
     )
   }, [scoped, phase, sort])
-  const pages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE))
-  const shown = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const groups = useMemo(() => groupEvents(sorted), [sorted])
+  const pages = Math.max(1, Math.ceil(groups.length / PAGE_SIZE))
+  const shown = groups.slice((Math.min(page, pages) - 1) * PAGE_SIZE, Math.min(page, pages) * PAGE_SIZE)
   function setKind(next: string) {
     setParams((p) => {
       const n = new URLSearchParams(p)
@@ -288,7 +290,7 @@ export function EventsListPage() {
                   : 'Tüm kayıtlar'}
             </h2>
             <p className="muted small">
-              {loading ? 'Yükleniyor…' : `${sorted.length.toLocaleString('tr-TR')} kayıt`}
+              {loading ? 'Yükleniyor…' : `${groups.length.toLocaleString('tr-TR')} grup · ${sorted.length.toLocaleString('tr-TR')} kayıt`}
             </p>
           </div>
           <div className="events-segment" role="group" aria-label="Kayıt durumu">
@@ -431,81 +433,46 @@ export function EventsListPage() {
             </button>
           </p>
         )}
-        <div
-          className="employees-table-wrap"
-          role="region"
-          aria-label="Etkinlik ve proje listesi"
-          tabIndex={0}
-        >
-          <table className="data-table employees-table">
-            <thead>
-              <tr>
-                <th>Başlık</th>
-                <th>Tür</th>
-                <th>Durum</th>
-                <th>Tarih</th>
-                <th>Tesis / mahalle</th>
-                <th>Katılım</th>
-                <th>İncele</th>
-              </tr>
-            </thead>
-            <tbody>
-              {!shown.length ? (
-                <tr>
-                  <td colSpan={7} className="muted">
-                    {loading ? 'Yükleniyor…' : 'Kayıt bulunamadı.'}
-                  </td>
-                </tr>
-              ) : (
-                shown.map((e) => (
-                  <tr key={e.id}>
-                    <td>
-                      <Link to={'/events/' + e.id} className="events-title-link">
-                        {e.title}
-                      </Link>
-                    </td>
-                    <td>{e.category === 'project' ? 'Proje' : e.categoryLabel || 'Etkinlik'}</td>
-                    <td>
-                      <span className={'event-status-pill status-' + e.status}>
-                        {eventPhaseLabel(e.status, e.startAtUtc)}
-                      </span>
-                    </td>
-                    <td>{formatEventWhen(e.startAtUtc, e.isDateOnly)}</td>
-                    <td>
-                      {e.facilityName || e.address || '—'}
-                      {e.settlementNames?.length ? (
-                        <small className="event-list-settlements">
-                          {e.settlementNames.join(', ')}
-                        </small>
-                      ) : null}
-                    </td>
-                    <td>
-                      {(e.actualAttendees ?? e.attendanceCount) != null
-                        ? `${(e.actualAttendees ?? e.attendanceCount)!.toLocaleString('tr-TR')} kişi`
-                        : e.expectedAttendees != null
-                          ? `${e.expectedAttendees.toLocaleString('tr-TR')} beklenen`
-                          : '—'}
-                    </td>
-                    <td>
-                      <div className="events-action-group">
-                        <Link className="events-action-btn" to={'/events/' + e.id}>
-                          Detay
-                        </Link>
-                        {hasPermission(PermissionCodes.EmployeesViewAllUnits) && (
-                          <Link
-                            className="events-action-btn"
-                            to={'/information-notes?eventId=' + e.id}
-                          >
-                            Bilgi notları
-                          </Link>
-                        )}
+        <div className="event-group-list" aria-label="Etkinlik ve proje grupları" aria-busy={loading}>
+          {loading ? <p className="muted" role="status">Yükleniyor…</p> : !shown.length ? <p className="muted">Kayıt bulunamadı.</p> : shown.map((group) => (
+            <details className="event-group-card" key={group.key}>
+              <summary>
+                <div className="event-group-copy">
+                  <span className="event-group-category">{group.categoryLabel}</span>
+                  <h3>{group.title} <span>{group.year}</span></h3>
+                  <div className="event-group-metrics">
+                    <span>{group.items.length.toLocaleString('tr-TR')} {group.categoryLabel === 'Proje' ? 'proje kaydı' : 'etkinlik'}</span>
+                    <span className="event-group-attendance">{group.recordsWithAttendance ? `${group.attendance.toLocaleString('tr-TR')} kayıtlı katılım` : 'Katılım belirtilmemiş'}</span>
+                    {group.recordsWithAttendance > 0 && group.recordsWithAttendance < group.items.length && <small>{group.items.length - group.recordsWithAttendance} kayıtta katılım eksik</small>}
+                  </div>
+                </div>
+                <span className="event-group-expand"><span className="when-closed">Detayları gör</span><span className="when-open">Detayları gizle</span><span aria-hidden="true">⌄</span></span>
+              </summary>
+              <div className="event-group-records">
+                {group.items.map((e) => (
+                  <article className="event-group-record" key={e.id}>
+                    <div className="event-group-record-body">
+                      <Link to={'/events/' + e.id} className="events-title-link">{e.title}</Link>
+                      <div className="event-group-record-meta">
+                        <span>{formatEventWhen(e.startAtUtc, e.isDateOnly)}</span>
+                        <span className={'event-status-pill status-' + e.status}>{eventPhaseLabel(e.status, e.startAtUtc)}</span>
                       </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                      <p>{e.settlementNames?.length ? e.settlementNames.join(', ') : e.facilityName || e.address || 'Konum belirtilmemiş'}</p>
+                      {e.settlementNames?.length && e.facilityName ? <small>{e.facilityName}</small> : null}
+                    </div>
+                    <div className="event-group-record-actions">
+                      <span className="event-group-record-count">{recordedAttendance(e) !== null ? `${recordedAttendance(e)!.toLocaleString('tr-TR')} kayıtlı katılım` : e.expectedAttendees != null ? `${e.expectedAttendees.toLocaleString('tr-TR')} beklenen katılım` : 'Katılım belirtilmemiş'}</span>
+                      <div className="events-action-group">
+                        <Link className="events-action-btn" to={'/events/' + e.id}>Detay</Link>
+                        {hasPermission(PermissionCodes.EmployeesViewAllUnits) && <Link className="events-action-btn" to={'/information-notes?eventId=' + e.id}>Bilgi notları</Link>}
+                      </div>
+                    </div>
+                  </article>
+                ))}
+                <p className="event-group-note">Toplam, kayıtlı katılımların toplamıdır; tekil kişi sayısı değildir. Beklenen katılımlar toplama dahil edilmez.</p>
+              </div>
+            </details>
+          ))}
         </div>
         {pages > 1 && (
           <div className="events-pagination">

@@ -281,6 +281,8 @@ public sealed class GetEventsHandler : IRequestHandler<GetEventsQuery, EventList
                 Address = e.Address ?? (e.Facility != null ? e.Facility.Address : null),
                 ExpectedAttendees = e.ExpectedAttendees,
                 ActualAttendees = e.ActualAttendees,
+                RecordedAttendanceCount = e.ActualAttendees ?? (e.Settlements.Where(s => !s.IsDeleted).Sum(s => s.AttendanceCount) > 0
+                    ? (int?)e.Settlements.Where(s => !s.IsDeleted).Sum(s => s.AttendanceCount) : null),
                 AttendanceCount = e.ActualAttendees != null
                     ? e.ActualAttendees
                     : (e.Settlements.Sum(s => s.AttendanceCount) > 0
