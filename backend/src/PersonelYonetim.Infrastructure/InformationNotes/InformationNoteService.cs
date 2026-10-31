@@ -62,10 +62,9 @@ public sealed class InformationNoteService(AppDbContext db, ICurrentUserService 
     }
     public async Task<(byte[] Data, string Name, string Type)> FileAsync(Guid id, CancellationToken ct = default)
     {
-        await GetAsync(id, ct);
-        var file = await db.InformationNotes.AsNoTracking().Where(n => n.Id == id).Select(n => new { n.FileData, n.FileName, n.ContentType }).SingleAsync(ct);
-        if (file.FileData is null) throw new NotFoundException("Ekli dosya bulunamadı.");
-        return (file.FileData, file.FileName!, file.ContentType!);
+        var note = await GetAsync(id, ct);
+        return (InformationNoteDocuments.CreateWord(note.DateText, note.Subject, note.Body),
+            "Bilgi-notu-" + note.Id + ".docx", InformationNoteDocuments.DocxType);
     }
     public async Task<byte[]> ExcelAsync(Guid id, CancellationToken ct = default)
     {

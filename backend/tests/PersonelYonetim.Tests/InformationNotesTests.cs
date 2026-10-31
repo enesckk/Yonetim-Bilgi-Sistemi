@@ -33,6 +33,25 @@ public class InformationNotesTests
     }
 
     [Fact]
+    public void Template_export_preserves_branding_fixed_fields_and_escapes_multiline_text()
+    {
+        const string body = "Türkçe ı İ ğ ş & <etiket>\nİkinci satır\n\nSon paragraf";
+        var data = InformationNoteDocuments.CreateWord("31 Ekim 2026", "Kültür & sanat", body);
+        var parsed = InformationNoteDocuments.ReadWord(data, "note.docx");
+        Assert.Equal("31 Ekim 2026", parsed.DateText);
+        Assert.Equal("Kültür & sanat", parsed.Subject);
+        Assert.Equal("Şehitkamil Belediye Başkanlığı", parsed.Organizer);
+        Assert.Equal("Kültür, Sanat ve Sosyal İşler Müdürlüğü", parsed.PreparedBy);
+        Assert.Contains("Türkçe ı İ ğ ş & <etiket>", parsed.Body);
+        using var zip = new System.IO.Compression.ZipArchive(new MemoryStream(data));
+        Assert.Contains(zip.Entries, e => e.FullName.StartsWith("word/media/"));
+        using var reader = new StreamReader(zip.GetEntry("word/document.xml")!.Open());
+        var xml = reader.ReadToEnd();
+        Assert.Contains("ŞEHİTKAMİL", xml);
+        Assert.Contains("&lt;etiket&gt;", xml);
+    }
+
+    [Fact]
     public async Task Imports_one_completed_project_and_exact_original_note_once_without_inventing_neighborhoods_or_names()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:"); await connection.OpenAsync(); await using var db = Context(connection); await Prepare(db);
@@ -51,7 +70,7 @@ public class InformationNotesTests
         var service = new InformationNoteService(db, Director);
         Assert.Single(await service.ListAsync(project.Id, null)); Assert.Empty(await service.ListAsync(Guid.NewGuid(), null));
         Assert.Equal(source.Body, (await service.GetAsync(note.Id)).Body);
-        var download = await service.FileAsync(note.Id); Assert.Equal(document, download.Data); Assert.Equal(InformationNoteDocuments.DocxType, download.Type);
+        var download = await service.FileAsync(note.Id); Assert.NotEqual(document, download.Data); Assert.Equal(source.Body, InformationNoteDocuments.ReadWord(download.Data, download.Name).Body); Assert.Equal(InformationNoteDocuments.DocxType, download.Type);
         using var excel = new XLWorkbook(new MemoryStream(await service.ExcelAsync(note.Id)));
         Assert.Equal(source.DateText, excel.Worksheet(1).Cell(3, 2).GetString()); Assert.Equal(source.Body, excel.Worksheet(1).Cell(8, 2).GetString());
         Assert.False(excel.Worksheet(1).Cell(8, 2).HasFormula);
@@ -82,7 +101,7 @@ public class InformationNotesTests
         var note = await service.SaveAsync(null, input, "%PDF-1.7\nTest file"u8.ToArray(), "source.pdf");
         Assert.Equal("Complete description", note.Body); Assert.Null(note.EventId);
         await service.SaveAsync(note.Id, input with { Body = "Edited body" });
-        Assert.Equal("Edited body", (await service.GetAsync(note.Id)).Body); Assert.Equal("source.pdf", (await service.FileAsync(note.Id)).Name);
+        Assert.Equal("Edited body", (await service.GetAsync(note.Id)).Body); Assert.EndsWith(".docx", (await service.FileAsync(note.Id)).Name); Assert.Equal("Edited body", InformationNoteDocuments.ReadWord((await service.FileAsync(note.Id)).Data, "note.docx").Body);
         await Assert.ThrowsAsync<ArgumentException>(() => service.SaveAsync(null, input with { EventId = Guid.NewGuid() }));
         await Assert.ThrowsAsync<ArgumentException>(() => service.SaveAsync(null, input with { Body = "" }));
         await Assert.ThrowsAsync<ArgumentException>(() => service.SaveAsync(null, input, "wrong"u8.ToArray(), "wrong.docx"));
@@ -96,7 +115,7 @@ public class InformationNotesTests
         Assert.Single(await viewer.ListAsync(null, null)); await Assert.ThrowsAsync<ForbiddenException>(() => viewer.DeleteAsync(note.Id));
         var original = Bilimfest2026Import.ReadDocument();
         await service.SaveAsync(note.Id, input, original, "original.docx");
-        Assert.Equal(original, (await service.FileAsync(note.Id)).Data);
+        Assert.Equal(input.Body, InformationNoteDocuments.ReadWord((await service.FileAsync(note.Id)).Data, "note.docx").Body);
         await service.DeleteAsync(note.Id); Assert.Empty(await service.ListAsync(null, null));
         await Assert.ThrowsAsync<NotFoundException>(() => service.FileAsync(note.Id));
         Assert.True((await db.InformationNotes.IgnoreQueryFilters().SingleAsync()).IsDeleted);

@@ -2,13 +2,12 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthContext'
 import { PermissionCodes } from '@/auth/permissionCodes'
-import { fetchEvents, type EventListItem } from '@/api/eventsApi'
+import { createEvent, fetchEvents, type EventListItem } from '@/api/eventsApi'
 import {
   deleteInformationNote,
   downloadInformationNote,
   fetchInformationNote,
   fetchInformationNotes,
-  previewInformationNote,
   saveInformationNote,
   type InformationNote,
   type NoteInput,
@@ -40,10 +39,12 @@ export function InformationNotesPage() {
   const [busy, setBusy] = useState(false)
   const [editing, setEditing] = useState<string | null | undefined>(undefined)
   const [input, setInput] = useState<NoteInput>(blank(eventId ?? null))
-  const [file, setFile] = useState<File | null>(null)
+  const [newEvent, setNewEvent] = useState(false)
+  const [eventTitle, setEventTitle] = useState('')
+  const [eventKind, setEventKind] = useState('project')
+  const [eventDate, setEventDate] = useState('')
   const sequence = useRef(0)
   const detailSequence = useRef(0)
-  const fileSequence = useRef(0)
   const load = useCallback(async () => {
     const s = ++sequence.current
     setLoading(true)
@@ -104,8 +105,10 @@ export function InformationNotesPage() {
   }
   const start = (note?: InformationNote) => {
     setError(null)
-    setFile(null)
-    fileSequence.current++
+    setNewEvent(false)
+    setEventTitle('')
+    setEventDate('')
+    setEventKind('project')
     setEditing(note?.id ?? null)
     setInput(
       note
@@ -122,40 +125,48 @@ export function InformationNotesPage() {
     )
   }
   const field = (key: keyof NoteInput, value: string) => setInput((p) => ({ ...p, [key]: value }))
-  async function chooseFile(next: File | null) {
-    const s = ++fileSequence.current
-    setFile(next)
-    setError(null)
-    if (!next) return
-    if (next.size > 5 * 1024 * 1024) {
-      setError('Dosya en fazla 5 MB olabilir.')
-      setFile(null)
-      return
-    }
-    if (!next.name.toLowerCase().endsWith('.docx')) return
+  async function addEvent() {
+    if (!eventTitle.trim() || !eventDate || busy) return
     setBusy(true)
     setError(null)
     try {
-      const read = await previewInformationNote(next)
-      if (s === fileSequence.current) setInput((p) => ({ ...read, eventId: p.eventId }))
+      const created = await createEvent({
+        title: eventTitle.trim(),
+        category: eventKind || null,
+        startAtUtc: new Date(eventDate + 'T00:00:00+03:00').toISOString(),
+        isDateOnly: true,
+        status: 1,
+      })
+      // Keep the created record selected even if refreshing the list fails.
+      setEvents((previous) => [...previous, {
+        id: created.id, title: eventTitle.trim(), status: 1, statusLabel: 'Taslak',
+        startAtUtc: eventDate, category: eventKind || null,
+      }])
+      setInput((previous) => ({ ...previous, eventId: created.id }))
+      setNewEvent(false)
+      setEventTitle('')
+      setEventDate('')
     } catch (e) {
-      if (s === fileSequence.current) {
-        setError(e instanceof Error ? e.message : 'Word dosyası okunamadı.')
-        setFile(null)
-      }
+      setError(e instanceof Error ? e.message : 'Proje / etkinlik eklenemedi.')
     } finally {
-      if (s === fileSequence.current) setBusy(false)
+      setBusy(false)
     }
   }
   async function submit(e: FormEvent) {
     e.preventDefault()
+    if (busy) return
+    if (newEvent) {
+      setError('Önce yeni proje / etkinliği oluşturup seçin veya yeni kayıt alanını kapatın.')
+      return
+    }
     setBusy(true)
     setError(null)
     try {
-      const n = await saveInformationNote(input, file, editing ?? undefined)
+      const n = await saveInformationNote({ ...input, title: input.subject.trim().slice(0, 200) }, null, editing ?? undefined)
       setEditing(undefined)
       await load()
       pick(n.id)
+      setSelected(n)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Bilgi notu kaydedilemedi.')
     } finally {
@@ -188,10 +199,10 @@ export function InformationNotesPage() {
       setBusy(false)
     }
   }
-  async function download(excel = false) {
+  async function download() {
     if (!selected) return
     try {
-      await downloadInformationNote(selected.id, excel)
+      await downloadInformationNote(selected.id)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Dosya indirilemedi.')
     }
@@ -203,7 +214,7 @@ export function InformationNotesPage() {
           <p className="information-notes-eyebrow">Müdürlük</p>
           <h1>Bilgi notları</h1>
           <p className="muted">
-            Proje ve etkinliklerin bilgi notları, açıklamaları ve kaynak belgeleri.
+            Proje ve etkinlikler için kurum şablonunda bilgi notları.
           </p>
         </div>
         {canManage && (
@@ -226,42 +237,18 @@ export function InformationNotesPage() {
               className="btn-secondary"
               disabled={busy}
               onClick={() => {
-                fileSequence.current++
                 setEditing(undefined)
               }}
             >
               Vazgeç
             </button>
           </div>
-          <label className="information-note-upload">
-            Word veya PDF dosyası
-            <input
-              type="file"
-              accept=".docx,.pdf"
-              disabled={busy}
-              onChange={(e) => void chooseFile(e.target.files?.[0] ?? null)}
-            />
-            <small>
-              Word dosyasındaki alanlar otomatik okunur. Kaydetmeden önce kontrol edebilirsiniz. En
-              fazla 5 MB.
-            </small>
-          </label>
           <fieldset
             aria-label="Bilgi notu alanları"
             disabled={busy}
             className="information-note-edit-fields"
           >
             <div className="information-note-fields">
-              <label>
-                Başlık
-                <input
-                  aria-label="Başlık"
-                  required
-                  maxLength={200}
-                  value={input.title}
-                  onChange={(e) => field('title', e.target.value)}
-                />
-              </label>
               <label>
                 Proje / etkinlik
                 <select
@@ -272,14 +259,24 @@ export function InformationNotesPage() {
                   <option value="">Bağımsız bilgi notu</option>
                   {events.map((e) => (
                     <option key={e.id} value={e.id}>
-                      {e.title}
+                      {e.category === 'project' ? 'Proje' : 'Etkinlik'}: {e.title}
                     </option>
                   ))}
                 </select>
               </label>
+              <button type="button" className="btn-secondary" onClick={() => setNewEvent(!newEvent)}>
+                {newEvent ? 'Yeni kaydı kapat' : '+ Proje / etkinlik ekle'}
+              </button>
+              {newEvent && <div className="information-note-fields">
+                <label>Tür<select value={eventKind} onChange={(e) => setEventKind(e.target.value)}><option value="project">Proje</option><option value="">Etkinlik</option></select></label>
+                <label>Proje / etkinlik adı<input maxLength={200} value={eventTitle} onChange={(e) => setEventTitle(e.target.value)} /></label>
+                <label>Başlangıç tarihi<input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} /></label>
+                <button type="button" className="btn-secondary" disabled={!eventTitle.trim() || !eventDate} onClick={() => void addEvent()}>Oluştur ve seç</button>
+              </div>}
               <label>
                 Tarih
                 <input
+                  required
                   aria-label="Tarih"
                   value={input.dateText}
                   maxLength={100}
@@ -288,30 +285,13 @@ export function InformationNotesPage() {
                 />
               </label>
               <label>
-                Düzenleyen kurum
-                <input
-                  aria-label="Düzenleyen kurum"
-                  value={input.organizer}
-                  maxLength={300}
-                  onChange={(e) => field('organizer', e.target.value)}
-                />
-              </label>
-              <label>
                 Konu
                 <input
+                  required
                   aria-label="Konu"
                   value={input.subject}
                   maxLength={500}
                   onChange={(e) => field('subject', e.target.value)}
-                />
-              </label>
-              <label>
-                Hazırlayan
-                <input
-                  aria-label="Hazırlayan"
-                  value={input.preparedBy}
-                  maxLength={300}
-                  onChange={(e) => field('preparedBy', e.target.value)}
                 />
               </label>
             </div>
@@ -328,10 +308,7 @@ export function InformationNotesPage() {
             </label>
           </fieldset>
           <div className="information-note-form-actions">
-            <span className="muted small">
-              {file?.name ??
-                (editing ? (selected?.fileName ?? '') : 'Dosya eklemek isteğe bağlıdır.')}
-            </span>
+            <span className="muted small">Bilgi notu kurumun Word şablonuna doldurulur.</span>
             <button type="submit" className="btn-primary" disabled={busy}>
               {busy ? 'İşleniyor…' : 'Bilgi notunu kaydet'}
             </button>
@@ -387,14 +364,9 @@ export function InformationNotesPage() {
                     )}
                   </div>
                   <div className="information-note-actions">
-                    <button className="btn-secondary" onClick={() => void download(true)}>
-                      Excel indir
+                    <button className="btn-secondary" onClick={() => void download()}>
+                      Bilgi notu indir
                     </button>
-                    {selected.fileName && (
-                      <button className="btn-secondary" onClick={() => void download()}>
-                        Özgün belgeyi indir
-                      </button>
-                    )}
                     {canManage && (
                       <>
                         <button
@@ -418,9 +390,7 @@ export function InformationNotesPage() {
                 <dl className="information-note-metadata">
                   {[
                     ['Tarih', selected.dateText],
-                    ['Düzenleyen kurum', selected.organizer],
                     ['Konu', selected.subject],
-                    ['Hazırlayan', selected.preparedBy],
                   ].map(([k, v]) => (
                     <div key={k}>
                       <dt>{k}</dt>
@@ -438,7 +408,7 @@ export function InformationNotesPage() {
             ) : (
               <div className="information-note-empty">
                 <h2>{selectedId ? 'Bilgi notu yükleniyor…' : 'Bir bilgi notu seçin'}</h2>
-                <p>Detaylarını okumak ve kaynak belgeyi indirmek için listeden bir kayıt açın.</p>
+                <p>Detaylarını okumak ve bilgi notunu indirmek için listeden bir kayıt açın.</p>
               </div>
             )}
           </section>

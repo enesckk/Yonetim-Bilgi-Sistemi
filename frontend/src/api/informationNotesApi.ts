@@ -38,6 +38,6 @@ export function saveInformationNote(input: NoteInput, file: File | null, id?: st
 export function deleteInformationNote(id: string) {
   return apiRequest('/api/information-notes/' + id, { method: 'DELETE' })
 }
-export function downloadInformationNote(id: string, excel = false) {
-  return apiDownloadFile('/api/information-notes/' + id + (excel ? '/excel' : '/file'))
+export function downloadInformationNote(id: string) {
+  return apiDownloadFile('/api/information-notes/' + id + '/file')
 }
