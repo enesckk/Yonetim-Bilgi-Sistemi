@@ -1,5 +1,7 @@
+import '@/styles/reportCenter.css'
+import { ReportSummaryPanel } from '@/components/ReportSummaryPanel'
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthContext'
 import { PermissionCodes } from '@/auth/permissionCodes'
 import { useConfirm } from '@/components/ConfirmDialog'
@@ -35,6 +37,9 @@ const initialYear = new Date().getFullYear()
 export function EventReportsPage() {
   const { hasPermission } = useAuth()
   const manage = hasPermission(PermissionCodes.EventsManage)
+  const [params, setParams] = useSearchParams()
+  const section = params.get('type') === 'facility' ? 'facility' : params.get('type') === 'event' ? 'event' : 'activity'
+
   const navigate = useNavigate()
   const [reports, setReports] = useState<ActivityReportSummary[]>([])
   const [loading, setLoading] = useState(true)
@@ -88,15 +93,18 @@ export function EventReportsPage() {
   }
   return (
     <div className="activity-reports-page">
-      <section className="panel">
-        <header className="activity-report-title">
-          <div>
-            <span className="activity-eyebrow">ETKİNLİK VE PROJELER</span>
-            <h2>Raporlar</h2>
-            <p>Tarih bazlı raporlar ve düzenlenebilir yıllık faaliyet raporları</p>
-          </div>
-          <span className="activity-report-chip">FAALİYET ARŞİVİ</span>
-        </header>
+      <section className="report-center-heading">
+        <div><span className="activity-eyebrow">RAPORLAR</span><h1>Rapor merkezi</h1><p>Faaliyetleri, tesis kullanımını ve program sonuçlarını tek yerden inceleyin.</p></div>
+        <span className="report-word-label">Word olarak indirilebilir</span>
+      </section>
+      <nav className="report-center-tabs" aria-label="Rapor türü">
+        {([
+          ['activity', 'Faaliyet raporu', 'Hazırla, düzenle ve sun'],
+          ['facility', 'Tesis raporu özeti', 'Aylık kullanım ve katılım'],
+          ['event', 'Etkinlik ve proje raporu', 'Programlar ve dönem sonuçları'],
+        ] as const).map(([value, label, hint], i) => <button type="button" key={value} aria-pressed={section === value} className={section === value ? 'is-active' : ''} onClick={() => setParams(value === 'activity' ? {} : { type: value })}><span className="report-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">{i === 0 ? <path d="M6 3h8l4 4v14H6z M14 3v5h4 M9 12h6 M9 16h6" /> : i === 1 ? <path d="M3 21h18 M5 21V5h9v16 M14 10h5v11 M8 8h3 M8 12h3 M8 16h3 M16 13h1 M16 17h1" /> : <path d="M4 20h16 M7 16v-5 M12 16V5 M17 16V8" />}</svg></span><span><strong>{label}</strong><small>{hint}</small></span><span className="report-tab-marker" aria-hidden="true">↗</span></button>)}
+      </nav>
+      {section !== 'activity' ? <ReportSummaryPanel key={section} type={section} /> : <section className="panel report-activity-workspace">
         {error && (
           <p className="form-error" role="alert">
             {error}{' '}
@@ -108,7 +116,7 @@ export function EventReportsPage() {
         {manage && (
           <form className="activity-report-generator" onSubmit={generate}>
             <div>
-              <h3>Yeni rapor oluştur</h3>
+              <h3>Faaliyet raporu oluştur</h3>
               <p>
                 Seçilen dönemdeki kayıtlar, açıklamalar, bilgi notları ve rapor için işaretlenen
                 görseller otomatik alınır.
@@ -247,7 +255,7 @@ export function EventReportsPage() {
           Planlanan ve iptal edilen kayıtlar raporda durumlarıyla gösterilir. Katılım toplamı tekil
           kişi sayısı değildir; beklenen katılım toplama katılmaz.
         </p>
-      </section>
+      </section>}
     </div>
   )
 }
@@ -571,7 +579,7 @@ export function ActivityReportEditorPage() {
       setBusy(false)
     }
   }
-  async function exportFile(kind: 'pdf' | 'excel') {
+  async function exportFile(kind: 'pdf' | 'excel' | 'word') {
     await perform(async () => {
       if (dirty && manage) await save()
       await downloadActivityReport(reportId!, kind)
@@ -720,6 +728,8 @@ export function ActivityReportEditorPage() {
           </span>
         </div>
         <div className="activity-editor-actions">
+          <button type="button" className="btn-primary" disabled={busy} onClick={() => void exportFile('word')}>{dirty ? 'Kaydet ve Word indir' : 'Word indir'}</button>
+
           <button
             type="button"
             className="btn-secondary"

@@ -62,6 +62,7 @@ public static class DependencyInjection
         }
 
         services.AddScoped<PersonelYonetim.Infrastructure.SourceSync.SourceSyncService>();
+        services.AddScoped<PersonelYonetim.Infrastructure.Reports.ReportSummaryService>();
         services.AddScoped<PersonelYonetim.Infrastructure.InformationNotes.InformationNoteService>();
         services.AddScoped<PersonelYonetim.Infrastructure.Events.EventMediaService>();
         services.AddScoped<PersonelYonetim.Infrastructure.Reports.ActivityReportService>();

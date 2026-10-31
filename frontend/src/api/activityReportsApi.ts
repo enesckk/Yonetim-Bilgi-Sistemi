@@ -86,5 +86,5 @@ export function uploadReportAsset(id: string, file: File) {
   f.append('file', file)
   return apiUploadJson<ReportAsset>(`${root}/${id}/assets`, f)
 }
-export const downloadActivityReport = (id: string, kind: 'pdf' | 'excel') =>
+export const downloadActivityReport = (id: string, kind: 'pdf' | 'excel' | 'word') =>
   apiDownloadFile(`${root}/${id}/${kind}`)

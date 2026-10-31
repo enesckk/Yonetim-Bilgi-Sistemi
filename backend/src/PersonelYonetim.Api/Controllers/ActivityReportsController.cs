@@ -36,4 +36,6 @@ public sealed class ActivityReportsController(ActivityReportService service) : C
     public async Task<IActionResult> Pdf(Guid id, CancellationToken ct) => File(await service.PdfAsync(id, ct), "application/pdf", $"faaliyet-raporu-{id.ToString()[..8]}.pdf");
     [HttpGet("{id:guid}/excel")]
     public async Task<IActionResult> Excel(Guid id, CancellationToken ct) => File(await service.ExcelAsync(id, ct), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"etkinlik-raporu-{id.ToString()[..8]}.xlsx");
+    [HttpGet("{id:guid}/word")]
+    public async Task<IActionResult> Word(Guid id, CancellationToken ct) => File(await service.WordAsync(id, ct), "application/vnd.openxmlformats-officedocument.wordprocessingml.document", $"faaliyet-raporu-{id.ToString()[..8]}.docx");
 }

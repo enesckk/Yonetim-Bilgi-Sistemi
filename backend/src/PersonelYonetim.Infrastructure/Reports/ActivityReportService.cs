@@ -203,6 +203,13 @@ public sealed class ActivityReportService(AppDbContext db, ICurrentUserService u
         s.Columns(1, 6).Width = 28; s.Column(9).Width = 28; s.Column(7).Width = 24; s.Column(8).Width = 90; s.RangeUsed()!.Style.Alignment.WrapText = true; s.SheetView.FreezeRows(1); s.RangeUsed()!.SetAutoFilter();
         using var ms = new MemoryStream(); book.SaveAs(ms); return ms.ToArray();
     }
+    public async Task<byte[]> WordAsync(Guid id, CancellationToken ct = default)
+    {
+        var report = await GetAsync(id, ct);
+        var ids = report.Document.Pages.Where(p => p.Layout != "text").SelectMany(p => p.ImageIds).Distinct().ToList();
+        var assets = await db.ActivityReportAssets.AsNoTracking().Where(a => a.ReportId == id && ids.Contains(a.Id)).ToDictionaryAsync(a => a.Id, ct);
+        return ReportWordDocument.Activity(report, assets);
+    }
     public async Task<byte[]> PdfAsync(Guid id, CancellationToken ct = default)
     {
         var r = await GetAsync(id, ct);

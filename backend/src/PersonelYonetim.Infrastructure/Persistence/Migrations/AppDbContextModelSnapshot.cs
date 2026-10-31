@@ -22,6 +22,25 @@ namespace PersonelYonetim.Infrastructure.Persistence.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("PersonelYonetim.Domain.Entities.FacilityUsageRecord", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uniqueidentifier");
+                    b.Property<Guid>("FacilityId").HasColumnType("uniqueidentifier");
+                    b.Property<int>("Year").HasColumnType("int");
+                    b.Property<int>("Month").HasColumnType("int");
+                    b.Property<long>("ParticipantCount").HasColumnType("bigint");
+                    b.Property<string>("SourceKey").IsRequired().HasMaxLength(64).HasColumnType("nvarchar(64)");
+                    b.Property<string>("SourceReference").IsRequired().HasMaxLength(300).HasColumnType("nvarchar(300)");
+                    b.Property<DateTime>("CreatedAtUtc").HasColumnType("datetime2");
+                    b.Property<string>("CreatedBy").HasMaxLength(100).HasColumnType("nvarchar(100)");
+                    b.Property<DateTime?>("UpdatedAtUtc").HasColumnType("datetime2");
+                    b.Property<string>("UpdatedBy").HasMaxLength(100).HasColumnType("nvarchar(100)");
+                    b.Property<bool>("IsDeleted").HasColumnType("bit");
+                    b.Property<DateTime?>("DeletedAtUtc").HasColumnType("datetime2");
+                    b.Property<string>("DeletedBy").HasMaxLength(100).HasColumnType("nvarchar(100)");
+                    b.HasKey("Id"); b.HasIndex("FacilityId"); b.HasIndex("SourceKey").IsUnique(); b.HasIndex("Year", "Month");
+                    b.ToTable("FacilityUsageRecords");
+                });
             modelBuilder.Entity("PersonelYonetim.Domain.Entities.ActivityReport", b =>
                 {
                     b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uniqueidentifier");
@@ -3535,6 +3554,11 @@ namespace PersonelYonetim.Infrastructure.Persistence.Migrations
                     b.Navigation("Event");
                 });
 
+            modelBuilder.Entity("PersonelYonetim.Domain.Entities.FacilityUsageRecord", b =>
+                {
+                    b.HasOne("PersonelYonetim.Domain.Entities.OrganizationUnit", "Facility").WithMany().HasForeignKey("FacilityId").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.Navigation("Facility");
+                });
 #pragma warning restore 612, 618
         }
     }

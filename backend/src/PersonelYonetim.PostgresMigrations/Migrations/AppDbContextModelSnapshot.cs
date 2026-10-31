@@ -23,6 +23,25 @@ namespace PersonelYonetim.PostgresMigrations.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("PersonelYonetim.Domain.Entities.FacilityUsageRecord", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                    b.Property<Guid>("FacilityId").HasColumnType("uuid");
+                    b.Property<int>("Year").HasColumnType("integer");
+                    b.Property<int>("Month").HasColumnType("integer");
+                    b.Property<long>("ParticipantCount").HasColumnType("bigint");
+                    b.Property<string>("SourceKey").IsRequired().HasMaxLength(64).HasColumnType("character varying(64)");
+                    b.Property<string>("SourceReference").IsRequired().HasMaxLength(300).HasColumnType("character varying(300)");
+                    b.Property<DateTime>("CreatedAtUtc").HasColumnType("timestamp with time zone");
+                    b.Property<string>("CreatedBy").HasMaxLength(100).HasColumnType("character varying(100)");
+                    b.Property<DateTime?>("UpdatedAtUtc").HasColumnType("timestamp with time zone");
+                    b.Property<string>("UpdatedBy").HasMaxLength(100).HasColumnType("character varying(100)");
+                    b.Property<bool>("IsDeleted").HasColumnType("boolean");
+                    b.Property<DateTime?>("DeletedAtUtc").HasColumnType("timestamp with time zone");
+                    b.Property<string>("DeletedBy").HasMaxLength(100).HasColumnType("character varying(100)");
+                    b.HasKey("Id"); b.HasIndex("FacilityId"); b.HasIndex("SourceKey").IsUnique(); b.HasIndex("Year", "Month");
+                    b.ToTable("FacilityUsageRecords", "personel_app");
+                });
             modelBuilder.Entity("PersonelYonetim.Domain.Entities.ActivityReport", b =>
                 {
                     b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
@@ -3555,6 +3574,11 @@ namespace PersonelYonetim.PostgresMigrations.Migrations
                     b.Navigation("Event");
                 });
 
+            modelBuilder.Entity("PersonelYonetim.Domain.Entities.FacilityUsageRecord", b =>
+                {
+                    b.HasOne("PersonelYonetim.Domain.Entities.OrganizationUnit", "Facility").WithMany().HasForeignKey("FacilityId").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.Navigation("Facility");
+                });
 #pragma warning restore 612, 618
         }
     }

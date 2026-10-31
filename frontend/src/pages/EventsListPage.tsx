@@ -1,3 +1,4 @@
+import '@/styles/eventCatalog.css'
 import { groupEvents, recordedAttendance } from '@/lib/eventGroups'
 import { EventYearOverview } from '@/components/EventYearOverview'
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
@@ -127,13 +128,6 @@ export function EventsListPage() {
       ),
     [items, kind],
   )
-  const upcoming = useMemo(
-    () =>
-      scoped
-        .filter((e) => eventPhase(e.status, e.startAtUtc) === 'planned')
-        .sort((a, b) => Date.parse(a.startAtUtc) - Date.parse(b.startAtUtc)),
-    [scoped],
-  )
   const sorted = useMemo(() => {
     const rows = scoped.filter((e) => !phase || eventPhase(e.status, e.startAtUtc) === phase)
     return rows.sort((a, b) =>
@@ -198,7 +192,7 @@ export function EventsListPage() {
           <p className="information-notes-eyebrow">Etkinlik yönetimi</p>
           <h1>Etkinlik ve projeler</h1>
           <p className="muted">
-            Yaklaşan çalışmaları takip edin, tamamlanan kayıtları ve bilgi notlarını inceleyin.
+            Programları yıllara göre inceleyin; kayıt detaylarına ve bilgi notlarına ulaşın.
           </p>
         </div>
         <div className="events-catalog-actions">
@@ -250,35 +244,6 @@ export function EventsListPage() {
           </button>
         ))}
       </nav>
-      <section className="panel events-upcoming">
-        <header>
-          <h2>Yaklaşanlar</h2>
-          <span>{loading ? 'Yükleniyor…' : `${upcoming.length} kayıt`}</span>
-        </header>
-        {upcoming.length ? (
-          <div className="events-upcoming-grid" role="region" aria-label="Yaklaşan kayıtlar, yatay kaydırılabilir" tabIndex={0}>
-            {upcoming.slice(0, 3).map((e) => (
-              <Link to={'/events/' + e.id} key={e.id}>
-                <small>{e.category === 'project' ? 'Proje' : e.categoryLabel || 'Etkinlik'}</small>
-                <strong>{e.title}</strong>
-                <span>{formatEventWhen(e.startAtUtc, e.isDateOnly)}</span>
-                <span>{e.facilityName || e.address || 'Konum belirtilmemiş'}</span>
-              </Link>
-            ))}
-          </div>
-        ) : (
-          <p className="muted small">
-            {loading
-              ? 'Kayıtlar kontrol ediliyor…'
-              : 'Seçili filtrelerde yaklaşan kayıt bulunmuyor.'}
-          </p>
-        )}
-        {upcoming.length > 3 && (
-          <button className="btn-link" onClick={() => setPhase('planned')}>
-            Yaklaşanların tümünü göster ›
-          </button>
-        )}
-      </section>
       <section className="panel events-history">
         <header className="events-history-head">
           <div>
@@ -286,7 +251,7 @@ export function EventsListPage() {
               {phase === 'done'
                 ? 'Tamamlananlar'
                 : phase === 'planned'
-                  ? 'Yaklaşan kayıtlar'
+                  ? 'Planlanan kayıtlar'
                   : 'Tüm kayıtlar'}
             </h2>
             <p className="muted small">
@@ -296,7 +261,7 @@ export function EventsListPage() {
           <div className="events-segment" role="group" aria-label="Kayıt durumu">
             {[
               ['done', 'Tamamlanan'],
-              ['planned', 'Yaklaşan'],
+              ['planned', 'Planlanan'],
               ['', 'Tümü'],
             ].map(([v, label]) => (
               <button
@@ -440,12 +405,12 @@ export function EventsListPage() {
                 <div className="event-group-copy">
                   <span className="event-group-category">{group.categoryLabel}</span>
                   <h3>{group.title} <span>{group.year}</span></h3>
+                </div>
                   <div className="event-group-metrics">
                     <span>{group.items.length.toLocaleString('tr-TR')} {group.categoryLabel === 'Proje' ? 'proje kaydı' : 'etkinlik'}</span>
                     <span className="event-group-attendance">{group.recordsWithAttendance ? `${group.attendance.toLocaleString('tr-TR')} kayıtlı katılım` : 'Katılım belirtilmemiş'}</span>
                     {group.recordsWithAttendance > 0 && group.recordsWithAttendance < group.items.length && <small>{group.items.length - group.recordsWithAttendance} kayıtta katılım eksik</small>}
                   </div>
-                </div>
                 <span className="event-group-expand"><span className="when-closed">Detayları gör</span><span className="when-open">Detayları gizle</span><span aria-hidden="true">⌄</span></span>
               </summary>
               <div className="event-group-records">
