@@ -18,6 +18,7 @@ export interface OrgNode {
   parentName?: string | null
   description?: string | null
   phone?: string | null
+  contactName?: string | null
   email?: string | null
   facilityCategoryId?: string | null
   facilityCategoryName?: string | null
@@ -65,6 +66,7 @@ export interface OrgUnitDetail {
   parentName?: string | null
   description?: string | null
   phone?: string | null
+  contactName?: string | null
   email?: string | null
   facilityCategoryId?: string | null
   facilityCategoryName?: string | null
@@ -126,6 +128,7 @@ export interface UpsertOrgUnitPayload {
   parentId?: string | null
   description?: string | null
   phone?: string | null
+  contactName?: string | null
   email?: string | null
   facilityCategoryId?: string | null
   address?: string | null

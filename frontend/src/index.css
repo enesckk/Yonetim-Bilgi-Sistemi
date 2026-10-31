@@ -19903,3 +19903,5 @@ body { padding-bottom: var(--pwa-install-space, 0px); }
   .event-group-note { padding:14px 18px; }
 }
 .event-group-copy h3 > span { margin-left:.25em; }
+
+.venue-source-contact { display:flex; flex-wrap:wrap; gap:8px 18px; color:#73867a; font-size:12px; line-height:1.7; margin:12px 0; overflow-wrap:anywhere; }

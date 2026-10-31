@@ -1870,6 +1870,7 @@ function UnitDetailPanel({
               {isFacility && <DetailField label="Adres" value={detail.address} />}
               {isFacility && <DetailField label="Kapasite" value={detail.capacity != null ? String(detail.capacity) : null} />}
               {isFacility && <DetailField label="Çalışma saatleri" value={detail.workingHours} />}
+              <DetailField label="Kaynak tesis yetkilisi" value={detail.contactName} />
               <DetailField label="Telefon" value={detail.phone} />
               <DetailField label="E-posta" value={detail.email} />
               <DetailField label="Açılış" value={formatDate(detail.openedOn)} />

@@ -262,6 +262,7 @@ export function EventsFacilitiesPage() {
                   <div>
                     <span className="events-venue-kicker">Tesis detayı</span>
                     <h3>{selected.name}</h3>
+                    {(selected.contactName || selected.phone) && <p className="venue-source-contact"><span>Tesis yetkilisi: {selected.contactName || 'Belirtilmemiş'}</span>{selected.phone && <span>{selected.phone}</span>}</p>}
                     {selected.subtitle ? (
                       <p className="events-venue-halls">
                         {hallChips(selected.subtitle).map((hall) => (

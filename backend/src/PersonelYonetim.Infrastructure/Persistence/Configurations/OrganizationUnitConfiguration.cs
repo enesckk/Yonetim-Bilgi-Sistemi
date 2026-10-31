@@ -13,6 +13,7 @@ public class OrganizationUnitConfiguration : IEntityTypeConfiguration<Organizati
 
         builder.Property(x => x.Name).HasMaxLength(200).IsRequired();
         builder.Property(x => x.Code).HasMaxLength(50);
+        builder.Property(x => x.ContactName).HasMaxLength(120);
         builder.Property(x => x.Phone).HasMaxLength(30);
         builder.Property(x => x.Email).HasMaxLength(200);
         builder.Property(x => x.Description).HasMaxLength(2000);

@@ -23,6 +23,7 @@ public sealed class OrganizationUnitNodeDto
     public string? ParentName { get; init; }
     public string? Description { get; init; }
     public string? Phone { get; init; }
+    public string? ContactName { get; init; }
     public string? Email { get; init; }
     public Guid? FacilityCategoryId { get; init; }
     public string? FacilityCategoryName { get; init; }
@@ -77,6 +78,7 @@ public sealed class OrganizationUnitDetailDto
     public string? ParentName { get; init; }
     public string? Description { get; init; }
     public string? Phone { get; init; }
+    public string? ContactName { get; init; }
     public string? Email { get; init; }
     public Guid? FacilityCategoryId { get; init; }
     public string? FacilityCategoryName { get; init; }

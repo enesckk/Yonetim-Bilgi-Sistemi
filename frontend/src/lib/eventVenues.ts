@@ -68,6 +68,8 @@ export type VenueCard = {
   id: string
   name: string
   subtitle: string
+  contactName?: string | null
+  phone?: string | null
   ids: string[]
 }
 
@@ -75,6 +77,8 @@ export function venueCards(catalog: EventVenueCatalog): VenueCard[] {
   const cards: VenueCard[] = catalog.groups.map((g) => ({
     id: g.parent.id,
     name: g.parent.name,
+    contactName: g.parent.contactName,
+    phone: g.parent.phone,
     subtitle: g.halls.map((h) => h.name.replace(/ Salonu$/i, '')).join(' · '),
     ids: [g.parent.id, ...g.halls.map((h) => h.id)],
   }))
@@ -82,6 +86,8 @@ export function venueCards(catalog: EventVenueCatalog): VenueCard[] {
     cards.push({
       id: f.id,
       name: f.name,
+      contactName: f.contactName,
+      phone: f.phone,
       subtitle: f.facilityCategoryName || f.typeLabel,
       ids: [f.id],
     })
