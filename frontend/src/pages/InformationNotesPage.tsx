@@ -209,7 +209,7 @@ export function InformationNotesPage() {
   }
   return (
     <div className="information-notes-page">
-      <section className="panel information-notes-head">
+      <section className={`panel information-notes-head${editing !== undefined ? ' information-notes-head--editing' : ''}`}>
         <div>
           <p className="information-notes-eyebrow">Müdürlük</p>
           <h1>Bilgi notları</h1>
@@ -217,7 +217,7 @@ export function InformationNotesPage() {
             Proje ve etkinlikler için kurum şablonunda bilgi notları.
           </p>
         </div>
-        {canManage && (
+        {canManage && editing === undefined && (
           <button className="btn-primary" disabled={busy} onClick={() => start()}>
             + Bilgi notu ekle
           </button>
@@ -231,86 +231,108 @@ export function InformationNotesPage() {
       {editing !== undefined ? (
         <form className="panel information-note-form" onSubmit={submit}>
           <div className="information-note-form-heading">
-            <h2>{editing ? 'Bilgi notunu düzenle' : 'Yeni bilgi notu'}</h2>
-            <button
-              type="button"
-              className="btn-secondary"
-              disabled={busy}
-              onClick={() => {
-                setEditing(undefined)
-              }}
-            >
+            <div className="note-form-title">
+              <span className="note-form-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z" />
+                  <path d="M14 3v6h6M8 13h8M8 17h5" />
+                </svg>
+              </span>
+              <div>
+                <p className="note-form-eyebrow">BİLGİ NOTU OLUŞTURUCU</p>
+                <h2>{editing ? 'Bilgi notunu düzenle' : 'Yeni bilgi notu'}</h2>
+                <p className="note-form-subtitle">Bilgileri tamamlayın, kurum şablonunda belgeniz hazır olsun.</p>
+              </div>
+            </div>
+            <button type="button" className="btn-secondary note-form-cancel" disabled={busy} onClick={() => setEditing(undefined)}>
               Vazgeç
             </button>
           </div>
-          <fieldset
-            aria-label="Bilgi notu alanları"
-            disabled={busy}
-            className="information-note-edit-fields"
-          >
-            <div className="information-note-fields">
-              <label>
-                Proje / etkinlik
-                <select
-                  aria-label="Proje / etkinlik"
-                  value={input.eventId ?? ''}
-                  onChange={(e) => setInput((p) => ({ ...p, eventId: e.target.value || null }))}
+          <fieldset aria-label="Bilgi notu alanları" disabled={busy} className="information-note-edit-fields">
+            <section className="note-project-section" aria-labelledby="note-project-heading">
+              <div className="note-section-heading">
+                <div>
+                  <h3 id="note-project-heading">Proje ve etkinlik bağlantısı</h3>
+                  <p>Mevcut bir kaydı seçin veya buradan yeni bir kayıt oluşturun.</p>
+                </div>
+                <button
+                  type="button"
+                  className="note-inline-add"
+                  aria-expanded={newEvent}
+                  aria-controls="note-new-event"
+                  onClick={() => setNewEvent(!newEvent)}
                 >
+                  <span aria-hidden="true">{newEvent ? '−' : '+'}</span>
+                  {newEvent ? 'Yeni kaydı kapat' : 'Proje / etkinlik ekle'}
+                </button>
+              </div>
+              <label>
+                <span className="note-field-label">Proje / etkinlik <span className="note-optional">İsteğe bağlı</span></span>
+                <select aria-label="Proje / etkinlik" value={input.eventId ?? ''} onChange={(e) => setInput((p) => ({ ...p, eventId: e.target.value || null }))}>
                   <option value="">Bağımsız bilgi notu</option>
                   {events.map((e) => (
-                    <option key={e.id} value={e.id}>
-                      {e.category === 'project' ? 'Proje' : 'Etkinlik'}: {e.title}
-                    </option>
+                    <option key={e.id} value={e.id}>{e.category === 'project' ? 'Proje' : 'Etkinlik'}: {e.title}</option>
                   ))}
                 </select>
               </label>
-              <button type="button" className="btn-secondary" onClick={() => setNewEvent(!newEvent)}>
-                {newEvent ? 'Yeni kaydı kapat' : '+ Proje / etkinlik ekle'}
-              </button>
-              {newEvent && <div className="information-note-fields">
-                <label>Tür<select value={eventKind} onChange={(e) => setEventKind(e.target.value)}><option value="project">Proje</option><option value="">Etkinlik</option></select></label>
-                <label>Proje / etkinlik adı<input maxLength={200} value={eventTitle} onChange={(e) => setEventTitle(e.target.value)} /></label>
-                <label>Başlangıç tarihi<input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} /></label>
-                <button type="button" className="btn-secondary" disabled={!eventTitle.trim() || !eventDate} onClick={() => void addEvent()}>Oluştur ve seç</button>
-              </div>}
-              <label>
-                Tarih
-                <input
-                  required
-                  aria-label="Tarih"
-                  value={input.dateText}
-                  maxLength={100}
-                  onChange={(e) => field('dateText', e.target.value)}
-                  placeholder="Örn. 15–17 Ekim 2026"
-                />
+              {newEvent && (
+                <div className="note-new-event" id="note-new-event">
+                  <div className="note-new-event-heading">
+                    <strong>Yeni proje / etkinlik</strong>
+                    <span>Oluşturduğunuz kayıt otomatik olarak seçilir.</span>
+                  </div>
+                  <div className="note-new-event-fields">
+                    <label>Tür
+                      <select value={eventKind} onChange={(e) => setEventKind(e.target.value)}>
+                        <option value="project">Proje</option><option value="">Etkinlik</option>
+                      </select>
+                    </label>
+                    <label>Proje / etkinlik adı
+                      <input maxLength={200} value={eventTitle} placeholder="Kaydın adını yazın" onChange={(e) => setEventTitle(e.target.value)} />
+                    </label>
+                    <label>Başlangıç tarihi
+                      <input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
+                    </label>
+                  </div>
+                  <div className="note-new-event-actions">
+                    <span>Taslak olarak eklenir; ayrıntılarını daha sonra düzenleyebilirsiniz.</span>
+                    <button type="button" className="btn-secondary" disabled={!eventTitle.trim() || !eventDate} onClick={() => void addEvent()}>Oluştur ve seç</button>
+                  </div>
+                </div>
+              )}
+            </section>
+            <section className="note-content-section" aria-labelledby="note-content-heading">
+              <div className="note-section-heading">
+                <div>
+                  <h3 id="note-content-heading">Bilgi notunun içeriği</h3>
+                  <p>Bu bilgiler doğrudan belgenizde yer alır.</p>
+                </div>
+                <span className="note-required-hint">Tüm alanlar zorunludur</span>
+              </div>
+              <div className="note-content-fields">
+                <label>Konu
+                  <input required aria-label="Konu" value={input.subject} maxLength={500} placeholder="Bilgi notunun konusunu yazın" onChange={(e) => field('subject', e.target.value)} />
+                </label>
+                <label>Tarih
+                  <input required aria-label="Tarih" value={input.dateText} maxLength={100} onChange={(e) => field('dateText', e.target.value)} placeholder="Örn. 15–17 Ekim 2026" />
+                </label>
+              </div>
+              <label className="note-description-field">
+                <span className="note-field-label">Açıklama <span className="note-character-count">{input.body.length.toLocaleString('tr-TR')} / 30.000</span></span>
+                <textarea aria-label="Açıklama" required maxLength={30000} rows={7} value={input.body} placeholder="Aktarmak istediğiniz bilgileri, yapılan çalışmaları ve önemli ayrıntıları yazın…" onChange={(e) => field('body', e.target.value)} />
               </label>
-              <label>
-                Konu
-                <input
-                  required
-                  aria-label="Konu"
-                  value={input.subject}
-                  maxLength={500}
-                  onChange={(e) => field('subject', e.target.value)}
-                />
-              </label>
-            </div>
-            <label>
-              Açıklama
-              <textarea
-                aria-label="Açıklama"
-                required
-                maxLength={30000}
-                rows={12}
-                value={input.body}
-                onChange={(e) => field('body', e.target.value)}
-              />
-            </label>
+            </section>
           </fieldset>
           <div className="information-note-form-actions">
-            <span className="muted small">Bilgi notu kurumun Word şablonuna doldurulur.</span>
-            <button type="submit" className="btn-primary" disabled={busy}>
+            <div className="note-template-hint">
+              <span aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 4 4L19 6" /></svg>
+              </span>
+              <div><strong>Kurum şablonuna uygun</strong><p>Kaydettikten sonra Word belgenizi indirebilirsiniz.</p></div>
+            </div>
+            <button type="submit" className="btn-primary note-save-button" disabled={busy}>
               {busy ? 'İşleniyor…' : 'Bilgi notunu kaydet'}
+              {!busy && <span aria-hidden="true">→</span>}
             </button>
           </div>
         </form>
