@@ -479,3 +479,6 @@ public sealed class GetEventsQueryValidator : AbstractValidator<GetEventsQuery>
             .WithMessage("Kayıt türü geçersiz.");
     }
 }
+
+public sealed record EventYearSummaryDto(int Year, int CompletedEvents, int CompletedProjects, long TotalAttendance, int RecordsWithAttendance);
+public sealed record GetEventYearSummaryQuery(int Year, Guid? FacilityId = null) : IRequest<EventYearSummaryDto>;

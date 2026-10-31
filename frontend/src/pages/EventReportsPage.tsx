@@ -11,6 +11,7 @@ import {
   getActivityReport,
   getReportAsset,
   listActivityReports,
+  preloadActivityReport,
   saveActivityReport,
   uploadReportAsset,
   type ActivityReportDetail,
@@ -94,7 +95,7 @@ export function EventReportsPage() {
             <h2>Raporlar</h2>
             <p>Tarih bazlı raporlar ve düzenlenebilir yıllık faaliyet raporları</p>
           </div>
-          <span className="activity-report-chip">Otomatik oluştur · Düzenle · Sun</span>
+          <span className="activity-report-chip">FAALİYET ARŞİVİ</span>
         </header>
         {error && (
           <p className="form-error" role="alert">
@@ -220,12 +221,13 @@ export function EventReportsPage() {
         ) : (
           <div className="activity-report-list">
             {reports.map((r) => (
-              <Link to={`/events/reports/${r.id}`} key={r.id} className="activity-report-list-item">
+              <Link to={`/events/reports/${r.id}`} key={r.id} className="activity-report-list-item" onPointerEnter={() => preloadActivityReport(r.id)} onFocus={() => preloadActivityReport(r.id)} onTouchStart={() => preloadActivityReport(r.id)}>
                 <div className="activity-report-year">
                   {r.fromDate.slice(0, 4)}
                   <small>RAPOR</small>
                 </div>
-                <div>
+                <div className="activity-report-card-copy">
+                  <span className="report-card-kind">{r.kind === 'project' ? 'PROJE RAPORU' : r.kind === 'event' ? 'ETKİNLİK RAPORU' : 'FAALİYET RAPORU'}</span>
                   <h4>{r.title}</h4>
                   <p>
                     {date(r.fromDate)} – {date(r.toDate)} ·{' '}
@@ -236,7 +238,7 @@ export function EventReportsPage() {
                     {r.sourceAttendance.toLocaleString('tr-TR')} kayıtlı katılım
                   </span>
                 </div>
-                <strong>Raporu aç ›</strong>
+                <strong>Raporu aç <span aria-hidden="true">↗</span></strong>
               </Link>
             ))}
           </div>
@@ -433,6 +435,7 @@ export function ActivityReportEditorPage() {
     setError('')
     setDirty(false)
     setIndex(0)
+    setDetail(null)
     void getActivityReport(reportId!)
       .then((r) => {
         if (active) setDetail(r)
@@ -681,8 +684,11 @@ export function ActivityReportEditorPage() {
   }
   if (loading)
     return (
-      <div className="panel" role="status">
-        Rapor hazırlanıyor…
+      <div className="panel report-loading-state" role="status" aria-live="polite">
+        <div className="report-loading-sheet" aria-hidden="true"><span /><span /><span /><span /></div>
+        <h2>Rapor açılıyor</h2>
+        <p>Belge içeriği ve sayfalar hazırlanıyor. Lütfen bekleyin.</p>
+        <Link className="btn-secondary" to="/events/reports">Rapor listesine dön</Link>
       </div>
     )
   if (!detail || !selected)

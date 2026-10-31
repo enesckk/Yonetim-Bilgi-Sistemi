@@ -89,6 +89,16 @@ export function InformationNotesPage() {
         .then((d) => setEvents(d.items))
         .catch((e) => setError(e.message))
   }, [editing])
+  useEffect(() => {
+    const firstNote = items.find((note) => note.eventId === eventId)
+    if (eventId && !selectedId && !loading && firstNote) {
+      setParams((previous) => {
+        const next = new URLSearchParams(previous)
+        next.set('note', firstNote.id)
+        return next
+      }, { replace: true })
+    }
+  }, [eventId, selectedId, loading, items, setParams])
   const visible = items.filter((n) =>
     [n.title, n.subject, n.eventTitle ?? '', n.preparedBy]
       .join(' ')

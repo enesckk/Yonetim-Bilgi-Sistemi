@@ -1,6 +1,7 @@
+import { EventYearOverview } from '@/components/EventYearOverview'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { fetchEvents, type EventListItem } from '@/api/eventsApi'
+import { eventPhase, fetchEvents, type EventListItem } from '@/api/eventsApi'
 import { fetchOrganizationTree } from '@/api/organizationApi'
 import { ApiClientError } from '@/api/client'
 import { useAuth } from '@/auth/AuthContext'
@@ -32,13 +33,12 @@ function hallChips(subtitle: string) {
 }
 
 function splitEvents(items: EventListItem[]) {
-  const now = Date.now()
   const upcoming: EventListItem[] = []
   const past: EventListItem[] = []
   for (const e of items) {
-    if (e.status === 3) continue
-    if (e.status !== 4 && new Date(e.startAtUtc).getTime() >= now) upcoming.push(e)
-    else past.push(e)
+    const phase = eventPhase(e.status, e.startAtUtc)
+    if (phase === 'planned') upcoming.push(e)
+    else if (phase === 'done') past.push(e)
   }
   upcoming.sort((a, b) => +new Date(a.startAtUtc) - +new Date(b.startAtUtc))
   past.sort((a, b) => +new Date(b.startAtUtc) - +new Date(a.startAtUtc))
@@ -63,8 +63,8 @@ function VenueAgenda({
         <li key={e.id} className={markNext && i === 0 ? 'is-next' : ''}>
           <Link to={`/events/${e.id}`}>
             <span className="events-venue-when">
-              <time dateTime={e.startAtUtc}>{clock(e.startAtUtc, e.isDateOnly)}</time>
-              <span>{dayLabel(e.startAtUtc)}</span>
+              <time dateTime={e.startAtUtc}>{dayLabel(e.startAtUtc)}</time>
+              <span className={e.isDateOnly ? 'is-date-only' : ''}>{clock(e.startAtUtc, e.isDateOnly)}</span>
             </span>
             <span className="events-venue-agenda-body">
               <strong>
@@ -287,6 +287,8 @@ export function EventsFacilitiesPage() {
                     ) : null}
                   </div>
                 </header>
+
+                <EventYearOverview facilityId={selected.id} compact />
 
                 <div className="events-venue-stats" aria-label="Tesis etkinlik özeti">
                   <div><span>Toplam kayıt</span><strong>{grouped.upcoming.length + grouped.past.length}</strong></div>

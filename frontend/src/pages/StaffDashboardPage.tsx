@@ -146,6 +146,11 @@ export function StaffDashboardPage() {
                 <strong className={loading ? 'is-skeleton' : undefined}>{loading ? '—' : fmt(cards?.totalProjects)}</strong>
                 <small>Kayıtlı projeler</small>
               </Link>
+              <Link to="/events/list" className="staff-dash-card is-citizens">
+                <span><Icon d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />Erişilen vatandaş</span>
+                <strong className={loading ? 'is-skeleton' : undefined}>{loading ? '—' : fmt(cards?.reachedCitizens)}</strong>
+                <small>{cards?.participationYear ?? new Date().getFullYear()} · Kayıtlı toplam katılım</small>
+              </Link>
             </>
           ) : null}
         </div>

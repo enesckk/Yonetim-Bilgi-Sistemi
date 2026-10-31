@@ -1,4 +1,4 @@
-import { apiDownloadFile, apiFetchBlob, apiRequest, apiUploadJson } from './client'
+import { apiDownloadFile, apiFetchBlob, apiRequest, apiUploadJson, getAccessToken } from './client'
 export type ActivityReportInput = {
   title: string
   fromDate: string
@@ -53,7 +53,21 @@ export type ActivityReportDetail = {
 }
 const root = '/api/events/reports'
 export const listActivityReports = () => apiRequest<ActivityReportSummary[]>(root)
-export const getActivityReport = (id: string) => apiRequest<ActivityReportDetail>(`${root}/${id}`)
+const pendingReports = new Map<string, Promise<ActivityReportDetail>>()
+export function preloadActivityReport(id: string) {
+  const key = `${getAccessToken()}:${id}`
+  if (pendingReports.has(key)) return
+  const request = apiRequest<ActivityReportDetail>(`${root}/${id}`, { signal: AbortSignal.timeout(60000) })
+  pendingReports.set(key, request)
+  void request.catch(() => pendingReports.delete(key))
+  setTimeout(() => { if (pendingReports.get(key) === request) pendingReports.delete(key) }, 15000)
+}
+export function getActivityReport(id: string) {
+  const key = `${getAccessToken()}:${id}`
+  const pending = pendingReports.get(key)
+  pendingReports.delete(key)
+  return pending ?? apiRequest<ActivityReportDetail>(`${root}/${id}`, { signal: AbortSignal.timeout(60000) })
+}
 export const generateActivityReport = (input: ActivityReportInput) =>
   apiRequest<{ id: string }>(root, { method: 'POST', body: input })
 export const saveActivityReport = (detail: ActivityReportDetail) =>

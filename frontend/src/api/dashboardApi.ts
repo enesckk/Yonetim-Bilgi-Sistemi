@@ -8,6 +8,8 @@ export interface DashboardNamedCount {
 export interface DashboardCards {
   totalEvents: number
   totalProjects: number
+  participationYear: number
+  reachedCitizens: number
   totalEmployees: number
   activeEmployees: number
   passiveEmployees: number

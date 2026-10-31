@@ -19737,3 +19737,127 @@ body { padding-bottom: var(--pwa-install-space, 0px); }
   .note-form-title { flex-wrap: wrap; }
   .note-form-title > div { flex: 1; min-width: 140px; }
 }
+
+/* Annual activity metrics */
+.event-year-overview { margin: 0 0 20px; padding: 24px; background: #fff; border: 1px solid #dce7e1; border-radius: 16px; min-width: 0; }
+.event-year-overview > header { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:20px; }
+.annual-eyebrow { font-size:10px; letter-spacing:.13em; font-weight:750; color:#648575; }
+.event-year-overview h3 { margin:5px 0 0; font-size:18px; letter-spacing:-.02em; color:#2b4437; }
+.event-year-overview > header > label { display:flex; align-items:center; gap:10px; font-size:12px; font-weight:650; color:#75867b; }
+.event-year-overview select { min-height:40px; padding:8px 30px 8px 12px; border:1px solid #d9e4dd; border-radius:9px; background:#fff; font:inherit; color:#2c4737; }
+.event-year-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+.event-year-metrics > div { display:grid; gap:8px; padding:18px 20px; background:#f8faf9; border:1px solid #e8eeea; border-radius:12px; min-width:0; }
+.event-year-metrics > div > span { color:#718479; font-size:12px; font-weight:600; }
+.event-year-metrics strong { color:#294b38; font-size:30px; letter-spacing:-.04em; font-variant-numeric:tabular-nums; line-height:1.2; overflow-wrap:anywhere; }
+.event-year-metrics small { color:#8a978e; font-size:11px; }
+.event-year-metrics .is-attendance { background:#f0f7f2; border-color:#d9e9de; }
+.event-year-footnote { margin:14px 0 0; font-size:11px; color:#85938a; line-height:1.7; }
+.event-year-overview.is-compact { padding:20px; margin-top:24px; }
+.is-compact .event-year-metrics > div { padding:15px; }
+.is-compact .event-year-metrics strong { font-size:25px; }
+.staff-dash-card.is-citizens { border-left-color:#a37d40; background:#fdfbf6; }
+/* Calendar venue picker */
+.venue-picker { position:relative; width:100%; min-width:0; }
+.venue-picker-trigger { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:44px; padding:10px 14px; width:100%; border:1px solid #d9e4df; border-radius:10px; background:#fff; color:#304a3c; font:inherit; font-size:14px; cursor:pointer; text-align:left; }
+.venue-picker-trigger > span:first-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+.venue-picker-trigger:focus-visible { outline:3px solid #c6e4d3; outline-offset:2px; }
+.venue-picker-popover { position:absolute; right:0; top:calc(100% + 8px); z-index:60; width:380px; max-width:calc(100vw - 40px); padding:12px; border:1px solid #dce6df; border-radius:14px; box-shadow:0 18px 50px rgba(22,49,34,.17); background:#fff; }
+.venue-picker-popover > input { width:100%; min-height:42px; padding:10px 12px; border:1px solid #dce5df; border-radius:8px; background:#f8faf9; color:#304a3c; font:inherit; font-size:14px; }
+.venue-picker-options { max-height:330px; overflow-y:auto; overscroll-behavior:contain; padding-top:8px; }
+.venue-picker-options button { display:flex; justify-content:space-between; gap:12px; width:100%; text-align:left; min-height:40px; padding:10px 12px; border:0; border-radius:7px; background:transparent; font:inherit; font-size:13px; color:#3a5244; cursor:pointer; }
+.venue-picker-options button:hover, .venue-picker-options button:focus-visible { background:#f1f6f3; outline:2px solid #c6e4d3; outline-offset:-2px; }
+.venue-picker-options button.is-selected { background:#eaf5ee; color:#18774b; font-weight:700; }
+.venue-picker-group > p { margin:14px 10px 7px; font-size:10px; font-weight:700; color:#8b9a90; letter-spacing:.04em; line-height:1.5; }
+.venue-picker-empty { padding:15px; color:#84928a; font-size:13px; }
+.events-cal-page .employees-toolbar-actions { align-items:flex-end; gap:12px; }
+.events-cal-page .events-cal-facility-field { min-width:220px; max-width:330px; flex:1 1 260px; }
+.events-cal-page .events-cal-nav { align-items:center; }
+/* Facility programme */
+.events-venue-detail { background:#fff; border-color:#e0e9e3; box-shadow:0 8px 30px -24px #244a35; }
+.events-venue-detail-head { gap:20px; }
+.events-venue-detail-head > div:first-child { min-width:0; }
+.events-venue-detail-head h3 { font-size:clamp(20px,2vw,28px); line-height:1.35; letter-spacing:-.025em; }
+.events-venue-halls { gap:7px; }
+.events-venue-halls > span { font-size:11px; padding:5px 9px; font-weight:500; border-radius:7px; background:#f6f9f7; }
+.events-venue-detail-actions { flex-shrink:0; }
+.events-venue-detail-actions a { font-size:12px; }
+.events-venue-stats { gap:12px; }
+.events-venue-stats > div { padding:15px 18px; border-radius:11px; background:#fafcfb; border-color:#e5ece7; }
+.events-venue-stats > div > span { font-size:11px; }
+.events-venue-stats > div > strong { font-size:23px; }
+.events-venue-agenda-grid { grid-template-columns:minmax(0,1fr); gap:18px; }
+.events-venue-section { padding:20px; border-radius:13px; border-color:#e2eae5; }
+.events-venue-section-head h4 { font-size:11px; letter-spacing:.08em; }
+.events-venue-agenda li a { grid-template-columns:105px minmax(0,1fr) auto; gap:18px; padding:16px 4px; text-decoration:none; }
+.events-venue-when { min-width:0; gap:5px; }
+.events-venue-when time { font-size:14px; font-weight:700; letter-spacing:0; }
+.events-venue-when span { font-size:12px; line-height:1.5; }
+.events-venue-when .is-date-only { font-size:10px; color:#8a978e; white-space:normal; overflow-wrap:anywhere; }
+.events-venue-agenda-body strong { font-size:14px; line-height:1.6; overflow-wrap:anywhere; }
+.events-venue-agenda-meta { font-size:12px; color:#809086; }
+.events-venue-card { border-radius:12px; padding:15px; background:#fbfcfb; }
+.events-venue-card-copy strong { font-size:13px; line-height:1.6; }
+.events-venue-card-copy em { font-size:11px; }
+/* Report library */
+.activity-reports-page > .panel { padding:30px; border-radius:18px; }
+.activity-report-title h2 { font-size:28px; letter-spacing:-.03em; margin:9px 0; }
+.activity-report-title p { font-size:13px; color:#7b8a82; }
+.activity-report-chip { border:1px solid #dfe8e2; background:#f5f9f6; color:#65816e; font-size:10px; letter-spacing:.1em; padding:10px 14px; border-radius:8px; }
+.activity-report-generator { padding:24px; background:#f8faf9; border:1px solid #e1e9e4; border-radius:14px; }
+.activity-report-generator h3 { font-size:16px; color:#304b3a; }
+.activity-report-generator > div > p { font-size:12px; color:#839187; line-height:1.8; max-width:780px; }
+.activity-filter-grid { gap:18px; }
+.activity-filter-grid label { font-size:12px; color:#5b7263; gap:8px; }
+.activity-filter-grid input, .activity-filter-grid select { min-height:44px; padding:10px 12px; border-radius:9px; font-size:14px; border-color:#dce5df; font-weight:450; }
+.activity-report-generator footer { margin-top:22px; }
+.activity-report-generator footer button { font-size:13px; padding:12px 20px; border-radius:9px; }
+.activity-report-section-head { margin:28px 0 18px; }
+.activity-report-section-head h3 { font-size:17px; color:#334c3d; }
+.activity-report-list { grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; }
+.activity-report-list-item { display:grid; grid-template-columns:68px minmax(0,1fr); gap:18px; padding:24px; border:1px solid #dfe7e2; border-radius:14px; box-shadow:0 4px 18px -14px #244b35; transition:border-color .15s,box-shadow .15s; min-width:0; }
+.activity-report-list-item:hover { border-color:#8abd9f; box-shadow:0 8px 24px -15px #245f3c44; }
+.activity-report-year { font-size:21px; padding:15px 9px; border-radius:10px; background:#f0f6f2; color:#376a4d; align-self:start; }
+.activity-report-year small { font-size:8px; }
+.activity-report-card-copy { min-width:0; }
+.activity-report-card-copy .report-card-kind { display:block; font-size:9px; letter-spacing:.1em; font-weight:700; color:#809789; margin-bottom:9px; }
+.activity-report-list-item h4 { font-size:17px; color:#304737; line-height:1.5; overflow-wrap:anywhere; }
+.activity-report-list-item p { font-size:12px; line-height:1.6; color:#89968e; }
+.activity-report-list-item .activity-report-card-copy > span:last-child { display:block; margin-top:14px; font-size:12px; color:#607e6a; }
+.activity-report-list-item > strong { display:flex; align-items:center; justify-content:space-between; grid-column:1/-1; margin:0; padding-top:16px; border-top:1px solid #edf1ee; color:#277b50; font-size:12px; }
+.activity-report-list-item > strong > span { color:inherit; font-size:18px; }
+.report-loading-state { display:grid; justify-items:center; gap:14px; text-align:center; padding:60px 24px; }
+.report-loading-state h2 { font-size:21px; margin:6px 0 0; color:#335640; }
+.report-loading-state p { font-size:13px; color:#819086; margin:0 0 15px; }
+.report-loading-sheet { width:70px; padding:20px 14px; display:grid; gap:8px; border:1px solid #d9e5dc; border-radius:8px; box-shadow:0 8px 25px #245f3c12; background:#fff; }
+.report-loading-sheet span { height:4px; border-radius:2px; background:#e2eee6; }
+.report-loading-sheet span:last-child { width:60%; }
+@media(min-width:1600px) { .events-venue-agenda-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:900px) { .activity-report-list { grid-template-columns:minmax(0,1fr); } .event-year-metrics { gap:10px; } .event-year-metrics > div { padding:15px; } }
+@media(max-width:600px) {
+  .event-year-overview { padding:18px; }
+  .event-year-metrics { grid-template-columns:minmax(0,1fr); }
+  .event-year-metrics > div { grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:5px 14px; }
+  .event-year-metrics strong { grid-column:2; grid-row:1/3; font-size:28px; }
+  .event-year-metrics small { grid-column:1; }
+  .events-venue-agenda li a { grid-template-columns:80px minmax(0,1fr); gap:12px; }
+  .events-venue-agenda li a > .event-status-pill { grid-column:2; justify-self:start; }
+  .events-venue-when time { font-size:13px; }
+  .events-venue-when .is-date-only { font-size:10px; }
+  .events-venue-section { padding:16px; }
+  .events-cal-page .events-cal-facility-field { max-width:none; flex-basis:100%; }
+  .venue-picker-popover { width:100%; max-width:100%; }
+  .venue-picker-popover > input { font-size:16px; }
+  .activity-reports-page > .panel { padding:18px; }
+  .activity-report-title { align-items:flex-start; gap:16px; }
+  .activity-report-chip { display:none; }
+  .activity-report-generator { padding:18px; }
+  .activity-filter-grid { grid-template-columns:minmax(0,1fr); }
+  .activity-filter-grid input, .activity-filter-grid select { font-size:16px; }
+  .activity-report-list-item { padding:18px; grid-template-columns:58px minmax(0,1fr); gap:14px; }
+}
+
+.venue-picker { text-transform:none; letter-spacing:normal; font-weight:400; }
+.activity-report-generator .activity-generator-footer { margin-top:22px; gap:18px; }
+.activity-report-generator .activity-generator-footer p { font-size:11px; color:#89958d; line-height:1.7; }
+.activity-report-generator .activity-generator-footer button { font-size:13px; padding:12px 20px; border-radius:9px; }
+@media(max-width:600px) { .activity-generator-footer { flex-direction:column; align-items:stretch; } .activity-generator-footer button { width:100%; } }

@@ -390,3 +390,16 @@ export function previewEventParticipants(file: File): Promise<ParticipantPreview
 }
 export function downloadParticipantsTemplate() { return apiDownloadFile('/api/events/participants/template') }
 export function downloadParticipants(id: string) { return apiDownloadFile(`/api/events/${id}/participants/export`) }
+
+export interface EventYearSummary {
+  year: number
+  completedEvents: number
+  completedProjects: number
+  totalAttendance: number
+  recordsWithAttendance: number
+}
+export function fetchEventYearSummary(year: number, facilityId?: string) {
+  const query = new URLSearchParams({ year: String(year) })
+  if (facilityId) query.set('facilityId', facilityId)
+  return apiRequest<EventYearSummary>('/api/events/year-summary?' + query)
+}

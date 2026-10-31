@@ -1,3 +1,4 @@
+import { EventYearOverview } from '@/components/EventYearOverview'
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
@@ -229,6 +230,7 @@ export function EventsListPage() {
           )}
         </div>
       </section>
+      <EventYearOverview />
       <nav className="events-kind-tabs" aria-label="Kayıt türü">
         {[
           ['', 'Tümü'],

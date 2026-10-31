@@ -1,3 +1,4 @@
+import { VenuePicker } from '@/components/VenuePicker'
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { createEvent, fetchEvents, eventPhase, eventPhaseLabel, type EventListItem } from '@/api/eventsApi'
@@ -330,36 +331,10 @@ export function EventsCalendarPage() {
             </p>
           </div>
           <div className="employees-toolbar-actions">
-            <label className="events-cal-facility-field">
+            <div className="events-cal-facility-field">
               <span>Birim / salon</span>
-              <select
-                className="events-cal-facility"
-                value={facilityId}
-                onChange={(e) => onFacilityChange(e.target.value)}
-                aria-label="Takvim birimi"
-              >
-                <option value="">Tüm birimler</option>
-                {venues.groups.map((g) => (
-                  <optgroup key={g.parent.id} label={g.label}>
-                    <option value={g.parent.id}>Tüm salonlar</option>
-                    {g.halls.map((h) => (
-                      <option key={h.id} value={h.id}>
-                        {h.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-                {venues.others.length > 0 ? (
-                  <optgroup label="Diğer tesisler">
-                    {venues.others.map((f) => (
-                      <option key={f.id} value={f.id}>
-                        {f.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                ) : null}
-              </select>
-            </label>
+              <VenuePicker catalog={venues} value={facilityId} onChange={onFacilityChange} />
+            </div>
             <div className="events-cal-nav" role="group" aria-label="Ay">
               <button
                 type="button"

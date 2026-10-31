@@ -60,6 +60,8 @@ public sealed class DashboardCardsDto
 {
     public int TotalEvents { get; init; }
     public int TotalProjects { get; init; }
+    public int ParticipationYear { get; init; }
+    public long ReachedCitizens { get; init; }
     public int TotalEmployees { get; init; }
     public int ActiveEmployees { get; init; }
     public int PassiveEmployees { get; init; }

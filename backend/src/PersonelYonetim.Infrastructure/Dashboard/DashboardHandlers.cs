@@ -169,6 +169,8 @@ public sealed class GetDashboardSummaryHandler
             .Where(x => x.Count > 0)
             .ToList();
 
+        var participationYear = DateTime.UtcNow.AddHours(3).Year;
+        long reachedCitizens = 0;
         var totalEvents = 0;
         var totalProjects = 0;
         if (_currentUser.HasPermission(PermissionCodes.EventsView))
@@ -176,6 +178,7 @@ public sealed class GetDashboardSummaryHandler
             var events = _db.Events.AsNoTracking();
             if (allowedUnits is not null)
                 events = events.Where(e => e.FacilityId != null && allowedUnits.Contains(e.FacilityId.Value));
+            reachedCitizens = (await PersonelYonetim.Infrastructure.Events.EventYearStatistics.CalculateAsync(events, participationYear, cancellationToken)).TotalAttendance;
             totalProjects = await events.CountAsync(e => e.Category == EventCategories.Project, cancellationToken);
             totalEvents = await events.CountAsync(e => e.Category == null || e.Category != EventCategories.Project, cancellationToken);
         }
@@ -185,6 +188,8 @@ public sealed class GetDashboardSummaryHandler
             TotalEmployees = total,
             TotalEvents = totalEvents,
             TotalProjects = totalProjects,
+            ParticipationYear = participationYear,
+            ReachedCitizens = reachedCitizens,
             ActiveEmployees = active,
             PassiveEmployees = passive,
             TotalUnits = totalUnits,

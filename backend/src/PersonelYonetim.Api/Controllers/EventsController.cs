@@ -34,6 +34,11 @@ public sealed class EventsController : ControllerBase
         return Ok(ApiResponse<EventListDto>.Ok(result, HttpContext.TraceIdentifier));
     }
 
+    [HttpGet("year-summary")]
+    [RequirePermission(PermissionCodes.EventsView)]
+    public async Task<IActionResult> YearSummary([FromQuery] int year, [FromQuery] Guid? facilityId, CancellationToken ct)
+        => Ok(ApiResponse<EventYearSummaryDto>.Ok(await _sender.Send(new GetEventYearSummaryQuery(year, facilityId), ct)));
+
     [HttpGet("conflicts")]
     [RequirePermission(PermissionCodes.EventsView)]
     [ProducesResponseType(typeof(ApiResponse<EventConflictsDto>), StatusCodes.Status200OK)]
