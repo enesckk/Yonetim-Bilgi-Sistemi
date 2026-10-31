@@ -409,7 +409,6 @@ export function AppLayout() {
             </span>
             <span className="sidebar-brand-text">
               <strong>Yönetim Bilgi Sistemi</strong>
-              <span>Mahalle · etkinlik · tesis</span>
             </span>
           </Link>
           <button type="button" className="sidebar-close-btn mobile-only" aria-label="Menüyü kapat" onClick={() => setMobileOpen(false)}>

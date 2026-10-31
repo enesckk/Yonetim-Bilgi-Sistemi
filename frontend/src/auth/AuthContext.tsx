@@ -19,7 +19,7 @@ interface AuthContextValue {
   user: CurrentUser | null
   isLoading: boolean
   isAuthenticated: boolean
-  login: (userName: string, password: string) => Promise<void>
+  login: (userName: string, password: string, rememberMe?: boolean) => Promise<void>
   logout: () => Promise<void>
   refreshUser: () => Promise<void>
   hasPermission: (code: string) => boolean
@@ -100,8 +100,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const login = useCallback(async (userName: string, password: string) => {
-    const result = await authApi.login(userName, password)
+  const login = useCallback(async (userName: string, password: string, rememberMe = false) => {
+    const result = await authApi.login(userName, password, rememberMe)
     clearLookupCache()
     setUser(result.user)
     setSessionPolicy(result.sessionPolicy)

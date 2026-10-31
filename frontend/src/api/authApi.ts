@@ -1,10 +1,10 @@
 import { apiRequest, setAccessToken } from './client'
 import type { CurrentUser, LoginResponse } from './types'
 
-export async function login(userName: string, password: string): Promise<LoginResponse> {
+export async function login(userName: string, password: string, rememberMe = false): Promise<LoginResponse> {
   const data = await apiRequest<LoginResponse>('/api/auth/login', {
     method: 'POST',
-    body: { userName, password },
+    body: { userName, password, rememberMe },
     skipAuth: true,
   })
   setAccessToken(data.accessToken)

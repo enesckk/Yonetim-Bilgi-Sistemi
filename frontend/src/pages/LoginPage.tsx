@@ -44,6 +44,7 @@ export function LoginPage() {
 
   const [userName, setUserName] = useState('')
   const [password, setPassword] = useState('')
+  const [rememberMe, setRememberMe] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -70,7 +71,7 @@ export function LoginPage() {
     setNotice(null)
     setSubmitting(true)
     try {
-      await login(name.trim(), pass)
+      await login(name.trim(), pass, rememberMe)
       navigate('/', { replace: true })
     } catch (err) {
       if (err instanceof ApiClientError) {
@@ -101,9 +102,6 @@ export function LoginPage() {
               alt=""
             />
             <h1 className="login-brand-title">Yönetim Bilgi Sistemi</h1>
-            <p className="login-brand-lead">
-              Mahalle katılımı, etkinlik ve tesisleri tek ekranda görün.
-            </p>
           </div>
         </aside>
 
@@ -161,6 +159,11 @@ export function LoginPage() {
                 </button>
               </div>
             </div>
+
+            <label className="login-remember">
+              <input type="checkbox" name="rememberMe" checked={rememberMe} onChange={event => setRememberMe(event.target.checked)} disabled={submitting} />
+              <span>Beni hatırla</span>
+            </label>
 
             {notice && !error && (
               <div className="form-error login-session-notice" role="status">

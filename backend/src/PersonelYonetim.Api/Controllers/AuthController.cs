@@ -10,6 +10,7 @@ namespace PersonelYonetim.Api.Controllers;
 public sealed class AuthController : ControllerBase
 {
     public const string RefreshCookieName = "py_refresh";
+    public const string RememberCookieName = "py_remember";
 
     private readonly IAuthService _authService;
     private readonly IHostEnvironment _env;
@@ -33,7 +34,7 @@ public sealed class AuthController : ControllerBase
     {
         var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
         var result = await _authService.LoginAsync(request, ip, cancellationToken);
-        SetRefreshCookie(result.RefreshToken, result.RefreshTokenExpiresAtUtc);
+        SetRefreshCookie(result.RefreshToken, result.RefreshTokenExpiresAtUtc, request.RememberMe);
 
         var response = new LoginResponse
         {
@@ -54,7 +55,7 @@ public sealed class AuthController : ControllerBase
         var refreshToken = Request.Cookies[RefreshCookieName];
         var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
         var result = await _authService.RefreshAsync(refreshToken ?? string.Empty, ip, cancellationToken);
-        SetRefreshCookie(result.RefreshToken, result.RefreshTokenExpiresAtUtc);
+        SetRefreshCookie(result.RefreshToken, result.RefreshTokenExpiresAtUtc, Request.Cookies[RememberCookieName] == "1");
 
         var response = new LoginResponse
         {
@@ -98,28 +99,33 @@ public sealed class AuthController : ControllerBase
         return Ok(ApiResponse<SessionPolicyDto>.Ok(_authService.GetSessionPolicy(), HttpContext.TraceIdentifier));
     }
 
-    private void SetRefreshCookie(string refreshToken, DateTime expiresAtUtc)
+    private void SetRefreshCookie(string refreshToken, DateTime expiresAtUtc, bool rememberMe)
     {
-        Response.Cookies.Append(RefreshCookieName, refreshToken, new CookieOptions
+        var options = new CookieOptions
         {
             HttpOnly = true,
             Secure = !_env.IsDevelopment(),
             SameSite = SameSiteMode.Lax,
-            Expires = expiresAtUtc,
+            Expires = rememberMe ? new DateTimeOffset(expiresAtUtc) : null,
             Path = "/api/auth",
             IsEssential = true
-        });
+        };
+        Response.Cookies.Append(RefreshCookieName, refreshToken, options);
+        // Preserve the browser-lifetime choice when the refresh token rotates.
+        Response.Cookies.Append(RememberCookieName, rememberMe ? "1" : "0", options);
     }
 
     private void ClearRefreshCookie()
     {
-        Response.Cookies.Delete(RefreshCookieName, new CookieOptions
+        var options = new CookieOptions
         {
             Path = "/api/auth",
             HttpOnly = true,
             Secure = !_env.IsDevelopment(),
             SameSite = SameSiteMode.Lax
-        });
+        };
+        Response.Cookies.Delete(RefreshCookieName, options);
+        Response.Cookies.Delete(RememberCookieName, options);
     }
 }
 

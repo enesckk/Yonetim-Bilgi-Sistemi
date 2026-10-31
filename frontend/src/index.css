@@ -19921,3 +19921,7 @@ body { padding-bottom: var(--pwa-install-space, 0px); }
   .settlement-program .settlement-event-list li { grid-template-columns: minmax(0, 1fr); gap: .5rem; padding: .85rem; }
   .settlement-program-summary { gap: .65rem 1rem; }
 }
+
+.login-form .login-remember { display: inline-flex; align-items: center; gap: .6rem; width: fit-content; min-height: 2.5rem; cursor: pointer; color: #425466; font-size: .9rem; font-weight: 550; }
+.login-form .login-remember input { width: 1.1rem; height: 1.1rem; min-height: 0; margin: 0; padding: 0; accent-color: #208b5f; cursor: pointer; flex: 0 0 auto; }
+.login-form .login-remember input:focus-visible { outline: 2px solid #208b5f; outline-offset: 3px; }

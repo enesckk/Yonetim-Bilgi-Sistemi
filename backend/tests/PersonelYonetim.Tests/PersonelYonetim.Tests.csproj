@@ -21,6 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\PersonelYonetim.Api\PersonelYonetim.Api.csproj" />
     <ProjectReference Include="..\..\src\PersonelYonetim.Domain\PersonelYonetim.Domain.csproj" />
     <ProjectReference Include="..\..\src\PersonelYonetim.Application\PersonelYonetim.Application.csproj" />
     <ProjectReference Include="..\..\src\PersonelYonetim.Infrastructure\PersonelYonetim.Infrastructure.csproj" />
