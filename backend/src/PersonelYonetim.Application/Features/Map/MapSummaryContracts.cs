@@ -169,6 +169,7 @@ public sealed class UpsertSettlementSchoolValidator : AbstractValidator<UpsertSe
         RuleFor(x => x.SettlementId).NotEmpty();
         RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
         RuleFor(x => x.SchoolType).NotEmpty().MaximumLength(40);
+        RuleFor(x => x.StudentCount).NotNull().WithMessage("Öğrenci sayısı (okul nüfusu) zorunludur.");
         RuleFor(x => x.StudentCount).InclusiveBetween(0, 50_000).When(x => x.StudentCount.HasValue);
         RuleFor(x => x.PrincipalName).MaximumLength(120);
         RuleFor(x => x.PrincipalPhone).MaximumLength(30);

@@ -182,13 +182,18 @@ export function SchoolEditor({
       await alert({ title: 'Okul', message: 'Okul adını yazın.', tone: 'warning' })
       return
     }
+    const studentCount = numOrNull(students)
+    if (studentCount == null || !Number.isInteger(studentCount) || studentCount < 0 || studentCount > 50_000) {
+      await alert({ title: 'Öğrenci sayısı', message: 'Okul nüfusunu 0 ile 50.000 arasında tam sayı olarak girin.', tone: 'warning' })
+      return
+    }
     setSaving(true)
     try {
       await upsertSettlementSchool(settlementId, {
         id: school?.id,
         name: name.trim(),
         schoolType,
-        studentCount: numOrNull(students),
+        studentCount,
         principalName: principal.trim() || null,
         principalPhone: phone.trim() || null,
       })
@@ -222,8 +227,9 @@ export function SchoolEditor({
         </select>
       </label>
       <label>
-        Öğrenci
-        <input type="number" min={0} value={students} onChange={(e) => setStudents(e.target.value)} />
+        Öğrenci sayısı (okul nüfusu)
+        <input type="number" min={0} max={50_000} step={1} required inputMode="numeric" placeholder="Örn. 450" aria-describedby="school-population-help" value={students} onChange={(e) => setStudents(e.target.value)} />
+        <small id="school-population-help" className="muted">Okula kayıtlı toplam öğrenci sayısını girin.</small>
       </label>
       <label>
         Müdür

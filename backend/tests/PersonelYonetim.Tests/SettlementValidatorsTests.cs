@@ -52,3 +52,32 @@ public class SettlementPopulationValidatorTests
         result.ShouldNotHaveAnyValidationErrors();
     }
 }
+
+public class SettlementSchoolValidatorTests
+{
+    [Theory]
+    [InlineData(null)]
+    [InlineData(-1)]
+    [InlineData(50001)]
+    public void Rejects_missing_or_out_of_range_school_population(int? count)
+    {
+        var validator = new UpsertSettlementSchoolValidator();
+        validator.TestValidate(new UpsertSettlementSchoolCommand
+        {
+            SettlementId = Guid.NewGuid(), Name = "Örnek İlkokulu", StudentCount = count
+        }).ShouldHaveValidationErrorFor(x => x.StudentCount);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(450)]
+    [InlineData(50000)]
+    public void Accepts_explicit_school_population(int count)
+    {
+        var validator = new UpsertSettlementSchoolValidator();
+        validator.TestValidate(new UpsertSettlementSchoolCommand
+        {
+            SettlementId = Guid.NewGuid(), Name = "Örnek İlkokulu", StudentCount = count
+        }).ShouldNotHaveAnyValidationErrors();
+    }
+}

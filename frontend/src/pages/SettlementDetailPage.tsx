@@ -120,6 +120,7 @@ function SettlementDetailPageInner() {
   )
 
   const schools = detail?.schools ?? []
+  const schoolsWithStudentCount = schools.filter(school => school.studentCount != null).length
   const schoolStudents = schools.reduce((sum, row) => sum + (row.studentCount ?? 0), 0)
   const facilities = detail?.facilities ?? []
   const areas = detail?.areas ?? []
@@ -335,7 +336,7 @@ function SettlementDetailPageInner() {
             <h2>Okullar</h2>
             <span className="muted small">
               {schools.length} okul
-              {schoolStudents > 0 ? ` · ${schoolStudents.toLocaleString('tr-TR')} öğrenci` : ''}
+              {schoolsWithStudentCount > 0 ? ` · ${schoolStudents.toLocaleString('tr-TR')} öğrenci${schoolsWithStudentCount < schools.length ? ` (${schoolsWithStudentCount} okulda sayı belirtilmiş)` : ''}` : ''}
             </span>
             {canManage ? (
               <button type="button" className="btn-secondary" onClick={() => setSchoolForm('new')}>
@@ -423,7 +424,7 @@ function SchoolCard({
       <p className="settlement-school-students">
         {school.studentCount != null
           ? `${school.studentCount.toLocaleString('tr-TR')} öğrenci`
-          : 'Öğrenci sayısı yok'}
+          : 'Öğrenci sayısı belirtilmemiş'}
       </p>
       <p className="settlement-school-principal">
         {school.principalName || 'Müdür kaydı yok'}

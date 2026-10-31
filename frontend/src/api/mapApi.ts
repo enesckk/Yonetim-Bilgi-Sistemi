@@ -137,7 +137,7 @@ export async function upsertSettlementSchool(
     id?: string | null
     name: string
     schoolType: string
-    studentCount?: number | null
+    studentCount: number
     principalName?: string | null
     principalPhone?: string | null
   },
