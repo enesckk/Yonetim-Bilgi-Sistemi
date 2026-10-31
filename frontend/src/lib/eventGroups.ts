@@ -18,10 +18,10 @@ export function groupEvents(items: EventListItem[]): EventGroup[] {
     const year = new Intl.DateTimeFormat('en', { year: 'numeric', timeZone: 'Europe/Istanbul' }).format(new Date(event.startAtUtc))
     const title = event.title.normalize('NFC').trim().replace(/\s+/g, ' ')
     const baseTitle = title.replace(new RegExp(`\\s+${year}$`), '').trim() || title
-    const key = JSON.stringify([event.category ?? '', baseTitle.toLocaleLowerCase('tr-TR'), year])
+    const key = JSON.stringify([event.category ?? '', baseTitle.toLocaleLowerCase('tr-TR'), event.categoryName?.normalize('NFC').trim().toLocaleLowerCase('tr-TR') ?? '', year])
     let group = groups.get(key)
     if (!group) {
-      group = { key, title: baseTitle, year, categoryLabel: event.category === 'project' ? 'Proje' : event.categoryLabel || 'Etkinlik', items: [], attendance: 0, recordsWithAttendance: 0 }
+      group = { key, title: baseTitle, year, categoryLabel: event.categoryLabel || (event.category === 'project' ? 'Proje' : 'Etkinlik'), items: [], attendance: 0, recordsWithAttendance: 0 }
       groups.set(key, group)
     }
     group.items.push(event)

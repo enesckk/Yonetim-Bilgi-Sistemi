@@ -1,3 +1,6 @@
+import '@/styles/eventForm.css'
+import { CategoryCombobox } from '@/components/CategoryCombobox'
+import { eventCategoryOptions, projectCategoryOptions, resolveCategory } from '@/lib/eventCategories'
 import { EventMediaPicker, EventMediaPanel } from '@/components/EventMedia'
 import { uploadEventMedia } from '@/api/eventMediaApi'
 import { EventInformationNotes } from '@/components/EventInformationNotes'
@@ -10,6 +13,7 @@ import { fetchOrganizationTree, type OrgNode } from '@/api/organizationApi'
 import { eventVenueCatalog } from '@/lib/eventVenues'
 import { fetchEmployeeFormOptions, type LookupItem } from '@/api/employeesApi'
 import {
+  fetchEventCategoryOptions,
   changeEventStatus,
   checkEventConflicts,
   createEvent,
@@ -97,22 +101,8 @@ type FormState = {
   recurrenceFrequency: EventRecurrenceFrequency
   recurrenceOccurrences: string
   category: string
+  categoryName: string
 }
-
-const EVENT_CATEGORY_OPTIONS = [
-  { value: '', label: 'Seçiniz' },
-  { value: 'education', label: 'Eğitim' },
-  { value: 'health', label: 'Sağlık' },
-  { value: 'social_support', label: 'Sosyal Destek' },
-  { value: 'culture', label: 'Kültür / Sanat' },
-  { value: 'trip', label: 'Gezi' },
-  { value: 'project', label: 'Proje' },
-  { value: 'sports', label: 'Spor' },
-  { value: 'youth', label: 'Çocuk / Gençlik' },
-  { value: 'women', label: 'Kadın' },
-  { value: 'elderly', label: 'Yaşlı' },
-  { value: 'other', label: 'Diğer' },
-]
 
 const emptyForm = (): FormState => ({
   title: '',
@@ -133,6 +123,7 @@ const emptyForm = (): FormState => ({
   recurrenceFrequency: 0,
   recurrenceOccurrences: '4',
   category: '',
+  categoryName: '',
 })
 
 export function EventFormPage() {
@@ -146,6 +137,23 @@ export function EventFormPage() {
   const directorateWide = canSeeAllUnits(user)
 
   const [form, setForm] = useState<FormState>(() => ({ ...emptyForm(), category: searchParams.get('kind') === 'project' ? 'project' : '' }))
+  const [categorySuggestions, setCategorySuggestions] = useState<{ events: string[]; projects: string[] }>({ events: [], projects: [] })
+  const [categorySuggestionsError, setCategorySuggestionsError] = useState(false)
+  const categoryDrafts = useRef<Record<string, { category: string; categoryName: string }>>({})
+  const project = form.category === 'project'
+  const categoryText = form.categoryName || (project ? '' : eventCategoryOptions.find(c => c.value === form.category)?.label ?? '')
+  useEffect(() => {
+    if (!canManage) return
+    let active = true
+    void fetchEventCategoryOptions().then(options => { if (active) { setCategorySuggestions({ events: options.events ?? [], projects: options.projects ?? [] }); setCategorySuggestionsError(false) } }).catch(() => { if (active) setCategorySuggestionsError(true) })
+    return () => { active = false }
+  }, [canManage])
+  function changeKind(nextProject: boolean) {
+    if (project === nextProject || saving) return
+    categoryDrafts.current[project ? 'project' : 'event'] = { category: form.category, categoryName: form.categoryName }
+    const next = categoryDrafts.current[nextProject ? 'project' : 'event'] ?? { category: nextProject ? 'project' : '', categoryName: '' }
+    setForm(prev => ({ ...prev, ...next }))
+  }
   const [participantNames, setParticipantNames] = useState<string[]>([])
   const [participantsLoading, setParticipantsLoading] = useState(false)
   const savedId = useRef<string | null>(id ?? null)
@@ -237,6 +245,7 @@ export function EventFormPage() {
             recurrenceFrequency: 0,
             recurrenceOccurrences: '4',
             category: ev.category ?? '',
+            categoryName: ev.categoryName ?? '',
           })
           setLinked(
             (ev.settlements ?? []).map((s) => ({
@@ -375,6 +384,7 @@ export function EventFormPage() {
           : null,
       allowConflicts,
       category: form.category || null,
+      categoryName: form.categoryName.trim(),
       participantNames,
       settlements: directorateWide
         ? linked
@@ -450,23 +460,24 @@ export function EventFormPage() {
 
   return (
     <div className="events-page employees-page events-form-page">
-      <section className="panel">
-        <div className="employees-toolbar">
+      <section className="panel event-form-surface">
+        <div className="employees-toolbar event-form-heading">
           <div className="employees-toolbar-title">
             <div className="employees-toolbar-title-row">
-              <h2>{isEdit ? 'Kayıt düzenle' : form.category === 'project' ? 'Proje ekle' : 'Etkinlik / gezi ekle'}</h2>
+              <div><span className="event-form-eyebrow">{project ? 'PROJE YÖNETİMİ' : 'ETKİNLİK YÖNETİMİ'}</span><h1>{isEdit ? project ? 'Projeyi düzenle' : 'Etkinliği düzenle' : project ? 'Yeni proje' : 'Yeni etkinlik'}</h1></div>
             </div>
             <p className="muted small employees-toolbar-lead">
-              Etkinliğin bilgilerini, taleplerini, afişini ve fotoğraflarını tek kayıtta yönetin.
+              {project ? 'Proje kategorisini, takvimini ve ihtiyaçlarını tek yerden yönetin.' : 'Etkinliğin kategorisini, programını ve katılım bilgilerini birlikte kaydedin.'}
             </p>
           </div>
           <div className="employees-toolbar-actions">
-            <Link to="/events/calendar" className="btn-secondary">
-              Takvime dön
+            <Link to="/events/list" className="btn-secondary">
+              Etkinlik ve projeler
             </Link>
           </div>
         </div>
 
+        <div className="event-form-kind" role="group" aria-label="Çalışma seçimi"><button type="button" aria-pressed={!project} className={!project ? 'is-active' : ''} disabled={saving} onClick={() => changeKind(false)}>Etkinlik</button><button type="button" aria-pressed={project} className={project ? 'is-active' : ''} disabled={saving} onClick={() => changeKind(true)}>Proje</button></div>
         {error ? <p className="form-error">{error}</p> : null}
         {conflictHint ? (
           <p className="events-conflict-hint" role="status">
@@ -476,18 +487,23 @@ export function EventFormPage() {
 
         <form className="form-grid events-form" onSubmit={onSubmit}>
           <fieldset disabled={saving} className="event-form-fieldset">
-            <label className="span-2">
-              Başlık *
+            <div className="event-form-section-title span-2"><span>01</span><div><h2>Temel bilgiler</h2><p>{project ? 'Projenizi adlandırın ve kategorisini belirleyin.' : 'Etkinliğinizi adlandırın ve kategorisini belirleyin.'}</p></div><small>* Zorunlu alan</small></div>
+
+            <label className="event-form-title-field">
+              {project ? 'Proje adı *' : 'Etkinlik adı *'}
               <input
                 value={form.title}
                 onChange={(e) => setField('title', e.target.value)}
-                placeholder="Örn. Konser, kültür gezisi, bilim projesi"
+                placeholder={project ? 'Projenin adını yazın' : 'Örn. Çocuk Tiyatrosu, Kültür Gezisi'}
+                maxLength={200}
                 required
               />
             </label>
+            <div className="event-category-field"><CategoryCombobox label={project ? 'Proje kategorisi' : 'Etkinlik kategorisi'} value={categoryText} options={project ? [...projectCategoryOptions, ...categorySuggestions.projects] : [...eventCategoryOptions.map(c => c.label), ...categorySuggestions.events]} placeholder={project ? 'Örn. TÜBİTAK, GİZ, AB Projeleri' : 'Kategori seçin veya yeni bir kategori yazın'} onChange={text => setForm(prev => ({ ...prev, ...resolveCategory(text, prev.category === 'project') }))} />{categorySuggestionsError && <small className="category-suggestions-note">Kayıtlı kategoriler yüklenemedi. Hazır seçenekleri kullanabilir veya kategori yazabilirsiniz.</small>}</div>
+            <div className="event-form-section-title span-2"><span>02</span><div><h2>Yer ve program</h2><p>Tesisi, başlangıcı ve varsa bitiş zamanını belirleyin.</p></div></div>
             <label className="span-2">
               Tesis / salon
-              <select value={form.facilityId} onChange={(e) => onFacilityChange(e.target.value)}>
+              <select aria-label="Tesis / salon" value={form.facilityId} onChange={(e) => onFacilityChange(e.target.value)}>
                 <option value="">Seçiniz</option>
                 {venueCatalog.groups.map((g) => (
                   <optgroup key={g.parent.id} label={g.label}>
@@ -557,16 +573,7 @@ export function EventFormPage() {
                 }}
               />
             </label>
-            <label>
-              Kayıt türü
-              <select aria-label="Kayıt türü" value={form.category} onChange={(e) => setField('category', e.target.value)}>
-                {EVENT_CATEGORY_OPTIONS.map((c) => (
-                  <option key={c.value || 'none'} value={c.value}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="event-form-section-title span-2"><span>03</span><div><h2>Katılım ve açıklama</h2><p>Planlanan ve gerçekleşen katılımı ayrı ayrı kaydedin.</p></div></div>
             <label>
               Beklenen katılımcı
               <input
@@ -596,7 +603,7 @@ export function EventFormPage() {
               </select>
             </label>
             <label>
-              Gelen kişi
+              Gerçekleşen katılımcı
               <input
                 type="number"
                 min={0}
@@ -614,14 +621,17 @@ export function EventFormPage() {
                 placeholder={form.category === 'trip' ? 'Gidilecek yer, güzergâh ve gezi notları' : 'Kısa not (isteğe bağlı)'}
               />
             </label>
-            <section className="event-requirements span-2">
+            <details className="event-form-extra span-2">
+              <summary><div><strong>Talepler ve ihtiyaçlar</strong><small>Hizmet, malzeme ve teslim tarihleri</small></div><span>{form.requirements.trim() ? 'Talep eklendi' : 'İsteğe bağlı'} <b aria-hidden="true">⌄</b></span></summary>
+              <section className="event-requirements">
               <h3>Talepler ve ihtiyaçlar</h3>
               <p>Etkinliğin gerçekleşmesi için talep edilen hizmetleri, miktarları ve teslim tarihlerini yazın.</p>
               <label>Talep detayları<textarea aria-label="Talep detayları" rows={5} maxLength={8000} value={form.requirements} onChange={e => setField('requirements', e.target.value)} placeholder="Örn. 2 kablosuz mikrofon, 100 kişilik ikram, 1 otobüs… Talep eden birim ve ihtiyaç tarihini de ekleyebilirsiniz." /></label>
               <small>{form.requirements.length.toLocaleString('tr-TR')} / 8.000 karakter</small>
             </section>
+            </details>
             <details className="span-2 events-form-more">
-              <summary>Diğer alanlar</summary>
+              <summary>Mahalle, sorumlu personel ve diğer ayrıntılar</summary>
               <div className="form-grid">
                 {directorateWide ? (
                 <div className="span-2 settlement-picker">
@@ -777,15 +787,16 @@ export function EventFormPage() {
                 ) : null}
               </div>
             </details>
-            <EventParticipants names={participantNames} onChange={setParticipantNames} onBusyChange={setParticipantsLoading} disabled={saving} />
+            <details className="event-form-extra span-2"><summary><div><strong>Katılımcı isim listesi</strong><small>İsim listesini Excel dosyasından ekleyin</small></div><span>{participantNames.length ? `${participantNames.length.toLocaleString('tr-TR')} isim` : 'İsteğe bağlı'} <b aria-hidden="true">⌄</b></span></summary><div className="event-form-extra-content"><EventParticipants names={participantNames} onChange={setParticipantNames} onBusyChange={setParticipantsLoading} disabled={saving} /></div></details>
             {!isEdit && form.recurrenceFrequency !== 0 && participantNames.length > 0 ? <p className="span-2 muted small">Katılımcı listesi seride oluşturulan her kayda eklenir; daha sonra her kayıtta ayrı düzenlenebilir.</p> : null}
-            <EventMediaPicker poster={poster} photos={photos} onPoster={setPoster} onPhotos={setPhotos} disabled={saving} />
+            <details className="event-form-extra span-2"><summary><div><strong>Afiş ve fotoğraflar</strong><small>Afişi ve etkinlik fotoğraflarını ekleyin</small></div><span>{poster || photos.length ? `${(poster ? 1 : 0) + photos.length} dosya` : 'İsteğe bağlı'} <b aria-hidden="true">⌄</b></span></summary><div className="event-form-extra-content"><EventMediaPicker poster={poster} photos={photos} onPoster={setPoster} onPhotos={setPhotos} disabled={saving} /></div></details>
             {isEdit ? <p className="span-2 muted small">Mevcut afişi ve fotoğrafları etkinlik detayından görüntüleyebilir ve yönetebilirsiniz.</p> : null}
             {!isEdit && form.recurrenceFrequency !== 0 ? <p className="span-2 muted small">Afiş ve fotoğraflar serinin ilk kaydına eklenir.</p> : null}
             {mediaPending && savedId.current ? <p className="span-2" role="status">Etkinlik kaydı oluşturuldu. Görselleri tekrar yüklemek için Kaydet'e basın veya <Link to={`/events/${savedId.current}`}>kaydı görüntüleyin</Link>.</p> : null}
-            <div className="form-actions span-2">
+            <div className="form-actions span-2 event-form-savebar">
+              <p>Bilgileri kontrol ederek kaydedin.<small>Kategori adını daha sonra düzenleyebilirsiniz.</small></p>
               <button type="submit" className="btn-primary" disabled={saving || participantsLoading}>
-                {saving ? 'Kaydediliyor…' : isEdit ? 'Güncelle' : 'Kaydet'}
+                {saving ? 'Kaydediliyor…' : isEdit ? 'Değişiklikleri kaydet' : project ? 'Projeyi kaydet' : 'Etkinliği kaydet'}
               </button>
             </div>
           </fieldset>
@@ -998,6 +1009,7 @@ export function EventDetailPage() {
               <span>Açıklama</span>
               <p>{item.description || '—'}</p>
             </article>
+            <article><span>{item.category === 'project' ? 'Proje kategorisi' : 'Etkinlik kategorisi'}</span><p>{item.categoryLabel || 'Belirtilmemiş'}</p></article>
             <article>
               <span>Birim</span>
               <p>{item.organizingUnitName || '—'}</p>

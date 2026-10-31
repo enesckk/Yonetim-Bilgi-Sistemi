@@ -16,6 +16,10 @@ public sealed class EventsController : ControllerBase
 
     public EventsController(ISender sender) => _sender = sender;
 
+    [HttpGet("categories")]
+    [RequirePermission(PermissionCodes.EventsView)]
+    public async Task<IActionResult> Categories(CancellationToken ct) => Ok(ApiResponse<EventCategoryOptionsDto>.Ok(await _sender.Send(new GetEventCategoryOptionsQuery(), ct), HttpContext.TraceIdentifier));
+
     [HttpGet]
     [RequirePermission(PermissionCodes.EventsView)]
     [ProducesResponseType(typeof(ApiResponse<EventListDto>), StatusCodes.Status200OK)]

@@ -4,6 +4,7 @@ import { EventYearOverview } from '@/components/EventYearOverview'
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
+  fetchEventCategoryOptions,
   eventPhase,
   eventPhaseLabel,
   fetchEvents,
@@ -56,6 +57,8 @@ export function EventsListPage() {
   const kind =
     params.get('kind') === 'project' ? 'project' : params.get('kind') === 'event' ? 'event' : ''
   const category = params.get('category') ?? ''
+  const [customCategories, setCustomCategories] = useState<{ events: string[]; projects: string[] }>({ events: [], projects: [] })
+  useEffect(() => { let active = true; if (canView) void fetchEventCategoryOptions().then(v => { if (active) setCustomCategories({ events: v.events ?? [], projects: v.projects ?? [] }) }).catch(() => {}); return () => { active = false } }, [canView])
   const [items, setItems] = useState<EventListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -293,13 +296,13 @@ export function EventsListPage() {
           )}
         </form>
         <details className="events-advanced-filters">
-          <summary>Tarih ve tür filtreleri</summary>
+          <summary>Tarih ve kategori filtreleri</summary>
           <div className="events-advanced-fields">
-            {kind !== 'project' && (
+            {(
               <label>
-                Tür
+                {kind === 'project' ? 'Proje kategorisi' : 'Etkinlik kategorisi'}
                 <select
-                  aria-label="Tür"
+                  aria-label={kind === 'project' ? 'Proje kategorisi filtresi' : 'Etkinlik kategorisi filtresi'}
                   value={category}
                   onChange={(e) =>
                     setParams((p) => {
@@ -309,12 +312,13 @@ export function EventsListPage() {
                     })
                   }
                 >
-                  <option value="">Tüm türler</option>
-                  {categories.map(([v, l]) => (
+                  <option value="">Tüm kategoriler</option>
+                  {(kind === 'project' ? [] : categories).map(([v, l]) => (
                     <option key={v} value={v}>
                       {l}
                     </option>
                   ))}
+                  {(kind === 'project' ? [...new Set(['TÜBİTAK', 'GİZ', 'AB Projeleri', ...customCategories.projects])] : customCategories.events.filter(c => !categories.some(([_, l]) => l === c))).map(c => <option key={'custom:' + c} value={'name:' + c}>{c}</option>)}
                 </select>
               </label>
             )}
@@ -407,7 +411,7 @@ export function EventsListPage() {
                   <h3>{group.title} <span>{group.year}</span></h3>
                 </div>
                   <div className="event-group-metrics">
-                    <span>{group.items.length.toLocaleString('tr-TR')} {group.categoryLabel === 'Proje' ? 'proje kaydı' : 'etkinlik'}</span>
+                    <span>{group.items.length.toLocaleString('tr-TR')} {group.items[0]?.category === 'project' ? 'proje kaydı' : 'etkinlik'}</span>
                     <span className="event-group-attendance">{group.recordsWithAttendance ? `${group.attendance.toLocaleString('tr-TR')} kayıtlı katılım` : 'Katılım belirtilmemiş'}</span>
                     {group.recordsWithAttendance > 0 && group.recordsWithAttendance < group.items.length && <small>{group.items.length - group.recordsWithAttendance} kayıtta katılım eksik</small>}
                   </div>

@@ -1070,6 +1070,8 @@ namespace PersonelYonetim.Infrastructure.Persistence.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<string>("CategoryName").HasMaxLength(120).HasColumnType("nvarchar(120)");
+
                     b.Property<string>("Category")
                         .HasMaxLength(40)
                         .HasColumnType("nvarchar(40)");

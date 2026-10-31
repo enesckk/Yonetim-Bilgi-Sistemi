@@ -114,7 +114,7 @@ public sealed class ActivityReportService(AppDbContext db, ICurrentUserService u
             var bodyParts = new List<string>(); if (!string.IsNullOrWhiteSpace(e.Description)) bodyParts.Add(e.Description.Trim());
             foreach (var n in notes.Where(n => n.EventId == e.Id)) if (!bodyParts.Contains(n.Body.Trim())) bodyParts.Add($"{n.Title}\n{n.Body.Trim()}");
             var body = string.Join("\n\n", bodyParts);
-            var source = new ActivityReportSource(e.Id, e.Title, DateTime.SpecifyKind(e.StartAtUtc, DateTimeKind.Utc), e.IsDateOnly, EventLabels.Status(e.Status), EventCategories.Label(e.Category ?? "other"), e.Facility?.Name ?? e.Address ?? "", string.Join(", ", e.Settlements.Where(s => !s.IsDeleted).Select(s => s.Settlement?.Name).Where(s => s != null)), actual, body, DateTime.SpecifyKind(e.CreatedAtUtc, DateTimeKind.Utc), e.EndAtUtc.HasValue ? DateTime.SpecifyKind(e.EndAtUtc.Value, DateTimeKind.Utc) : null);
+            var source = new ActivityReportSource(e.Id, e.Title, DateTime.SpecifyKind(e.StartAtUtc, DateTimeKind.Utc), e.IsDateOnly, EventLabels.Status(e.Status), EventCategories.Label(e.Category ?? "other", e.CategoryName), e.Facility?.Name ?? e.Address ?? "", string.Join(", ", e.Settlements.Where(s => !s.IsDeleted).Select(s => s.Settlement?.Name).Where(s => s != null)), actual, body, DateTime.SpecifyKind(e.CreatedAtUtc, DateTimeKind.Utc), e.EndAtUtc.HasValue ? DateTime.SpecifyKind(e.EndAtUtc.Value, DateTimeKind.Utc) : null);
             doc.Sources.Add(source);
             var imageIds = selected.Where(m => m.EventId == e.Id).Select(m => assetBySource[m.Id]).ToList();
             if (imageIds.Count == 0) doc.RecordsWithoutImages++;

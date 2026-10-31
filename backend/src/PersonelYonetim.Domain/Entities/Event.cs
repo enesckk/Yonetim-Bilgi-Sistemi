@@ -51,6 +51,7 @@ public class Event : AuditableEntity
 
     /// <summary>EventCategories kodu (education, health, …).</summary>
     public string? Category { get; set; }
+    public string? CategoryName { get; set; }
 
     public ICollection<EventSettlement> Settlements { get; set; } = new List<EventSettlement>();
     public ICollection<EventNote> Notes { get; set; } = new List<EventNote>();

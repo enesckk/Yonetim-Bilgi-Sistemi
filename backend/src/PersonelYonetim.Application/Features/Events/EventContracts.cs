@@ -29,6 +29,7 @@ public sealed class EventListItemDto
     public string? RecurrenceLabel { get; init; }
     public Guid? ResponsibleEmployeeId { get; init; }
     public string? ResponsibleEmployeeName { get; init; }
+    public string? CategoryName { get; init; }
     public string? Category { get; init; }
     public string? CategoryLabel { get; set; }
 }
@@ -60,6 +61,7 @@ public sealed class EventDetailDto
     public int SeriesCount { get; init; }
     public Guid? ResponsibleEmployeeId { get; init; }
     public string? ResponsibleEmployeeName { get; init; }
+    public string? CategoryName { get; init; }
     public string? Category { get; init; }
     public string? CategoryLabel { get; init; }
     public IReadOnlyList<EventSettlementDto> Settlements { get; init; } = [];
@@ -148,6 +150,7 @@ public sealed class CreateEventCommand : IRequest<Guid>
     public int? RecurrenceOccurrences { get; set; }
     /// <summary>true ise tesis saat çakışması engellenmez (kullanıcı onayı sonrası).</summary>
     public bool AllowConflicts { get; set; }
+    public string? CategoryName { get; set; }
     public string? Category { get; set; }
     public List<EventSettlementInputDto> Settlements { get; set; } = [];
     public List<string>? ParticipantNames { get; set; }
@@ -172,6 +175,7 @@ public sealed class UpdateEventCommand : IRequest
     public int? ActualAttendees { get; set; }
     public Guid? ResponsibleEmployeeId { get; set; }
     public bool AllowConflicts { get; set; }
+    public string? CategoryName { get; set; }
     public string? Category { get; set; }
     public List<EventSettlementInputDto> Settlements { get; set; } = [];
     public List<string>? ParticipantNames { get; set; }
@@ -208,6 +212,7 @@ public sealed class CreateEventCommandValidator : AbstractValidator<CreateEventC
         RuleFor(x => x.Title).NotEmpty().WithMessage("Etkinlik başlığı zorunludur.").MaximumLength(200);
         RuleFor(x => x.Description).MaximumLength(4000);
         RuleFor(x => x.Requirements).MaximumLength(8000);
+        RuleFor(x => x.CategoryName).MaximumLength(120).Must(x => x == null || !x.Any(char.IsControl)).WithMessage("Kategori adı en fazla 120 karakter ve tek satır olmalıdır.");
         RuleFor(x => x.ParticipantNames).Must(x => x == null || x.Count <= 5000).WithMessage("En fazla 5000 isim yüklenebilir.");
         RuleForEach(x => x.ParticipantNames).Must(x => !string.IsNullOrWhiteSpace(x) && x.Trim().Length <= 200 && !x.Any(char.IsControl)).WithMessage("Katılımcı adı boş olamaz ve en fazla 200 karakter olabilir.");
         RuleFor(x => x.Address).MaximumLength(500);
@@ -248,6 +253,7 @@ public sealed class UpdateEventCommandValidator : AbstractValidator<UpdateEventC
         RuleFor(x => x.Title).NotEmpty().WithMessage("Etkinlik başlığı zorunludur.").MaximumLength(200);
         RuleFor(x => x.Description).MaximumLength(4000);
         RuleFor(x => x.Requirements).MaximumLength(8000);
+        RuleFor(x => x.CategoryName).MaximumLength(120).Must(x => x == null || !x.Any(char.IsControl)).WithMessage("Kategori adı en fazla 120 karakter ve tek satır olmalıdır.");
         RuleFor(x => x.ParticipantNames).Must(x => x == null || x.Count <= 5000).WithMessage("En fazla 5000 isim yüklenebilir.");
         RuleForEach(x => x.ParticipantNames).Must(x => !string.IsNullOrWhiteSpace(x) && x.Trim().Length <= 200 && !x.Any(char.IsControl)).WithMessage("Katılımcı adı boş olamaz ve en fazla 200 karakter olabilir.");
         RuleFor(x => x.Address).MaximumLength(500);
@@ -483,3 +489,6 @@ public sealed class GetEventsQueryValidator : AbstractValidator<GetEventsQuery>
 
 public sealed record EventYearSummaryDto(int Year, int CompletedEvents, int CompletedProjects, long TotalAttendance, int RecordsWithAttendance);
 public sealed record GetEventYearSummaryQuery(int Year, Guid? FacilityId = null) : IRequest<EventYearSummaryDto>;
+
+public sealed record GetEventCategoryOptionsQuery : IRequest<EventCategoryOptionsDto>;
+public sealed record EventCategoryOptionsDto(IReadOnlyList<string> Events, IReadOnlyList<string> Projects);

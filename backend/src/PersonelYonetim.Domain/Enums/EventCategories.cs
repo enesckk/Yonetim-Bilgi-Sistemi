@@ -35,8 +35,11 @@ public static class EventCategories
     public static bool IsKnown(string? code) =>
         !string.IsNullOrWhiteSpace(code) && All.Any(x => x.Code == code);
 
-    public static string Label(string? code) =>
-        All.FirstOrDefault(x => x.Code == code).Label ?? "Diğer";
+    public static string Label(string? code, string? name = null) =>
+        !string.IsNullOrWhiteSpace(name) ? name.Trim() : All.FirstOrDefault(x => x.Code == code).Label ?? "Diğer";
+
+    public static string? NormalizeName(string? name) => string.IsNullOrWhiteSpace(name) ? null
+        : System.Text.RegularExpressions.Regex.Replace(name.Normalize().Trim(), @"\s+", " ");
 
     public static string Normalize(string? code) =>
         IsKnown(code) ? code!.Trim() : Other;

@@ -154,7 +154,8 @@ internal static class EventConflictHelper
             ? null
             : $"{e.ResponsibleEmployee.FirstName} {e.ResponsibleEmployee.LastName}".Trim(),
         Category = e.Category,
-        CategoryLabel = string.IsNullOrWhiteSpace(e.Category) ? null : EventCategories.Label(e.Category),
+        CategoryName = e.CategoryName,
+        CategoryLabel = string.IsNullOrWhiteSpace(e.Category) ? null : EventCategories.Label(e.Category, e.CategoryName),
         Settlements = (e.Settlements ?? [])
             .Where(s => !s.IsDeleted)
             .Select(s => new EventSettlementDto
@@ -220,7 +221,14 @@ public sealed class GetEventsHandler : IRequestHandler<GetEventsQuery, EventList
         }
 
         if (!string.IsNullOrWhiteSpace(request.Category))
-            q = q.Where(e => e.Category == request.Category);
+        {
+            if (request.Category.StartsWith("name:", StringComparison.Ordinal))
+            {
+                var name = request.Category[5..]; q = q.Where(e => e.CategoryName == name);
+            }
+            else if (EventCategories.IsKnown(request.Category)) q = q.Where(e => e.Category == request.Category);
+            else q = q.Where(e => e.CategoryName == request.Category);
+        }
         if (request.Kind == "project") q = q.Where(e => e.Category == EventCategories.Project);
         else if (request.Kind == "event") q = q.Where(e => e.Category == null || e.Category != EventCategories.Project);
 
@@ -299,12 +307,13 @@ public sealed class GetEventsHandler : IRequestHandler<GetEventsQuery, EventList
                 ResponsibleEmployeeName = e.ResponsibleEmployee != null
                     ? (e.ResponsibleEmployee.FirstName + " " + e.ResponsibleEmployee.LastName).Trim()
                     : null,
-                Category = e.Category
+                Category = e.Category,
+                CategoryName = e.CategoryName
             })
             .ToListAsync(cancellationToken);
 
         foreach (var item in items)
-            item.CategoryLabel = string.IsNullOrWhiteSpace(item.Category) ? null : EventCategories.Label(item.Category);
+            item.CategoryLabel = string.IsNullOrWhiteSpace(item.Category) ? null : EventCategories.Label(item.Category, item.CategoryName);
 
         return new EventListDto { Items = items, TotalCount = items.Count };
     }
@@ -456,6 +465,7 @@ public sealed class CreateEventHandler : IRequestHandler<CreateEventCommand, Gui
                 Latitude = request.Latitude,
                 Longitude = request.Longitude,
                 Address = string.IsNullOrWhiteSpace(request.Address) ? null : request.Address.Trim(),
+                CategoryName = EventCategories.NormalizeName(request.CategoryName),
                 Category = string.IsNullOrWhiteSpace(request.Category)
                     ? null
                     : EventCategories.Normalize(request.Category),
@@ -479,6 +489,8 @@ public sealed class CreateEventHandler : IRequestHandler<CreateEventCommand, Gui
             first.StartAtUtc,
             first.FacilityId,
             first.ExpectedAttendees,
+            first.Category,
+            first.CategoryName,
             seriesId,
             occurrences
         });
@@ -590,7 +602,9 @@ public sealed class UpdateEventHandler : IRequestHandler<UpdateEventCommand>
             entity.EndAtUtc,
             entity.FacilityId,
             entity.ExpectedAttendees,
-            entity.ActualAttendees
+            entity.ActualAttendees,
+            entity.Category,
+            entity.CategoryName
         };
 
         entity.Title = request.Title.Trim();
@@ -612,9 +626,11 @@ public sealed class UpdateEventHandler : IRequestHandler<UpdateEventCommand>
         entity.Latitude = request.Latitude;
         entity.Longitude = request.Longitude;
         entity.Address = string.IsNullOrWhiteSpace(request.Address) ? null : request.Address.Trim();
+        var previousCategory = entity.Category;
         entity.Category = string.IsNullOrWhiteSpace(request.Category)
             ? null
             : EventCategories.Normalize(request.Category);
+        if (request.CategoryName is not null || previousCategory != entity.Category) entity.CategoryName = EventCategories.NormalizeName(request.CategoryName);
         entity.UpdatedBy = _currentUser.UserName ?? "system";
         entity.UpdatedAtUtc = DateTime.UtcNow;
 
@@ -638,7 +654,9 @@ public sealed class UpdateEventHandler : IRequestHandler<UpdateEventCommand>
             entity.StartAtUtc,
             entity.EndAtUtc,
             entity.FacilityId,
-            entity.ExpectedAttendees
+            entity.ExpectedAttendees,
+            entity.Category,
+            entity.CategoryName
         });
 
         await _db.SaveChangesAsync(cancellationToken);

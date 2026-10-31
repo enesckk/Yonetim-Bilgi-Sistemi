@@ -75,6 +75,7 @@ export interface EventListItem {
   recurrenceLabel?: string | null
   responsibleEmployeeId?: string | null
   responsibleEmployeeName?: string | null
+  categoryName?: string | null
   category?: string | null
   categoryLabel?: string | null
 }
@@ -180,6 +181,7 @@ export interface EventWritePayload {
   recurrenceFrequency?: EventRecurrenceFrequency
   recurrenceOccurrences?: number | null
   allowConflicts?: boolean
+  categoryName?: string | null
   category?: string | null
   settlements?: EventSettlementInput[]
 }
@@ -404,3 +406,6 @@ export function fetchEventYearSummary(year: number, facilityId?: string) {
   if (facilityId) query.set('facilityId', facilityId)
   return apiRequest<EventYearSummary>('/api/events/year-summary?' + query)
 }
+
+export interface EventCategoryOptions { events: string[]; projects: string[] }
+export const fetchEventCategoryOptions = () => apiRequest<EventCategoryOptions>('/api/events/categories')
