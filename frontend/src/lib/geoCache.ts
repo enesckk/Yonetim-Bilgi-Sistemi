@@ -18,6 +18,6 @@ export function loadDistrictBoundary() {
 }
 
 export function loadMahalleler() {
-  mahallePromise ??= fetchJson<MahalleCollection>('/geo/sehitkamil-mahalleler.geojson')
+  mahallePromise ??= fetchJson<MahalleCollection>('/geo/sehitkamil-mahalleler.geojson?v=20261031-source120')
   return mahallePromise
 }

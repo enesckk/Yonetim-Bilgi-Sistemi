@@ -374,14 +374,9 @@ function SettlementDetailPageInner() {
       ) : null}
 
       {tab === 'etkinlikler' ? (
-        <section className="panel settlement-block">
+        <section className="panel settlement-block settlement-program">
           <div className="settlement-section-head">
-            <h2>Etkinlikler</h2>
-            {canManage ? (
-              <Link to={addEventTo} className="btn-secondary">
-                Etkinlik ekle
-              </Link>
-            ) : null}
+            <div><h2>Mahalle etkinlikleri</h2><p className="muted small">Programlar, gerçekleşen çalışmalar ve etkinlik ayrıntıları.</p></div>
           </div>
           {eventsError ? null : events.length === 0 ? (
             <div className="settlement-empty">
@@ -389,9 +384,14 @@ function SettlementDetailPageInner() {
               {canManage ? <Link to={addEventTo}>İlk programı ekle</Link> : null}
             </div>
           ) : (
-            <div className="settlement-event-cols">
-              <EventGroup title="Yaklaşan" items={upcoming} empty="Yaklaşan etkinlik yok." />
-              <EventGroup title="Yapılan" items={done} empty="Yapılan kayıt yok." />
+            <div className="settlement-program-groups">
+              <div className="settlement-program-summary" aria-label="Etkinlik özeti">
+                <span><strong>{events.length}</strong> Toplam etkinlik</span>
+                <span><strong>{done.length}</strong> Yapılan</span>
+                <span><strong>{upcoming.length}</strong> Yaklaşan</span>
+              </div>
+              {upcoming.length > 0 ? <EventGroup title="Yaklaşan etkinlikler" items={upcoming} empty="" /> : null}
+              {done.length > 0 ? <EventGroup title="Yapılan etkinlikler" items={done} empty="" /> : null}
               {other.length > 0 ? <EventGroup title="Taslak / iptal" items={other} empty="" /> : null}
             </div>
           )}
@@ -530,7 +530,7 @@ function EventGroup({
   empty: string
 }) {
   return (
-    <div>
+    <div className="settlement-program-group">
       <h3>
         {title} <em>{items.length}</em>
       </h3>
@@ -547,10 +547,13 @@ function EventGroup({
                   {item.categoryLabel ? ` · ${item.categoryLabel}` : ''}
                   {item.facilityName ? ` · ${item.facilityName}` : ''}
                 </span>
+                <span className="settlement-program-open">Etkinliği incele →</span>
               </Link>
-              <em className={`event-status-pill status-${item.status}`}>
-                {eventPhaseLabel(item.status, item.startAtUtc)}
-              </em>
+              <span className="settlement-program-status">
+                <em className={`event-status-pill status-${item.status}`}>
+                  {eventPhaseLabel(item.status, item.startAtUtc)}
+                </em>
+              </span>
             </li>
           ))}
         </ul>

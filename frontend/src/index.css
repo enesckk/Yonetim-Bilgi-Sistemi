@@ -19905,3 +19905,30 @@ body { padding-bottom: var(--pwa-install-space, 0px); }
 .event-group-copy h3 > span { margin-left:.25em; }
 
 .venue-source-contact { display:flex; flex-wrap:wrap; gap:8px 18px; color:#73867a; font-size:12px; line-height:1.7; margin:12px 0; overflow-wrap:anywhere; }
+
+/* Neighborhood programs: one readable list, including when only past events exist. */
+.settlement-program { padding: 1.25rem; }
+.settlement-program .settlement-section-head { align-items: center; gap: 1rem; }
+.settlement-program .settlement-section-head h2 { font-size: 1.05rem; text-transform: none; letter-spacing: normal; }
+.settlement-program .settlement-section-head p { margin: .3rem 0 0; }
+.settlement-program-summary { display: flex; flex-wrap: wrap; gap: .75rem 1.75rem; padding: 1rem 0; margin-bottom: 1rem; border-block: 1px solid #e7eeeb; color: #63766d; font-size: .82rem; }
+.settlement-program-summary strong { color: #174e39; font-size: 1.15rem; margin-right: .35rem; }
+.settlement-program-groups { display: grid; gap: 1rem; }
+.settlement-program-group h3 { display: flex; align-items: center; gap: .5rem; font-size: .86rem; margin: 0 0 .7rem; }
+.settlement-program-group h3 em { font-style: normal; border-radius: 2rem; padding: .15rem .5rem; background: #edf5f1; color: #27664c; font-size: .72rem; }
+.settlement-program .settlement-event-list { gap: .5rem; }
+.settlement-program .settlement-event-list li { position: relative; border: 1px solid #e5ede9; border-radius: .7rem; padding: 1rem; gap: 1rem; transition: border-color .15s, background .15s; }
+.settlement-program .settlement-event-list li:hover { border-color: #9ac7b1; background: #f8fbf9; }
+.settlement-program .settlement-event-list li:focus-within { outline: 2px solid #20865d; outline-offset: 2px; }
+.settlement-program .settlement-event-list a { gap: .3rem; }
+.settlement-program .settlement-event-list a::after { content: ''; position: absolute; inset: 0; border-radius: .7rem; }
+.settlement-program .settlement-event-list strong { white-space: normal; overflow-wrap: anywhere; line-height: 1.45; }
+.settlement-program .settlement-event-list span { line-height: 1.6; overflow-wrap: anywhere; }
+.settlement-program .settlement-event-list .settlement-program-open { color: #20744f; font-size: .72rem; font-weight: 650; }
+.settlement-program-status { align-self: start; }
+@media (max-width: 600px) {
+  .settlement-program { padding: .9rem; }
+  .settlement-program .settlement-section-head { flex-wrap: wrap; }
+  .settlement-program .settlement-event-list li { grid-template-columns: minmax(0, 1fr); gap: .5rem; padding: .85rem; }
+  .settlement-program-summary { gap: .65rem 1rem; }
+}

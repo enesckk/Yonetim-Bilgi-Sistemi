@@ -325,6 +325,13 @@ function EventsMapPageInner() {
     return search.trim() && searchHits.length === 1 ? searchHits[0] : null
   }, [byCode, searchHits, selectedCode, search])
 
+  // Only the authoritative active catalog is drawn. Legacy polygons overlap the
+  // updated boundaries and must not paint over active neighborhoods.
+  const activeMahalleler = useMemo(() => mahalleler ? ({
+    ...mahalleler,
+    features: mahalleler.features.filter((feature) => byCode.has(String(feature.properties.id))),
+  }) : null, [mahalleler, byCode])
+
   const focusedFeature = useMemo(() => {
     if (!focusedSummary) return null
     return mahalleler?.features.find((f) => String(f.properties.id) === focusedSummary.officialCode) ?? null
@@ -767,10 +774,10 @@ function EventsMapPageInner() {
                 pathOptions={{ color: '#208B5F', weight: 2.2, fillOpacity: 0, interactive: false }}
               />
             ) : null}
-            {mahalleler ? (
+            {activeMahalleler ? (
               <GeoJSON
                 key={`cov-${preset}-${category}-${summaries.length}-${coverageFilter ?? 'all'}-${focusedSummary?.officialCode ?? ''}`}
-                data={mahalleler as GeoJSON.GeoJsonObject}
+                data={activeMahalleler as GeoJSON.GeoJsonObject}
                 style={mahalleStyle}
                 onEachFeature={onEachMahalle}
               />
