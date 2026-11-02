@@ -11,7 +11,7 @@
 .event-detail-category { margin: 10px 0 0; color: #6f7b73; font-size: 12px; font-weight: 400; line-height: 1.6; }
 .event-detail-heading .employees-toolbar-actions { flex-shrink: 0; margin-top: 2px; }
 .event-detail-heading .events-action-group { border: 1px solid #e4e8e5; border-radius: 8px; box-shadow: none; }
-.event-detail-heading .events-action-btn { padding: 8px 13px; min-height: 34px; font-size: 12px; font-weight: 500; color: #56645c; border-color: #e4e8e5; }
+.event-detail-heading .events-action-btn { padding: 8px 13px; min-height: 34px; font-size: 12px; font-weight: 500; border-color: #e4e8e5; }
 .event-detail-facts { display: grid; grid-template-columns: 1fr 1.25fr 1fr; margin: 25px 0 0; padding: 21px 0; border-top: 1px solid #edf0ee; border-bottom: 1px solid #edf0ee; }
 .event-detail-facts article { display: flex; flex-direction: column; align-items: flex-start; gap: 7px; padding: 0 25px; min-width: 0; }
 .event-detail-facts article:first-child { padding-left: 0; }
