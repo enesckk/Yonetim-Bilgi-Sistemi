@@ -27,3 +27,9 @@ Müdür rolü etkinlik, proje, bilgi notu ve etkinlik görsellerini görüntüle
 Etkinlik dosyası görünümü tarih/yer/katılım kartları, bölüm bağlantıları, ekranda açılan bilgi notları, belge indirme ve büyütülebilir afiş/fotoğraflar içerir. Boş talepler ve boş katılımcı bölümleri görüntüleme ekranında yer kaplamaz; işlem geçmişi açılır bölümde sunulur.
 
 Doğrulama: 78 ön yüz testi; 187 arka uç testi başarılı, ortam bağımlı 11 test atlandı. DirectorEventAccessTests eski oturum, sunucu yetkilendirmesi, erişim koruması ve tekrar çalıştırılabilir rol düzeltmesini kapsar.
+
+## Tipografi ve etkinlik dosyası düzeni
+
+Arayüz, Türkçe karakterleri destekleyen Inter 400–700 değişken fontunu yerel WOFF2 dosyalarından sunar; Latin ve Latin Extended alt kümeleri toplam yaklaşık 134 KB'dir. Lisans frontend/public/fonts/Inter-OFL.txt içindedir. Önceki harici font yükleme bağlantıları kaldırılmıştır.
+
+Etkinlik dosyasında daha ölçülü başlık, sade tarih/tesis/katılım şeridi ve bölüm bağlantıları kullanılır. Masaüstünde bilgi notu ve afiş iki sütundadır; dar ekranlarda tek sütuna geçilir. Not açma/daraltma durumu, bölüm bağlantısının seçili görünümü ve afiş önizlemesi korunur. Müdürün görüntüleme sınırı değişmez.

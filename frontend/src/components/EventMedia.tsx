@@ -342,10 +342,10 @@ export function EventMediaPanel({ eventId, canManage }: { eventId: string; canMa
                         <Preview
                           file={file}
                           eventId={eventId}
-                          onOpen={(url, name) => setOpen({ url, name })}
+                          onOpen={(url, name) => setOpen({ url, name: canManage ? name : kind === 'poster' ? 'Etkinlik afişi' : 'Etkinlik fotoğrafı' })}
                         />
                         <figcaption>
-                          <span title={file.fileName}>{file.fileName}</span>
+                          <span title={file.fileName}>{canManage ? file.fileName : kind === 'poster' ? 'Etkinlik afişi' : 'Etkinlik fotoğrafı'}</span>
                           {canManage && (
                             <button
                               type="button"

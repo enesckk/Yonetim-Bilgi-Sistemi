@@ -65,7 +65,7 @@ export function EventInformationNotes({ eventId }: { eventId: string }) {
           {notes.map((n) => (
             <li key={n.id} className="event-note-card">
               <details open={notes.length === 1}>
-                <summary><span className="event-note-mark" aria-hidden="true">≡</span><div><strong>{n.title}</strong><span>{[n.dateText, n.organizer].filter(Boolean).join(' · ') || 'Etkinlik bilgi notu'}</span></div><b>Görüntüle</b></summary>
+                <summary><span className="event-note-mark" aria-hidden="true"><svg width="20" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h6"/></svg></span><div><strong>{n.title}</strong><span>{[n.dateText, n.organizer].filter(Boolean).join(' · ') || 'Etkinlik bilgi notu'}</span></div><b><span className="event-note-expand">Notu oku</span><span className="event-note-collapse">Daralt</span><span aria-hidden="true" className="event-note-chevron">⌄</span></b></summary>
                 <div className="event-note-content">
                   {n.subject && <p><strong>Konu:</strong> {n.subject}</p>}
                   <div className="event-note-body">{n.body}</div>

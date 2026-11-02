@@ -1014,16 +1014,12 @@ export function EventDetailPage() {
   return (
     <div className={`events-page employees-page event-detail-page${canManage ? '' : ' event-detail-readonly'}`}>
       <section className="panel event-detail-surface">
-        <div className="employees-toolbar event-detail-heading">
-          <div className="employees-toolbar-title">
-            <div className="employees-toolbar-title-row">
-              <div><span className="event-detail-eyebrow">{item.category === 'project' ? 'PROJE DOSYASI' : 'ETKİNLİK DOSYASI'}</span><h1>{item.title}</h1></div>
-              <span className={`event-status-pill status-${item.status}`}>{item.statusLabel}</span>
-            </div>
-            <p className="muted small employees-toolbar-lead">
-              {formatWhen(item.startAtUtc, item.isDateOnly)}{item.isDateOnly ? ' · Saat belirtilmemiş' : ''}
-              {item.endAtUtc ? ` – ${formatWhen(item.endAtUtc, item.isDateOnly)}` : ''}
-            </p>
+        <section className="event-detail-overview">
+        <div className="event-detail-heading">
+          <div className="event-detail-title">
+            <div className="event-detail-kicker"><span className="event-detail-eyebrow">{item.category === 'project' ? 'PROJE DOSYASI' : 'ETKİNLİK DOSYASI'}</span><span className={`event-status-pill status-${item.status}`}>{item.statusLabel}</span></div>
+            <h1>{item.title}</h1>
+            {item.categoryLabel && <p className="event-detail-category">{item.categoryLabel}</p>}
           </div>
           <div className="employees-toolbar-actions">
             <div className="events-action-group events-action-group-lg" role="group" aria-label="İşlemler">
@@ -1059,9 +1055,12 @@ export function EventDetailPage() {
           <article><span>Etkinlik yeri</span><strong>{item.facilityName || item.address || 'Henüz belirtilmedi'}</strong><small>{item.organizingUnitName || 'Tesis ve konum bilgisi'}</small></article>
           <article><span>Katılım</span><strong>{item.actualAttendees != null ? `${item.actualAttendees.toLocaleString('tr-TR')} kişi` : item.expectedAttendees != null ? `${item.expectedAttendees.toLocaleString('tr-TR')} kişi bekleniyor` : 'Henüz belirtilmedi'}</strong><small>{item.categoryLabel || 'Etkinlik ve program bilgileri'}</small></article>
         </div>
-        <nav className="event-detail-nav" aria-label="Etkinlik bölümleri"><a href="#event-notes">Bilgi notları <span>↗</span></a><a href="#event-visuals">Afiş ve fotoğraflar <span>↗</span></a><a href="#event-details">Etkinlik ayrıntıları <span>↗</span></a></nav>
-        <EventInformationNotes eventId={item.id} />
-        <EventMediaPanel eventId={item.id} canManage={canManage} />
+        <nav className="event-detail-nav" aria-label="Etkinlik bölümleri"><a href="#event-notes">Bilgi notları <span aria-hidden="true">→</span></a><a href="#event-visuals">Afiş ve fotoğraflar <span aria-hidden="true">→</span></a><a href="#event-details">Etkinlik ayrıntıları <span aria-hidden="true">→</span></a></nav>
+        </section>
+        <div className="event-detail-documents">
+          <EventInformationNotes eventId={item.id} />
+          <EventMediaPanel eventId={item.id} canManage={canManage} />
+        </div>
 
         {(canManage || item.requirements?.trim()) && <section className="event-requirements">
           <div className="event-assets-heading"><div><h3>Talepler ve ihtiyaçlar</h3><p>Etkinlik için talep edilen hizmet ve malzemeler</p></div>{canManage && <Link className="btn-secondary" to={`/events/${item.id}/edit`}>Talepleri düzenle</Link>}</div>

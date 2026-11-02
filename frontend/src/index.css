@@ -1,3 +1,5 @@
+@import './styles/fonts.css';
+
 :root {
   --bg: #F7FAFB;
   --surface: #ffffff;
@@ -24,8 +26,10 @@
   --topbar-h: 3.9rem;
   --radius: 10px;
   --shadow: 0 10px 30px rgba(16, 42, 67, 0.08);
-  --font-sans: "Source Sans 3", "Segoe UI", Candara, "Trebuchet MS", sans-serif;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-family: var(--font-sans);
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
   color: var(--text);
   background: var(--bg);
   line-height: 1.45;
