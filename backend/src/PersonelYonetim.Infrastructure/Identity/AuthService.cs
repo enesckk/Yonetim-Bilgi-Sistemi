@@ -298,6 +298,7 @@ public sealed class AuthService : IAuthService
         DateTime absoluteExpiresAtUtc,
         CancellationToken cancellationToken)
     {
+        permissions = permissions.Where(p => PersonelYonetim.Domain.Authorization.EventAccessPolicy.Allows(p, roles)).ToArray();
         var (accessToken, accessExpires) = _tokenService.CreateAccessToken(
             user.Id,
             user.UserName,

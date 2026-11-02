@@ -78,8 +78,7 @@ public static class RolePermissionMatrix
             PermissionCodes.NotificationsView,
             PermissionCodes.MessagesUse,
             PermissionCodes.AuditLogsView,
-            PermissionCodes.EventsView,
-            PermissionCodes.EventsManage
+            PermissionCodes.EventsView
         ],
 
         // Müdür yardımcısı: yazma var; TCKN ve özel durum yok

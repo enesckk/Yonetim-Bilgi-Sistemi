@@ -78,6 +78,7 @@ public static class DbSeeder
 
         // Explicit user request: use existing real personnel and grant only custody management.
         await CustodyPermissionUpdate.SeedAsync(db, cancellationToken);
+        await DirectorEventViewUpdate.SeedAsync(db, cancellationToken);
         await OfficerAccountSeeder.SeedAsync(db, configuration, cancellationToken);
         await CustodyRealPersonnelUpdate.SeedAsync(db, logger, cancellationToken);
 

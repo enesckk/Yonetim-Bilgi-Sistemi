@@ -65,3 +65,9 @@ export function canUseEventsModule(user: CurrentUser | null | undefined): boolea
   if (user?.roles?.includes(OFFICER_ROLE)) return false
   return user?.permissions?.includes(PermissionCodes.EventsView) ?? false
 }
+
+/** Müdür etkinliklerde görüntüler; eski oturumdaki yazma izni de geçersizdir. */
+export function hasEffectivePermission(user: CurrentUser | null | undefined, code: string): boolean {
+  if (code === PermissionCodes.EventsManage && isDirector(user) && !isSystemAdmin(user)) return false
+  return user?.permissions.includes(code) ?? false
+}

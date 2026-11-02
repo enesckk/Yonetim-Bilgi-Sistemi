@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { hasEffectivePermission } from '@/auth/roles'
 import * as authApi from '@/api/authApi'
 import type { CurrentUser, SessionPolicy } from '@/api/types'
 import { ApiClientError, markSessionExpiredNotice, setSessionExpiredListener } from '@/api/client'
@@ -159,7 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user, armIdleWatcher, clearIdleTimer])
 
   const hasPermission = useCallback(
-    (code: string) => user?.permissions.includes(code) ?? false,
+    (code: string) => hasEffectivePermission(user, code),
     [user],
   )
 

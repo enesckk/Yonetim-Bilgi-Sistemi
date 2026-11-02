@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using PersonelYonetim.Domain.Authorization;
 using Microsoft.AspNetCore.Http;
 using PersonelYonetim.Application.Common.Interfaces;
 using PersonelYonetim.Infrastructure.Auth;
@@ -30,7 +31,8 @@ public sealed class CurrentUserService : ICurrentUserService
     public bool IsAuthenticated => User?.Identity?.IsAuthenticated == true;
 
     public IReadOnlyCollection<string> Permissions =>
-        User?.FindAll(JwtTokenService.PermissionClaimType).Select(c => c.Value).ToArray()
+        User?.FindAll(JwtTokenService.PermissionClaimType).Select(c => c.Value)
+            .Where(p => EventAccessPolicy.Allows(p, User.FindAll(ClaimTypes.Role).Select(c => c.Value))).ToArray()
         ?? Array.Empty<string>();
 
     public bool IsInRole(string roleCode) => IsAuthenticated && User?.IsInRole(roleCode) == true;

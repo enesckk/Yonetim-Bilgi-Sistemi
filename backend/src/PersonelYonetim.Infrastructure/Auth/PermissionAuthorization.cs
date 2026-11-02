@@ -20,6 +20,12 @@ public sealed class PermissionAuthorizationHandler : AuthorizationHandler<Permis
         AuthorizationHandlerContext context,
         PermissionRequirement requirement)
     {
+        if (requirement.Permission == PermissionCodes.EventsManage
+            && context.User.IsInRole(RoleCodes.Director) && !context.User.IsInRole(RoleCodes.SystemAdmin))
+        {
+            context.Fail();
+            return Task.CompletedTask;
+        }
         // Only admins and officers can manage custody, including with older tokens.
         if (requirement.Permission == PermissionCodes.StockCustodyManage && !context.User.IsInRole(RoleCodes.SystemAdmin) && !context.User.IsInRole(RoleCodes.Officer))
             return Task.CompletedTask;

@@ -19,3 +19,11 @@ Mevcut bilgi notu yetkisi olan kullanıcılar formda Word (.docx) veya PDF (5 MB
 Otomatik bildirim taraması 15 dakikada bir yayımlanmış/tamamlanmış etkinliklerde fotoğraf eksikliğini kontrol eder. Bitiş varsa bu zamanın geçmesi beklenir; bitişsiz tarih kayıtları İstanbul gün sonundan sonra değerlendirilir. İptal ve taslaklar dahil edilmez; afiş fotoğraf yerine sayılmaz. Etkinlik yönetme yetkisi olanlara genel yükleme hatırlatması gönderilir; bildirim etkinlik isimlerini açığa çıkarmaz ve kapsam denetimli listeye gider. Aynı hatırlatma yedi gün içinde tekrarlanmaz. Uygulama çalışırken tarama yapılır.
 
 Doğrulama: 75 ön yüz testi ve EventPhotoReminderTests, EventMediaTests, InformationNotesTests kapsamında 14 arka uç testi başarılı. Arka uç testleri yerelde kurulu .NET 10 üzerinde DOTNET_ROLL_FORWARD=Major ile çalıştırıldı. Ön yüz üretim derlemesi başarılı. Canlı ortamda tarayıcı ve dağıtım doğrulaması yapılmadı.
+
+## Müdür için görüntüleme
+
+Müdür rolü etkinlik, proje, bilgi notu ve etkinlik görsellerini görüntüler; Events.Manage izni müdür rolünden kaldırılır. Eski JWT yazma iddiaları hem API yetkilendirmesinde hem CurrentUserService içinde reddedilir. Yeni oturum ve yenilemede de yazma izni üretilmez. İstemcide aynı kural merkezî hasPermission üzerinden uygulanır; oluşturma, düzenleme, silme, yükleme, rapor değiştirme ve durum değiştirme seçenekleri görünmez. Sistem yöneticisinin mevcut izinleri korunur.
+
+Etkinlik dosyası görünümü tarih/yer/katılım kartları, bölüm bağlantıları, ekranda açılan bilgi notları, belge indirme ve büyütülebilir afiş/fotoğraflar içerir. Boş talepler ve boş katılımcı bölümleri görüntüleme ekranında yer kaplamaz; işlem geçmişi açılır bölümde sunulur.
+
+Doğrulama: 78 ön yüz testi; 187 arka uç testi başarılı, ortam bağımlı 11 test atlandı. DirectorEventAccessTests eski oturum, sunucu yetkilendirmesi, erişim koruması ve tekrar çalıştırılabilir rol düzeltmesini kapsar.

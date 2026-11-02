@@ -1,4 +1,5 @@
 import '@/styles/eventForm.css'
+import '@/styles/eventDetail.css'
 import { EventDateRange } from '@/components/EventDateRange'
 import { previewInformationNote, saveInformationNote, type NoteInput } from '@/api/informationNotesApi'
 import { CategoryCombobox } from '@/components/CategoryCombobox'
@@ -1011,12 +1012,12 @@ export function EventDetailPage() {
     : '/events/map'
 
   return (
-    <div className="events-page employees-page">
-      <section className="panel">
-        <div className="employees-toolbar">
+    <div className={`events-page employees-page event-detail-page${canManage ? '' : ' event-detail-readonly'}`}>
+      <section className="panel event-detail-surface">
+        <div className="employees-toolbar event-detail-heading">
           <div className="employees-toolbar-title">
             <div className="employees-toolbar-title-row">
-              <h2>{item.title}</h2>
+              <div><span className="event-detail-eyebrow">{item.category === 'project' ? 'PROJE DOSYASI' : 'ETKİNLİK DOSYASI'}</span><h1>{item.title}</h1></div>
               <span className={`event-status-pill status-${item.status}`}>{item.statusLabel}</span>
             </div>
             <p className="muted small employees-toolbar-lead">
@@ -1053,12 +1054,20 @@ export function EventDetailPage() {
 
         {error ? <p className="form-error">{error}</p> : null}
 
-        <section className="event-requirements">
+        <div className="event-detail-facts" aria-label="Etkinlik özeti">
+          <article><span>Tarih ve program</span><strong>{formatWhen(item.startAtUtc, item.isDateOnly)}</strong>{item.endAtUtc && <small>Bitiş: {formatWhen(item.endAtUtc, item.isDateOnly)}</small>}</article>
+          <article><span>Etkinlik yeri</span><strong>{item.facilityName || item.address || 'Henüz belirtilmedi'}</strong><small>{item.organizingUnitName || 'Tesis ve konum bilgisi'}</small></article>
+          <article><span>Katılım</span><strong>{item.actualAttendees != null ? `${item.actualAttendees.toLocaleString('tr-TR')} kişi` : item.expectedAttendees != null ? `${item.expectedAttendees.toLocaleString('tr-TR')} kişi bekleniyor` : 'Henüz belirtilmedi'}</strong><small>{item.categoryLabel || 'Etkinlik ve program bilgileri'}</small></article>
+        </div>
+        <nav className="event-detail-nav" aria-label="Etkinlik bölümleri"><a href="#event-notes">Bilgi notları <span>↗</span></a><a href="#event-visuals">Afiş ve fotoğraflar <span>↗</span></a><a href="#event-details">Etkinlik ayrıntıları <span>↗</span></a></nav>
+        <EventInformationNotes eventId={item.id} />
+        <EventMediaPanel eventId={item.id} canManage={canManage} />
+
+        {(canManage || item.requirements?.trim()) && <section className="event-requirements">
           <div className="event-assets-heading"><div><h3>Talepler ve ihtiyaçlar</h3><p>Etkinlik için talep edilen hizmet ve malzemeler</p></div>{canManage && <Link className="btn-secondary" to={`/events/${item.id}/edit`}>Talepleri düzenle</Link>}</div>
           <p className="event-requirements-body">{item.requirements?.trim() || 'Henüz talep veya ihtiyaç eklenmedi.'}</p>
-        </section>
-        <EventMediaPanel eventId={item.id} canManage={canManage} />
-        <EventParticipants names={item.participantNames ?? []} eventId={item.id} />
+        </section>}
+        {!!item.participantNames?.length && <EventParticipants names={item.participantNames} eventId={item.id} />}
 
         {canManage && transitions.length > 0 ? (
           <div className="events-status-flow" role="group" aria-label="Durum geçişleri">
@@ -1079,7 +1088,7 @@ export function EventDetailPage() {
           </div>
         ) : null}
 
-        <div className={`events-detail-layout${hasMap ? ' has-map' : ''}`}>
+        <div id="event-details" className={`events-detail-layout${hasMap ? ' has-map' : ''}`}>
           <div className="events-detail-grid">
             <article>
               <span>Açıklama</span>
@@ -1153,8 +1162,7 @@ export function EventDetailPage() {
           ) : null}
         </div>
 
-        <EventInformationNotes eventId={item.id} />
-
+        <details className="event-detail-history"><summary>Program ve işlem geçmişi</summary>
         <section className="events-timeline" aria-label="Zaman çizelgesi">
           <header className="events-timeline-head">
             <h3>Zaman çizelgesi</h3>
@@ -1190,6 +1198,7 @@ export function EventDetailPage() {
             </ul>
           )}
         </section>
+        </details>
       </section>
     </div>
   )

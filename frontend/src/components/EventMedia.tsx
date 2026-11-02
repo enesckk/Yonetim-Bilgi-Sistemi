@@ -282,14 +282,14 @@ export function EventMediaPanel({ eventId, canManage }: { eventId: string; canMa
     }
   }
   return (
-    <section className="event-assets">
+    <section id="event-visuals" className={`event-assets${canManage ? '' : ' event-assets-reading'}`}>
       <div className="event-assets-heading">
         <div>
           <h3>Afiş ve etkinlik görselleri</h3>
-          <p>Etkinliğin afişi ve fotoğraf arşivi</p>
+          <p>{canManage ? 'Etkinliğin afişi ve fotoğraf arşivi' : 'Afişi ve fotoğrafları büyütmek için görsele dokunun.'}</p>
         </div>
         <span className="event-assets-count">
-          {items.filter((i) => i.kind === 'photo').length} / 20 fotoğraf
+          {items.filter((i) => i.kind === 'photo').length}{canManage ? ' / 20' : ''} fotoğraf
         </span>
       </div>
       {error && (

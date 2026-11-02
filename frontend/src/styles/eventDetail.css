@@ -1,0 +1,44 @@
+.event-detail-surface { padding: clamp(20px, 3vw, 40px); }
+.event-detail-heading { align-items: flex-start; padding-bottom: 24px; border-bottom: 1px solid #e0e9e4; }
+.event-detail-heading .employees-toolbar-title { flex: 1; min-width: 0; }
+.event-detail-heading .employees-toolbar-title-row { flex-wrap: wrap; gap: 16px; }
+.event-detail-eyebrow { display: block; margin-bottom: 10px; color: #25835c; font-weight: 700; font-size: .72rem; letter-spacing: .14em; }
+.event-detail-heading h1 { margin: 0; font-size: clamp(1.35rem, 2vw, 2rem); line-height: 1.35; color: #203d31; overflow-wrap: anywhere; }
+.event-detail-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 24px 0 18px; }
+.event-detail-facts article { display: grid; align-content: start; gap: 8px; padding: 20px; background: #f5f9f7; border: 1px solid #e1ebe5; border-radius: 14px; }
+.event-detail-facts article > span { color: #697d72; font-size: .8rem; }
+.event-detail-facts strong { color: #274a37; font-size: 1rem; line-height: 1.5; overflow-wrap: anywhere; }
+.event-detail-facts small { color: #74847b; line-height: 1.5; }
+.event-detail-nav { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 26px; }
+.event-detail-nav a { display: flex; align-items: center; gap: 24px; padding: 11px 16px; background: #fff; border: 1px solid #dbe6df; border-radius: 9px; color: #286844; font-size: .88rem; font-weight: 600; text-decoration: none; }
+.event-detail-nav a:hover { background: #edf6f0; border-color: #84b89b; }
+.event-detail-page section[id], #event-details { scroll-margin-top: 100px; }
+.event-detail-page .event-information-notes { background: #fff; padding: 24px; margin: 22px 0; border-color: #dce7e0; }
+.event-note-card { border: 1px solid #dce7e0; border-radius: 12px; margin-top: 12px; overflow: hidden; }
+.event-note-card summary { display: flex; align-items: center; gap: 14px; cursor: pointer; padding: 18px; background: #f6faf7; }
+.event-note-card summary > div { min-width: 0; flex: 1; display: grid; gap: 6px; }
+.event-note-card summary strong { overflow-wrap: anywhere; color: #274a37; }
+.event-note-card summary b { color: #28764f; font-size: .8rem; font-weight: 600; }
+.event-note-mark { display: grid; place-items: center; background: #e6f1ea; border-radius: 10px; width: 42px; height: 48px; color: #25724b !important; font-size: 1.5rem !important; flex-shrink: 0; }
+.event-note-content { padding: 22px; }
+.event-note-body { white-space: pre-wrap; overflow-wrap: anywhere; color: #344c40; line-height: 1.85; max-height: 480px; overflow-y: auto; }
+.event-note-actions { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; padding-top: 18px; margin-top: 20px; border-top: 1px solid #e3ece6; }
+.event-assets-reading .event-assets-columns { grid-template-columns: minmax(240px, .8fr) minmax(0, 1.6fr); }
+.event-assets-reading .event-assets-box { background: #f8faf9; border-color: #e1e9e4; }
+.event-assets-reading .is-poster .event-media-preview { height: 420px; background: #edf2ef; }
+.event-assets-reading .event-media-preview img { transition: transform .2s ease; }
+.event-assets-reading .event-media-preview:hover img { transform: scale(1.025); }
+.event-assets-reading .event-media-empty { display: grid; place-items: center; min-height: 180px; border: 1px dashed #d6e2da; border-radius: 10px; }
+.event-detail-history { border-top: 1px solid #dfe9e2; margin-top: 26px; }
+.event-detail-history > summary { padding: 20px 0; cursor: pointer; color: #527160; font-weight: 600; }
+.event-detail-history .events-timeline { margin-top: 0; }
+@media (max-width: 760px) {
+  .event-detail-facts { grid-template-columns: 1fr; gap: 10px; }
+  .event-detail-facts article { padding: 15px; }
+  .event-detail-nav a { flex: 1; justify-content: space-between; }
+  .event-assets-reading .event-assets-columns { grid-template-columns: 1fr; }
+  .event-note-card summary { padding: 14px; gap: 10px; }
+  .event-note-content { padding: 16px; }
+  .event-detail-page .event-information-notes { padding: 16px; }
+}
+@media (prefers-reduced-motion: reduce) { .event-assets-reading .event-media-preview img { transition: none; } }
