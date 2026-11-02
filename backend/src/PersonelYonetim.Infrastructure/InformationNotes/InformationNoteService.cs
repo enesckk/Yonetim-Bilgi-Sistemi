@@ -27,7 +27,7 @@ public sealed class InformationNoteService(AppDbContext db, ICurrentUserService 
         var q = db.InformationNotes.AsNoTracking().Where(n => n.EventId == null || !n.Event!.IsDeleted);
         if (eventId is not null) q = q.Where(n => n.EventId == eventId);
         if (!string.IsNullOrWhiteSpace(search)) q = q.Where(n => n.Title.Contains(search) || n.Subject.Contains(search) || n.PreparedBy.Contains(search));
-        return await q.OrderByDescending(n => n.CreatedAtUtc).Select(n => new InformationNoteDto(n.Id, n.EventId, n.Event != null ? n.Event.Title : null, n.Title, n.DateText, n.Organizer, n.Subject, n.PreparedBy, "", n.FileName, n.CreatedAtUtc)).ToListAsync(ct);
+        return await q.OrderByDescending(n => n.CreatedAtUtc).Select(n => new InformationNoteDto(n.Id, n.EventId, n.Event != null ? n.Event.Title : null, n.Title, n.DateText, n.Organizer, n.Subject, n.PreparedBy, eventId != null ? n.Body : "", n.FileName, n.CreatedAtUtc)).ToListAsync(ct);
     }
     public async Task<InformationNoteDto> GetAsync(Guid id, CancellationToken ct = default)
     {

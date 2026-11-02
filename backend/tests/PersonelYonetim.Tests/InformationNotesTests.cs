@@ -68,7 +68,11 @@ public class InformationNotesTests
         Assert.Equal(source.Organizer, note.Organizer); Assert.Equal(source.PreparedBy, note.PreparedBy); Assert.Equal(project.Id, note.EventId);
         Assert.Equal(document, note.FileData); Assert.Empty(await db.EventSettlements.ToListAsync());
         var service = new InformationNoteService(db, Director);
-        Assert.Single(await service.ListAsync(project.Id, null)); Assert.Empty(await service.ListAsync(Guid.NewGuid(), null));
+        Assert.Equal(source.Body, Assert.Single(await service.ListAsync(project.Id, null)).Body);
+        Assert.Equal("", Assert.Single(await service.ListAsync(null, null)).Body);
+        var viewer = new InformationNoteService(db, new User(PermissionCodes.EventsView, PermissionCodes.EmployeesViewAllUnits));
+        Assert.Equal(source.Body, Assert.Single(await viewer.ListAsync(project.Id, null)).Body);
+        Assert.Empty(await service.ListAsync(Guid.NewGuid(), null));
         Assert.Equal(source.Body, (await service.GetAsync(note.Id)).Body);
         var download = await service.FileAsync(note.Id); Assert.NotEqual(document, download.Data); Assert.Equal(source.Body, InformationNoteDocuments.ReadWord(download.Data, download.Name).Body); Assert.Equal(InformationNoteDocuments.DocxType, download.Type);
         using var excel = new XLWorkbook(new MemoryStream(await service.ExcelAsync(note.Id)));
