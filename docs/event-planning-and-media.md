@@ -9,3 +9,13 @@ Formda seçilen dosyalar etkinlik kaydından sonra yüklenir. Yükleme başarıs
 `20261030020000_AddEventMedia` SQL Server ve PostgreSQL için yalnızca yeni Requirements sütunu ile EventMedia tablosunu ekler. Mevcut kayıtlar değişmez. Memurun etkinlik erişimi açılmaz; okuma yetkisi olan kullanıcılar dosyaları görür, Events.Manage sahibi kullanıcılar kendi kapsamlarında yönetir.
 
 Doğrulama: EventMediaTests dosya doğrulama, toplu yükleme atomikliği, afiş değiştirme/yeniden ekleme, galeri kotası, silinen etkinlik/dosya erişimi, yetki ve kapsam, taleplerin eski istemci güncellemelerinde korunması senaryolarını kapsar. Tarayıcıda 390, 820 ve 1440 pikselde oluşturma/düzenleme, önizleme, doğrulama, kimlik doğrulamalı dosya okuma ve başarısız yükleme sonrası tekrarsız kayıt denendi.
+
+## Pratik etkinlik girişi
+
+Form takviminde ilk ve son gün tıklanarak tarih aralığı seçilir. “3 günlük etkinlik” başlangıç dahil üç gün seçer; saatler ayrıca düzenlenir. Bitiş başlangıçtan önce olamaz. Kültür ve Kongre Merkezi, salonların bulunduğu gruptan “Merkezin tamamı” olarak da seçilebilir.
+
+Mevcut bilgi notu yetkisi olan kullanıcılar formda Word (.docx) veya PDF (5 MB) ekleyebilir veya metin yazarak not oluşturabilir. Word alanları mevcut belge okuma servisiyle doldurulur; PDF ekinde özet isteğe bağlıdır. Etkinlik önce kaydedilir; dosya veya not işlemi başarısızsa aynı etkinlik kimliği korunur. Seride not ilk etkinliğe bağlanır.
+
+Otomatik bildirim taraması 15 dakikada bir yayımlanmış/tamamlanmış etkinliklerde fotoğraf eksikliğini kontrol eder. Bitiş varsa bu zamanın geçmesi beklenir; bitişsiz tarih kayıtları İstanbul gün sonundan sonra değerlendirilir. İptal ve taslaklar dahil edilmez; afiş fotoğraf yerine sayılmaz. Etkinlik yönetme yetkisi olanlara genel yükleme hatırlatması gönderilir; bildirim etkinlik isimlerini açığa çıkarmaz ve kapsam denetimli listeye gider. Aynı hatırlatma yedi gün içinde tekrarlanmaz. Uygulama çalışırken tarama yapılır.
+
+Doğrulama: 75 ön yüz testi ve EventPhotoReminderTests, EventMediaTests, InformationNotesTests kapsamında 14 arka uç testi başarılı. Arka uç testleri yerelde kurulu .NET 10 üzerinde DOTNET_ROLL_FORWARD=Major ile çalıştırıldı. Ön yüz üretim derlemesi başarılı. Canlı ortamda tarayıcı ve dağıtım doğrulaması yapılmadı.

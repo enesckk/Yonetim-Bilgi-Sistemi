@@ -83,3 +83,11 @@
 .event-form-extra-content { padding:16px; min-width:0; }
 .event-form-extra-content > section { margin:0!important; border:0; padding:0; box-shadow:none; }
 @media(max-width:650px) { .event-form-extra > summary { gap:12px; padding:13px; } .event-form-extra > summary strong { font-size:11px; } .event-form-extra > summary small { font-size:10px; } .event-form-extra > summary > span { gap:7px; font-size:9px; } .event-form-extra-content { padding:13px; } }
+
+.event-range { border: 1px solid #dbe6df; border-radius: 12px; padding: 16px; min-width: 0; }
+.event-range-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.event-range-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin: 12px 0; max-width: 560px; }
+.event-range-grid > span { text-align: center; color: #627769; padding: 6px; }
+.event-range-grid > button { border: 1px solid #dbe6df; background: white; color: #294f39; border-radius: 6px; min-height: 40px; cursor: pointer; font: inherit; }
+.event-range-grid > button.is-selected { background: #ddefe2; border-color: #33955d; font-weight: 700; }
+.event-range-grid > button:focus-visible { outline: 3px solid #33955d; outline-offset: 1px; }

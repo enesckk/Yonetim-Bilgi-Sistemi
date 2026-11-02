@@ -1,4 +1,6 @@
 import '@/styles/eventForm.css'
+import { EventDateRange } from '@/components/EventDateRange'
+import { previewInformationNote, saveInformationNote, type NoteInput } from '@/api/informationNotesApi'
 import { CategoryCombobox } from '@/components/CategoryCombobox'
 import { eventCategoryOptions, projectCategoryOptions, resolveCategory } from '@/lib/eventCategories'
 import { EventMediaPicker, EventMediaPanel } from '@/components/EventMedia'
@@ -157,6 +159,13 @@ export function EventFormPage() {
   const [participantNames, setParticipantNames] = useState<string[]>([])
   const [participantsLoading, setParticipantsLoading] = useState(false)
   const savedId = useRef<string | null>(id ?? null)
+  const [noteLoading, setNoteLoading] = useState(false)
+  const noteFileSequence = useRef(0)
+  const [noteEnabled, setNoteEnabled] = useState(false)
+  const [noteFile, setNoteFile] = useState<File | null>(null)
+  const [noteDraft, setNoteDraft] = useState<NoteInput>({ title: '', eventId: null, dateText: '', organizer: '', subject: '', preparedBy: '', body: '' })
+  const noteSavedId = useRef<string | undefined>(undefined)
+  const canWriteNote = hasPermission(PermissionCodes.EmployeesViewAllUnits) && hasPermission(PermissionCodes.EventsView)
   const [poster, setPoster] = useState<File | null>(null)
   const [photos, setPhotos] = useState<File[]>([])
   const [mediaPending, setMediaPending] = useState(false)
@@ -165,6 +174,12 @@ export function EventFormPage() {
     setPoster(null)
     setPhotos([])
     setMediaPending(false)
+    setNoteEnabled(false)
+    setNoteFile(null)
+    setNoteLoading(false)
+    noteFileSequence.current++
+    noteSavedId.current = undefined
+    setNoteDraft({ title: '', eventId: null, dateText: '', organizer: '', subject: '', preparedBy: '', body: '' })
   }, [id])
   const statusTouched = useRef(false)
   const [initialStatus, setInitialStatus] = useState<EventStatus>(1)
@@ -332,7 +347,15 @@ export function EventFormPage() {
   }, [form.facilityId, form.startAtLocal, form.endAtLocal, form.isDateOnly, id])
 
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
-    setForm((prev) => ({ ...prev, [key]: value }))
+    setForm((prev) => {
+      const next = { ...prev, [key]: value }
+      if (!isEdit && !statusTouched.current && (key === 'endAtLocal' || key === 'isDateOnly')) {
+        const date = next.endAtLocal || next.startAtLocal
+        const finish = next.isDateOnly ? `${datePart(date)}T23:59:59` : date
+        next.status = new Date(finish).getTime() < Date.now() ? 4 : 2
+      }
+      return next
+    })
   }
 
   function setStartAtLocal(value: string) {
@@ -340,7 +363,7 @@ export function EventFormPage() {
       ...prev,
       startAtLocal: value,
       status: !isEdit && !statusTouched.current && value
-        ? (new Date(value).getTime() < Date.now() ? 4 : 2)
+        ? (new Date(prev.isDateOnly ? `${datePart(prev.endAtLocal || value)}T23:59:59` : prev.endAtLocal || value).getTime() < Date.now() ? 4 : 2)
         : prev.status,
     }))
   }
@@ -414,12 +437,24 @@ export function EventFormPage() {
       setMediaPending(true)
       throw new Error(`Etkinlik kaydedildi; bazı görseller yüklenemedi. Seçili dosyalar korunuyor. Kaydet'e basarak tekrar deneyin. ${err instanceof Error ? err.message : ''}`)
     }
+    if (noteEnabled && canWriteNote) {
+      try {
+        const note = await saveInformationNote({ ...noteDraft, title: noteDraft.title.trim() || form.title.trim(), dateText: noteDraft.dateText || datePart(form.startAtLocal), body: noteDraft.body.trim() || `Ekli bilgi notu: ${noteFile?.name ?? ''}`, eventId }, noteFile, noteSavedId.current)
+        noteSavedId.current = note.id
+        setNoteFile(null)
+      } catch (err) {
+        throw new Error(`Etkinlik kaydedildi; bilgi notu kaydedilemedi. Bilgiler korunuyor, Kaydet'e basarak tekrar deneyin. ${err instanceof Error ? err.message : ''}`)
+      }
+    }
     navigate(`/events/${eventId}`)
   }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
-    if (!canManage || participantsLoading) return
+    if (!canManage || participantsLoading || noteLoading) return
+    if (form.endAtLocal && (form.isDateOnly ? datePart(form.endAtLocal) < datePart(form.startAtLocal) : form.endAtLocal <= form.startAtLocal)) {
+      setError('Bitiş, başlangıçtan sonra olmalıdır.'); return
+    }
     setSaving(true)
     setError(null)
     try {
@@ -507,6 +542,7 @@ export function EventFormPage() {
                 <option value="">Seçiniz</option>
                 {venueCatalog.groups.map((g) => (
                   <optgroup key={g.parent.id} label={g.label}>
+                    <option value={g.parent.id}>{g.parent.name} · Merkezin tamamı</option>
                     {g.halls.map((h) => (
                       <option key={h.id} value={h.id}>
                         {h.name}
@@ -526,8 +562,12 @@ export function EventFormPage() {
                 ) : null}
               </select>
             </label>
+            <EventDateRange start={datePart(form.startAtLocal)} end={datePart(form.endAtLocal)} onChange={(start, end) => {
+              setStartAtLocal(combineLocal(start, timePart(form.startAtLocal)))
+              setField('endAtLocal', end ? combineLocal(end, timePart(form.endAtLocal, '18:00')) : '')
+            }} />
             <label>
-              {form.category === 'trip' ? 'Hareket tarihi *' : 'Tarih *'}
+              {form.category === 'trip' ? 'Hareket tarihi *'  : 'Tarih *'}
               <input
                 type="date"
                 value={datePart(form.startAtLocal)}
@@ -552,6 +592,7 @@ export function EventFormPage() {
               {form.category === 'trip' ? 'Dönüş tarihi' : 'Bitiş tarihi'}
               <input
                 type="date"
+                min={datePart(form.startAtLocal)}
                 value={datePart(form.endAtLocal)}
                 onChange={(e) =>
                   setField(
@@ -789,14 +830,49 @@ export function EventFormPage() {
             </details>
             <details className="event-form-extra span-2"><summary><div><strong>Katılımcı isim listesi</strong><small>İsim listesini Excel dosyasından ekleyin</small></div><span>{participantNames.length ? `${participantNames.length.toLocaleString('tr-TR')} isim` : 'İsteğe bağlı'} <b aria-hidden="true">⌄</b></span></summary><div className="event-form-extra-content"><EventParticipants names={participantNames} onChange={setParticipantNames} onBusyChange={setParticipantsLoading} disabled={saving} /></div></details>
             {!isEdit && form.recurrenceFrequency !== 0 && participantNames.length > 0 ? <p className="span-2 muted small">Katılımcı listesi seride oluşturulan her kayda eklenir; daha sonra her kayıtta ayrı düzenlenebilir.</p> : null}
+            {canWriteNote && <section className="event-range span-2">
+              <label className="event-date-only-choice"><input type="checkbox" checked={noteEnabled} onChange={e => setNoteEnabled(e.target.checked)} />Bilgi notu ekle / burada oluştur</label>
+              {noteEnabled && <div className="form-grid">
+                <label className="span-2">Word veya PDF (en fazla 5 MB)<input type="file" accept=".docx,.pdf" onChange={async e => {
+                  const sequence = ++noteFileSequence.current
+                  setNoteLoading(false)
+                  const file = e.target.files?.[0] ?? null
+                  if (file && (!/\.(docx|pdf)$/i.test(file.name) || file.size === 0 || file.size > 5 * 1024 * 1024)) { setError('Boş olmayan, en fazla 5 MB Word veya PDF dosyası seçin.'); e.target.value = ''; return }
+                  setNoteFile(file)
+                  if (!file || !file.name.toLowerCase().endsWith('.docx')) return
+                  setNoteLoading(true)
+                  try {
+                    const parsed = await previewInformationNote(file)
+                    if (sequence === noteFileSequence.current) setNoteDraft(p => ({
+                      ...p,
+                      title: p.title || parsed.title || '',
+                      dateText: p.dateText || parsed.dateText || '',
+                      organizer: p.organizer || parsed.organizer || '',
+                      subject: p.subject || parsed.subject || '',
+                      preparedBy: p.preparedBy || parsed.preparedBy || '',
+                      body: p.body || parsed.body || '',
+                    }))
+                  } catch {
+                    if (sequence === noteFileSequence.current) setError('Word alanları otomatik okunamadı. Belge ek olarak korunuyor; bilgi notunu aşağıdan yazabilirsiniz.')
+                  } finally { if (sequence === noteFileSequence.current) setNoteLoading(false) }
+                }} />{noteFile && <small>{noteFile.name}</small>}</label>
+                <label>Bilgi notu başlığı<input maxLength={200} value={noteDraft.title} placeholder={form.title} onChange={e => setNoteDraft(p => ({ ...p, title: e.target.value }))} /></label>
+                <label>Düzenleyen<input maxLength={300} value={noteDraft.organizer} onChange={e => setNoteDraft(p => ({ ...p, organizer: e.target.value }))} /></label>
+                <label>Konu<input maxLength={500} value={noteDraft.subject} onChange={e => setNoteDraft(p => ({ ...p, subject: e.target.value }))} /></label>
+                <label>Hazırlayan<input maxLength={300} value={noteDraft.preparedBy} onChange={e => setNoteDraft(p => ({ ...p, preparedBy: e.target.value }))} /></label>
+                <label className="span-2">Bilgi notu metni{noteFile ? ' (isteğe bağlı özet)' : ' *'}<textarea required={!noteFile} rows={6} maxLength={30000} value={noteDraft.body} placeholder="Bilgi notunu burada yazın veya eklediğiniz belgenin özetini girin." onChange={e => setNoteDraft(p => ({ ...p, body: e.target.value }))} /></label>
+                <p className="muted small span-2">Bilgi notu etkinlikle birlikte kaydedilir.{form.recurrenceFrequency !== 0 ? ' Serilerde ilk etkinliğe bağlanır.' : ''}</p>
+              </div>}
+            </section>}
+            <p className="span-2 muted small">Etkinlik sona erdiğinde fotoğraf eklenmemişse sistem görselleri yüklemeniz için bildirim oluşturur.</p>
             <details className="event-form-extra span-2"><summary><div><strong>Afiş ve fotoğraflar</strong><small>Afişi ve etkinlik fotoğraflarını ekleyin</small></div><span>{poster || photos.length ? `${(poster ? 1 : 0) + photos.length} dosya` : 'İsteğe bağlı'} <b aria-hidden="true">⌄</b></span></summary><div className="event-form-extra-content"><EventMediaPicker poster={poster} photos={photos} onPoster={setPoster} onPhotos={setPhotos} disabled={saving} /></div></details>
             {isEdit ? <p className="span-2 muted small">Mevcut afişi ve fotoğrafları etkinlik detayından görüntüleyebilir ve yönetebilirsiniz.</p> : null}
             {!isEdit && form.recurrenceFrequency !== 0 ? <p className="span-2 muted small">Afiş ve fotoğraflar serinin ilk kaydına eklenir.</p> : null}
             {mediaPending && savedId.current ? <p className="span-2" role="status">Etkinlik kaydı oluşturuldu. Görselleri tekrar yüklemek için Kaydet'e basın veya <Link to={`/events/${savedId.current}`}>kaydı görüntüleyin</Link>.</p> : null}
             <div className="form-actions span-2 event-form-savebar">
               <p>Bilgileri kontrol ederek kaydedin.<small>Kategori adını daha sonra düzenleyebilirsiniz.</small></p>
-              <button type="submit" className="btn-primary" disabled={saving || participantsLoading}>
-                {saving ? 'Kaydediliyor…' : isEdit ? 'Değişiklikleri kaydet' : project ? 'Projeyi kaydet' : 'Etkinliği kaydet'}
+              <button type="submit" className="btn-primary" disabled={saving || participantsLoading || noteLoading}>
+                {noteLoading ? 'Belge okunuyor…' : saving ? 'Kaydediliyor…' : isEdit ? 'Değişiklikleri kaydet' : project ? 'Projeyi kaydet' : 'Etkinliği kaydet'}
               </button>
             </div>
           </fieldset>

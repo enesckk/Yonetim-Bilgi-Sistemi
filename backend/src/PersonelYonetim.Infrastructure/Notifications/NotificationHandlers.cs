@@ -368,6 +368,27 @@ public sealed class NotificationScanService : INotificationScanService
                 $"Yarın: {ev.Title}");
         }
 
+        // A date without an end time expires at the end of its Istanbul calendar day.
+        var now = DateTime.UtcNow;
+        var istanbulTodayStartUtc = now.AddHours(3).Date.AddHours(-3);
+        var missingEventPhotos = await _db.Events.AsNoTracking()
+            .AnyAsync(e => (e.Status == EventStatus.Published || e.Status == EventStatus.Completed)
+                && ((e.EndAtUtc != null && e.EndAtUtc <= now)
+                    || (e.EndAtUtc == null && (e.Status == EventStatus.Completed || e.StartAtUtc < istanbulTodayStartUtc)))
+                && !_db.EventMedia.Any(m => m.EventId == e.Id && m.Kind == "photo"), cancellationToken);
+        if (missingEventPhotos)
+        {
+            // Keep event details inside the normal permission-scoped event screens.
+            await Emit(
+                PermissionCodes.EventsManage,
+                "Etkinlik görsellerini yükleyin",
+                "Sona eren etkinliklerin fotoğraflarını kontrol ederek eksik görselleri yükleyin. Etkinlik detayındaki Afiş ve fotoğraflar bölümünü kullanabilirsiniz.",
+                NotificationCategories.Events,
+                "/events/list",
+                NotificationSeverity.Warning,
+                "Etkinlik fotoğrafları için yükleme hatırlatması");
+        }
+
         return new NotificationScanResult
         {
             CreatedCount = created,
@@ -624,7 +645,7 @@ public sealed class NotificationScanHostedService : BackgroundService
 
             try
             {
-                await Task.Delay(TimeSpan.FromHours(6), stoppingToken);
+                await Task.Delay(TimeSpan.FromMinutes(15), stoppingToken);
             }
             catch (OperationCanceledException)
             {
