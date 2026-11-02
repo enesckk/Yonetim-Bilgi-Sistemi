@@ -1,0 +1,72 @@
+/* Information note archive and reader; isolated from shared button and form styles. */
+.information-notes-page { gap: 24px; color: #34433b; }
+.information-notes-page .information-notes-head { padding: 4px 2px 0; border: 0; background: transparent; box-shadow: none; gap: 20px; }
+.information-notes-page .information-notes-head h1 { margin: 0; color: #24322a; font-size: 27px; font-weight: 600; line-height: 1.4; letter-spacing: -.035em; }
+.information-notes-page .information-notes-head .muted { margin: 8px 0 0; color: #6e7b72; font-size: 13px; line-height: 1.7; }
+.information-notes-page .information-notes-eyebrow { margin-bottom: 8px !important; color: #758379; font-size: 11px; font-weight: 500; letter-spacing: .12em; }
+.information-notes-page .information-notes-head > .btn-primary { min-height: 38px; padding: 10px 15px; border: 1px solid #277b53; border-radius: 8px; background: #277b53; color: #fff; font-size: 12px; font-weight: 500; box-shadow: 0 2px 5px #1b4e3310; }
+.information-notes-page .information-notes-head > .btn-primary:hover { background: #216a47; border-color: #216a47; color: #fff; }
+.information-notes-page .information-notes-layout { grid-template-columns: minmax(240px, 280px) minmax(0, 1fr); gap: 22px; }
+.information-notes-page .information-notes-list { min-width: 0; padding: 18px 12px 12px; border: 1px solid #e1e8e3; border-radius: 12px; box-shadow: 0 3px 16px #183c2b03; position: sticky; top: calc(var(--topbar-h, 64px) + 20px); max-height: calc(100dvh - var(--topbar-h, 64px) - 50px); overflow-y: auto; scrollbar-width: thin; }
+.information-notes-list-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 0 6px 16px; }
+.information-notes-list-heading strong { font-size: 13px; font-weight: 600; letter-spacing: -.015em; }
+.information-notes-list-heading > span { display: grid; place-items: center; min-width: 24px; height: 22px; padding: 0 6px; border-radius: 5px; border: 1px solid #e7ece8; background: #f6f8f6; color: #7b887e; font-size: 11px; font-variant-numeric: tabular-nums; }
+.information-notes-page .information-notes-list > label { margin: 0 6px; gap: 7px; color: #758379; font-size: 11px; font-weight: 500; }
+.information-notes-page .information-notes-list input { min-height: 38px; padding: 9px 11px; border: 1px solid #e1e7e3; border-radius: 7px; background: #fcfdfc; color: #425348; font-size: 12px; font-weight: 400; }
+.information-notes-page .information-notes-list input::placeholder { color: #8b978e; font-weight: 400; }
+.information-notes-page .information-note-list-items { margin-top: 16px; gap: 6px; }
+.information-notes-page .information-note-list-items > button { padding: 15px 13px; gap: 8px; border: 1px solid transparent; border-radius: 8px; background: #fff; color: #48594d; box-shadow: none; cursor: pointer; transition: background .15s, border-color .15s; }
+.information-notes-page .information-note-list-items > button:hover { background: #f7faf8; }
+.information-notes-page .information-note-list-items > button.is-selected { border-color: #dbe8df; background: #f3f8f4; box-shadow: inset 2px 0 #4b9068; color: #345a41; }
+.information-notes-page .information-note-list-items strong { font-size: 13px; font-weight: 500; line-height: 1.7; letter-spacing: -.01em; }
+.information-notes-page .information-note-list-items span { font-size: 11px; color: #738277; font-variant-numeric: tabular-nums; }
+.information-notes-page .information-note-list-items small { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; color: #7c897f; font-size: 11px; line-height: 1.65; }
+.information-notes-page .information-note-all { margin: 12px 6px 0; color: #528467; font-size: 11px; }
+.information-notes-page .information-note-view { min-width: 0; padding: 30px 34px; border: 1px solid #e1e8e3; border-radius: 14px; background: #fff; box-shadow: 0 4px 22px #183c2b04; }
+.information-notes-page .information-note-view > header { display: block; padding-bottom: 23px; border-bottom: 1px solid #e9eeeb; }
+.information-notes-page .information-note-view h2 { max-width: 800px; margin: 0 0 12px; color: #2d3d32; font-size: 22px; font-weight: 600; letter-spacing: -.03em; line-height: 1.5; text-wrap: pretty; }
+.information-notes-page .information-note-view header a { display: inline-block; color: #72917c; font-size: 11px; line-height: 1.7; }
+.information-notes-page .information-note-view header a:hover { color: #286b48; text-decoration: underline; text-underline-offset: 3px; }
+.information-notes-page .information-note-actions { display: flex; align-items: center; gap: 8px; margin-top: 18px; }
+.information-notes-page .information-note-actions .btn-secondary { min-height: 34px; padding: 8px 12px; border: 1px solid #e0e7e2; border-radius: 7px; background: #fff; color: #65766a; font-size: 11px; font-weight: 500; line-height: 1.3; box-shadow: 0 1px 2px #183c2b03; }
+.information-notes-page .information-note-actions .btn-secondary:hover { border-color: #b9cdbf; background: #f7faf8; color: #365c44; }
+.information-notes-page .information-note-actions .note-download { border-color: #d5e5da; background: #f1f7f3; color: #37734e; }
+.information-notes-page .information-note-actions .note-download:hover { background: #e7f1eb; border-color: #a7c6b1; color: #285c3c; }
+.information-notes-page .information-note-actions .note-delete { color: #b14840; }
+.information-notes-page .information-note-actions .note-delete:hover { background: #fdf5f4; border-color: #edcfcc; color: #993a32; }
+.information-notes-page .information-note-metadata { margin: 0; padding: 21px 0; gap: 24px; border: 0; border-bottom: 1px solid #e9eeeb; border-radius: 0; background: #fff; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); }
+.information-notes-page .information-note-metadata dt { color: #78877c; font-size: 11px; font-weight: 500; }
+.information-notes-page .information-note-metadata dd { margin-top: 7px; color: #4e6254; font-size: 12px; line-height: 1.7; font-weight: 400; }
+.information-notes-page .information-note-body { max-width: 760px; margin: 28px auto 0; }
+.information-notes-page .information-note-body h3 { color: #8a968d; margin: 0 0 21px; font-size: 11px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; }
+.information-notes-page .information-note-body p { color: #4c5f52; font-size: 14px; font-weight: 400; letter-spacing: -.005em; line-height: 1.95; margin-bottom: 22px; }
+.information-notes-page .information-note-subject { display: grid; gap: 6px; padding-bottom: 18px; border-bottom: 1px solid #edf1ee; }
+.information-notes-page .information-note-subject strong { color: #7d8c81; font-size: 11px; font-weight: 500; }
+.information-note-signature { display: grid; gap: 8px; padding-top: 21px; margin: 30px auto 0; max-width: 760px; border-top: 1px solid #e9eeeb; }
+.information-note-signature span { color: #839187; font-size: 11px; }
+.information-note-signature strong { color: #687d6f; font-size: 12px; font-weight: 400; line-height: 1.7; }
+.information-notes-page .information-note-empty { padding: 35px 8px; color: #7d8c82; font-size: 12px; }
+.information-notes-page .information-note-empty h2 { font-size: 17px; font-weight: 500; }
+.information-notes-page :is(button, a, input, select, textarea):focus-visible { outline: 2px solid #75a187; outline-offset: 3px; }
+.information-notes-page .information-note-form.panel { border-color: #e1e8e3; box-shadow: 0 4px 22px #183c2b04; }
+.information-notes-page .information-note-form-heading h2 { font-weight: 600; letter-spacing: -.025em; }
+@media (max-width: 1000px) {
+  .information-notes-page .information-notes-layout { grid-template-columns: minmax(0, 1fr); }
+  .information-notes-page .information-notes-list { position: static; max-height: none; }
+  .information-notes-page .information-note-list-items { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .information-notes-page .information-note-view { padding: 25px; }
+}
+@media (max-width: 600px) {
+  .information-notes-page { gap: 18px; }
+  .information-notes-page .information-notes-head h1 { font-size: 24px; }
+  .information-notes-page .information-notes-list input { font-size: 16px; }
+  .information-notes-page .information-notes-head .muted { font-size: 12px; }
+  .information-notes-page .information-note-list-items { grid-template-columns: minmax(0, 1fr); }
+  .information-notes-page .information-note-view { padding: 21px 18px; }
+  .information-notes-page .information-note-view h2 { font-size: 20px; }
+  .information-notes-page .information-note-actions { width: auto; }
+  .information-notes-page .information-note-actions button { flex: 0 1 auto; }
+  .information-notes-page .information-note-metadata { grid-template-columns: 1fr; gap: 16px; }
+  .information-notes-page .information-note-body { margin-top: 22px; }
+}
+@media (prefers-reduced-motion: reduce) { .information-notes-page .information-note-list-items > button { transition: none; } }

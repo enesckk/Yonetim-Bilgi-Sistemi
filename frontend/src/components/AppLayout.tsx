@@ -369,7 +369,7 @@ export function AppLayout() {
 
   const showTopbarSearch = (() => {
     const path = location.pathname
-    if (path.startsWith('/events/reports')) return false
+    if (path === '/information-notes' || path.startsWith('/events/reports')) return false
     if (path === '/events/map' || path === '/messages' || path.startsWith('/events/settlements')) return false
     if (path === '/employees' || path === '/units' || path === '/facilities' || path === '/organization' || path === '/stock' || path.startsWith('/stock/') || path === '/custodies' || path === '/tasks') {
       return false

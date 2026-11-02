@@ -1,3 +1,4 @@
+import '@/styles/informationNotes.css'
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthContext'
@@ -221,10 +222,10 @@ export function InformationNotesPage() {
     <div className="information-notes-page">
       <section className={`panel information-notes-head${editing !== undefined ? ' information-notes-head--editing' : ''}`}>
         <div>
-          <p className="information-notes-eyebrow">Müdürlük</p>
+          <p className="information-notes-eyebrow">BELGE ARŞİVİ</p>
           <h1>Bilgi notları</h1>
           <p className="muted">
-            Proje ve etkinlikler için kurum şablonunda bilgi notları.
+            Etkinlik ve projelerin bilgi notlarını tek yerden inceleyin.
           </p>
         </div>
         {canManage && editing === undefined && (
@@ -348,7 +349,8 @@ export function InformationNotesPage() {
         </form>
       ) : (
         <div className="information-notes-layout">
-          <section className="panel information-notes-list">
+          <section className="panel information-notes-list" aria-label="Bilgi notu arşivi">
+            <div className="information-notes-list-heading"><strong>Belgeler</strong><span aria-live="polite">{loading ? '…' : visible.length}</span></div>
             <label>
               Bilgi notu ara
               <input
@@ -373,6 +375,7 @@ export function InformationNotesPage() {
                   <button
                     type="button"
                     key={n.id}
+                    aria-current={selectedId === n.id ? 'true' : undefined}
                     className={selectedId === n.id ? 'is-selected' : ''}
                     onClick={() => pick(n.id)}
                   >
@@ -395,9 +398,9 @@ export function InformationNotesPage() {
                       <Link to={'/events/' + selected.eventId}>{selected.eventTitle} ›</Link>
                     )}
                   </div>
-                  <div className="information-note-actions">
-                    <button className="btn-secondary" onClick={() => void download()}>
-                      Bilgi notu indir
+                  <div className="information-note-actions" aria-label="Bilgi notu işlemleri">
+                    <button className="btn-secondary note-download" onClick={() => void download()}>
+                      Belgeyi indir
                     </button>
                     {canManage && (
                       <>
@@ -409,7 +412,7 @@ export function InformationNotesPage() {
                           Düzenle
                         </button>
                         <button
-                          className="btn-secondary"
+                          className="btn-secondary note-delete"
                           disabled={busy}
                           onClick={() => void remove(selected)}
                         >
@@ -422,7 +425,7 @@ export function InformationNotesPage() {
                 <dl className="information-note-metadata">
                   {[
                     ['Tarih', selected.dateText],
-                    ['Konu', selected.subject],
+                    ['Düzenleyen', selected.organizer],
                   ].map(([k, v]) => (
                     <div key={k}>
                       <dt>{k}</dt>
@@ -431,11 +434,13 @@ export function InformationNotesPage() {
                   ))}
                 </dl>
                 <div className="information-note-body">
-                  <h3>Açıklama</h3>
+                  <h3>Not içeriği</h3>
+                  {selected.subject?.trim() && selected.subject.trim() !== selected.title.trim() && <p className="information-note-subject"><strong>Konu</strong>{selected.subject}</p>}
                   {selected.body.split(/\n+/).map((p, i) => (
                     <p key={i}>{p}</p>
                   ))}
                 </div>
+                {selected.preparedBy && <footer className="information-note-signature"><span>Hazırlayan</span><strong>{selected.preparedBy}</strong></footer>}
               </>
             ) : (
               <div className="information-note-empty">

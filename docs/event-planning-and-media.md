@@ -33,3 +33,5 @@ Doğrulama: 78 ön yüz testi; 187 arka uç testi başarılı, ortam bağımlı 
 Arayüz, Türkçe karakterleri destekleyen Inter 400–700 değişken fontunu yerel WOFF2 dosyalarından sunar; Latin ve Latin Extended alt kümeleri toplam yaklaşık 134 KB'dir. Lisans frontend/public/fonts/Inter-OFL.txt içindedir. Önceki harici font yükleme bağlantıları kaldırılmıştır.
 
 Etkinlik dosyasında daha ölçülü başlık, sade tarih/tesis/katılım şeridi ve bölüm bağlantıları kullanılır. Masaüstünde bilgi notu ve afiş iki sütundadır; dar ekranlarda tek sütuna geçilir. Not açma/daraltma durumu, bölüm bağlantısının seçili görünümü ve afiş önizlemesi korunur. Müdürün görüntüleme sınırı değişmez.
+
+Bilgi notları arşivi de aynı tipografi ve sade belge görünümünü kullanır. Sol belge listesi masaüstünde sabit konumda kalır; dar ekranda normal akışa geçer. Başlık, tarih/düzenleyen bilgileri ve metin ayrı bir okuma düzeninde sunulur; başlıkla aynı konu tekrar basılmaz, farklı konu ayrıca gösterilir. Hazırlayan bilgisi belgenin sonunda görünür. Bu sayfada aramayı tekrar eden üst arama alanı gösterilmez. Yetki kontrolleri ve indirme/kaydetme API'leri değişmez.
